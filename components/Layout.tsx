@@ -1,24 +1,150 @@
-import React, { ReactNode, useState, useEffect, useRef } from 'react';
+'use client';
+
+import React, { ReactNode, useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import LogoAnimated from "./LogoAnimated";
+import Link from 'next/link';
+import { UserIcon, ShoppingBagIcon } from '@heroicons/react/24/outline';
+import { useCart } from '../lib/hooks/useCart';
+// @ts-expect-error: No types for flubber
+import * as flubber from "flubber";
+
+// Imported components
+import CartPanel from './CartPanel';
+import CupgradesPanel from './CupgradesPanel';
+import NotificationBanner from './NotificationBanner';
+import NavMenu from './NavMenu';
+
+// Imported constants and utilities
+import { navLinks } from '../lib/constants';
+import { findMostPopularProduct, findSuperHealingProduct } from '../lib/productUtils';
+import { getHeaderTextClasses } from '../lib/styleUtils';
 
 interface LayoutProps {
   children: ReactNode;
   overlay?: ReactNode;
 }
 
-const navLinks = [
-  { name: 'Services', href: '#' },
-  { name: 'AI Mentor', href: '#' },
-];
+interface StripePrice {
+  id: string;
+  unit_amount: number | null;
+  currency: string;
+  recurring?: { interval: string };
+}
+
+interface StripeProduct {
+  id: string;
+  name: string;
+  description: string | null;
+  images: string[];
+  prices: StripePrice[];
+}
 
 const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuClosing, setMenuClosing] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
+  const [isScrolledAndNarrow, setIsScrolledAndNarrow] = useState(false);
+  const [isScrolledPast, setIsScrolledPast] = useState(false);
+  const [cartHovered, setCartHovered] = useState(false);
+  const [cartClosing, setCartClosing] = useState(false);
+  const [cupgradesHovered, setCupgradesHovered] = useState(false);
+  const [cupgradesClosing, setCupgradesClosing] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [products, setProducts] = useState<StripeProduct[]>([]);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLUListElement>(null);
+  const cartRef = useRef<HTMLDivElement>(null);
+  const cupgradesRef = useRef<HTMLDivElement>(null);
+  const logoRef = useRef<{ animateToNext: () => void }>(null);
+  const headerRef = useRef<HTMLElement>(null);
 
-  const toggleMenu = () => setMenuOpen((open) => !open);
-  const closeMenu = () => setMenuOpen(false);
+  // Dummy user data for development - replace with real auth later
+  const user = { 
+    id: 'dummy-user-id', 
+    email: 'dev@example.com', 
+    name: 'Dev User' 
+  };
+  const signOut = () => {
+    console.log('Sign out clicked - implement real auth later');
+    clearCart();
+  };
+
+  // Get centralized header text classes
+  const headerStyles = getHeaderTextClasses({ isScrolled, isScrolledAndNarrow });
+
+  // Scroll control for text containers
+  useEffect(() => {
+    const elements = document.querySelectorAll('[data-reveal]');
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+	if (entry.isIntersecting) {
+	  console.log('Animating:', entry.target); //test the listener
+          const el = entry.target as HTMLElement;
+          el.classList.remove('reveal-init');
+          el.classList.add(`animate-${el.dataset.reveal}`);
+          observer.unobserve(el);
+	}
+      });
+    }, { threshold: 0.1 });
+
+    elements.forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+  
+  // Optimize cart store selectors
+  const { items, clearCart, updateQuantity, removeItem, addItem } = useCart();
+
+  // Calculate total items in cart with useMemo
+  const totalItems = useMemo(() => 
+    items.reduce((sum, item) => sum + item.quantity, 0), 
+    [items]
+  );
+
+  // Fetch products for cart display
+  useEffect(() => {
+    fetch('/api/products')
+      .then((res) => res.json())
+      .then((data) => {
+        setProducts(data.products || []);
+      })
+      .catch((error) => {
+        console.error('Error fetching products:', error);
+      });
+  }, []);
+
+  // Find featured products using utility functions
+  const mostPopularProduct = useMemo(() => findMostPopularProduct(products), [products]);
+  const superHealingProduct = useMemo(() => findSuperHealingProduct(products), [products]);
+
+  const closeMenu = useCallback(() => {
+    if (menuOpen) {
+      setMenuClosing(true);
+      setTimeout(() => {
+        setMenuOpen(false);
+        setMenuClosing(false);
+      }, 300); // Match animation duration
+    }
+  }, [menuOpen]);
+
+  const closeCupgrades = useCallback(() => {
+    if (cupgradesHovered) {
+      setCupgradesClosing(true);
+      setTimeout(() => {
+        setCupgradesHovered(false);
+        setCupgradesClosing(false);
+      }, 300); // Match animation duration
+    }
+  }, [cupgradesHovered]);
+
+  const toggleMenu = () => {
+    if (menuOpen) {
+      closeMenu();
+    } else {
+      setMenuOpen(true);
+    }
+  };
 
   // Handle banner visibility with localStorage and expiration
   useEffect(() => {
@@ -82,9 +208,27 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
     };
   }, []);
 
+  // Add scroll and resize detection for mobile header background
+  useEffect(() => {
+    const check = () => {
+      const isNarrow = window.innerWidth < 1024; // Tailwind lg = 1024px
+      setIsScrolledAndNarrow(window.scrollY > 0 && isNarrow);
+      // 10% scroll logic
+      const scrollPercent = window.scrollY / (document.body.scrollHeight - window.innerHeight);
+      setIsScrolledPast(scrollPercent > 0.1);
+    };
+    window.addEventListener('scroll', check);
+    window.addEventListener('resize', check);
+    check();
+    return () => {
+      window.removeEventListener('scroll', check);
+      window.removeEventListener('resize', check);
+    };
+  }, []);
+
   // Add click outside effect to close menu
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen || menuClosing) return;
 
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -102,101 +246,238 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
     return () => {
       document.removeEventListener('click', handleClickOutside);
     };
-  }, [menuOpen]);
+  }, [menuOpen, menuClosing, closeMenu]);
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const closeCart = useCallback(() => {
+    if (cartHovered && !cartClosing) {
+      setCartClosing(true);
+      setTimeout(() => {
+        setCartHovered(false);
+        setCartClosing(false);
+      }, 300);
+    }
+  }, [cartHovered, cartClosing]);
+
+  // Modern CSS scrollbar-gutter handles layout shift prevention automatically
+  // This effect only manages scroll locking behavior
+  useEffect(() => {
+    if (cartHovered && !cartClosing) {
+      document.body.classList.add('scroll-locked');
+    } else {
+      document.body.classList.remove('scroll-locked');
+    }
+    
+    return () => {
+      document.body.classList.remove('scroll-locked');
+    };
+  }, [cartHovered, cartClosing]);
+
+  // Cupgrades scroll lock effect
+  useEffect(() => {
+    if (cupgradesHovered && !cupgradesClosing) {
+      document.body.classList.add('scroll-locked');
+    } else {
+      document.body.classList.remove('scroll-locked');
+    }
+    
+    return () => {
+      document.body.classList.remove('scroll-locked');
+    };
+  }, [cupgradesHovered, cupgradesClosing]);
+
+  // Hide wireframes globally - can be commented out to restore borders
+  useEffect(() => {
+    document.body.classList.add('hide-wireframes');
+    
+    return () => {
+      document.body.classList.remove('hide-wireframes');
+    };
+  }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#dfe0df] font-['Roboto','Poppins',sans-serif]">
+    <div className="min-h-screen flex flex-col bg-surface font-sans">
       {/* Notification Banner */}
-      {showBanner && (
-        <div 
-          className="fixed top-0 left-0 w-full bg-[#565e77] bg-opacity-30 text-white z-30 flex items-center justify-between px-4 py-3 transition-all duration-300 ease-in-out backdrop-blur-sm animate-slide-down"
-          style={{ backdropFilter: 'blur(4px)' }}
-        >
-          <p className="text-sm md:text-base font-medium mx-auto pr-10">
-            Now booking sessions for summer 2025! Limited slots available.
-          </p>
-          <button 
-            onClick={dismissBanner}
-            className="absolute right-4 text-white hover:text-[#dfe0df] transition-colors"
-            aria-label="Dismiss notification"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          </button>
-        </div>
-      )}
+      <NotificationBanner 
+        show={showBanner}
+        onDismiss={dismissBanner}
+      />
 
       {/* Fixed Header with scroll animation */}
       <header 
-        className={`fixed ${showBanner ? 'top-[41px]' : 'top-0'} left-0 w-full border-b border-[#565e77] flex items-center justify-center z-20 transition-all duration-300 ease-in-out bg-transparent ${
-          isScrolled ? 'h-[3.6rem]' : 'h-[4rem]'
-        }`}
+        ref={headerRef}
+        className={`fixed ${showBanner ? 'top-[41px]' : 'top-0'} left-0 w-full border-b border-transparent flex items-center justify-center z-20 transition-all duration-300 ease-in-out bg-neutral-clear ${
+          isScrolled ? 'h-[5.4rem]' : 'h-[6rem]'
+        }${isScrolledAndNarrow ? ' scrolled' : ''}`}
       >
-        <nav className={`w-full max-w-5xl flex items-center justify-between px-4 transition-all duration-300 ${
+        <nav className={`w-full max-w-5xl xl:max-w-none xl:mx-0 flex items-center justify-between px-4 xl:px-12 transition-all duration-300 ${
           isScrolled ? 'py-2' : 'py-0'
         }`}>
-          <span className={`font-bold text-[#565e77] transition-all duration-300 ${
-            isScrolled ? 'text-base' : 'text-lg'
-          }`}>Header (Fixed)</span>
-          {/* Desktop Nav */}
-          <ul className="hidden md:flex gap-x-6">
-            {navLinks.map((link) => (
-              <li key={link.name}>
-                <a href={link.href} className={`text-[#565e77] font-medium hover:underline transition-all duration-300 ${
-                  isScrolled ? 'text-sm' : 'text-base'
-                }`}>
-                  {link.name}
-                </a>
-              </li>
-            ))}
-          </ul>
-          {/* Mobile Hamburger */}
-          <button
-            ref={menuButtonRef}
-            className={`md:hidden flex flex-col justify-center items-center relative z-30 transition-all duration-300 ${
-              isScrolled ? 'w-9 h-9' : 'w-10 h-10'
-            }`}
-            aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
-            onClick={toggleMenu}
-          >
-            <span
-              className={`block w-6 h-0.5 bg-[#565e77] transition-all duration-300 ${menuOpen ? 'rotate-45 translate-y-1.5' : ''}`}
-            />
-            <span
-              className={`block w-6 h-0.5 bg-[#565e77] my-1 transition-all duration-300 ${menuOpen ? 'opacity-0' : ''}`}
-            />
-            <span
-              className={`block w-6 h-0.5 bg-[#565e77] transition-all duration-300 ${menuOpen ? '-rotate-45 -translate-y-1.5' : ''}`}
-            />
-          </button>
-          {/* Mobile Menu Dropdown */}
-          {menuOpen && (
-            <ul 
-              ref={menuRef}
-              className={`absolute left-0 w-full border-t border-[#565e77] shadow-md flex flex-col items-center py-4 gap-y-4 md:hidden animate-fade-in z-20 transition-all duration-300 ${
-                isScrolled ? 'top-[3.6rem]' : 'top-[4rem]'
-              }`}
-              style={{ backgroundColor: 'rgba(223, 224, 223, 0.7)', backdropFilter: 'blur(4px)' }}
+          {/* Left: Hamburger Menu and Search - now always visible */}
+          <div className="flex items-center gap-3">
+            <button
+              ref={menuButtonRef}
+              className={`flex flex-col justify-center items-center relative z-30 transition-all duration-300 ${headerStyles.iconSize} ${headerStyles.textColor} group`}
+              aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              onClick={toggleMenu}
             >
-              {navLinks.map((link) => (
-                <li key={link.name}>
-                  <a
-                    href={link.href}
-                    className="text-[#565e77] text-lg font-medium hover:underline"
-                    onClick={closeMenu}
+              <span
+                className={`block w-6 h-0.5 bg-current transition-all duration-300 ${
+                  menuOpen ? 'rotate-45 translate-y-1.5' : 'group-hover:translate-y-[-2px]'
+                }`}
+              />
+              <span
+                className={`block w-6 h-0.5 my-1 bg-current transition-all duration-300 ${
+                  menuOpen ? 'opacity-0' : ''
+                }`}
+              />
+              <span
+                className={`block w-6 h-0.5 bg-current transition-all duration-300 ${
+                  menuOpen ? '-rotate-45 -translate-y-1.5' : 'group-hover:translate-y-[2px]'
+                }`}
+              />
+            </button>
+
+            {/* Search/Magnifying Glass Icon */}
+            <div 
+              ref={cupgradesRef}
+              className="relative group"
+            >
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  setCupgradesHovered(!cupgradesHovered);
+                }}
+                className={`flex items-center justify-center transition-all duration-300 ${headerStyles.iconSize} ${headerStyles.textColor} hover:opacity-70`}
+                aria-label="Discover Cupgrades"
+              >
+                <svg 
+                  className="w-5 h-5" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                  strokeWidth="2"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.35-4.35" />
+                </svg>
+              </button>
+              
+              {/* Tooltip */}
+              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-1 bg-neutral-border text-surface-background rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity z-40 whitespace-nowrap">
+                Discover Cupgrades
+              </div>
+            </div>
+          </div>
+
+          {/* Center: Goodcup Title */}
+          <div className="flex items-center">
+            <Link href="/" className={`font-light transition-all duration-300 ${headerStyles.logoSize} ${headerStyles.textColor} hover:opacity-80`}
+            style={{ height: '90%', lineHeight: '1' }}>
+              Goodcup
+            </Link>
+          </div>
+
+          {/* Right: Cart and Account Icons */}
+          <div className="flex items-center gap-4">
+            {/* Account Icon */}
+            <div className={user ? 'relative group' : 'relative group'}>
+              {user ? (
+                <>
+                  <Link href="/dashboard" className={`font-medium hover:underline transition-all duration-300 transition-colors ${headerStyles.navSize} ${headerStyles.textColor} flex items-center hover:opacity-70`}>
+                    <UserIcon className="h-6 w-6" aria-label="Dashboard" />
+                  </Link>
+                  <button
+                    onClick={() => { signOut(); clearCart(); }}
+                    className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-1 bg-neutral-border text-surface-background rounded shadow text-xs opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity z-40"
+                    style={{ pointerEvents: 'auto' }}
                   >
-                    {link.name}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
+                    Dashboard
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link href="/dashboard" className={`font-medium hover:underline transition-all duration-300 transition-colors ${headerStyles.navSize} ${headerStyles.textColor} hover:opacity-70`}>
+                    <UserIcon className="h-6 w-6" aria-label="Dashboard" />
+                  </Link>
+                  {/* Tooltip for non-logged in users */}
+                  <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-1 bg-neutral-border text-surface-background rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity z-40 whitespace-nowrap">
+                    Dashboard
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Cart Icon with hover popup */}
+            <div 
+              ref={cartRef}
+              className="relative"
+            >
+              <button
+                onClick={(e) => {
+                    e.preventDefault();
+                    setCartHovered(!cartHovered);
+                }}
+                className={`font-medium hover:underline transition-all duration-300 transition-colors ${headerStyles.navSize} ${headerStyles.textColor} relative flex items-center cursor-pointer`}
+              >
+                {/* Simple Shopping Cart Icon to match image */}
+                <svg 
+                  className="h-6 w-6" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                  strokeWidth="2"
+                  aria-label="Cart"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17" />
+                  <circle cx="9" cy="20" r="1" />
+                  <circle cx="20" cy="20" r="1" />
+                </svg>
+                
+                {/* Item Count Circle */}
+                {totalItems > 0 && (
+                  <span className="cart-count-badge">
+                    {totalItems}
+                  </span>
+                )}
+              </button>
+
+              {/* Cart Hover Popup */}
+              {(cartHovered || cartClosing) && (
+                <CartPanel
+                  items={items}
+                  cartClosing={cartClosing}
+                  onClose={closeCart}
+                  cartActions={{ updateQuantity, removeItem }}
+                  products={products}
+                />
+              )}
+            </div>
+
+            {/* Cupgrades Panel */}
+            {(cupgradesHovered || cupgradesClosing) && (
+              <CupgradesPanel
+                products={products}
+                cupgradesClosing={cupgradesClosing}
+                onClose={closeCupgrades}
+                addItem={addItem}
+              />
+            )}
+          </div>
         </nav>
       </header>
 
       {/* Main Content Area - adjust padding-top based on header size and banner visibility */}
-      <main className={`flex-1 w-full px-0 pb-16 bg-[#dfe0df] transition-all duration-300 ${
+      <main className={`flex-1 w-full px-0 bg-surface transition-all duration-300 ${
         showBanner 
           ? (isScrolled ? 'pt-[6.5rem]' : 'pt-[7rem]') 
           : (isScrolled ? 'pt-[4.5rem]' : 'pt-[5rem]')
@@ -205,24 +486,45 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
       </main>
 
       {/* Footer */}
-      <footer className="fixed bottom-0 left-0 w-full h-12 bg-[#dfe0df] border-t border-[#565e77] flex items-center justify-center z-10">
-        <span className="text-sm text-[#565e77]">Footer (Fixed)</span>
+      <footer className="w-full h-36 bg-brand-dark border-t border-neutral-border flex flex-col items-center justify-start z-10 relative">
+        {/* Animated Logo at top-center of footer */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 text-surface-background">
+          <div onClick={() => logoRef.current?.animateToNext()} style={{ cursor: 'pointer' }}>
+          <LogoAnimated ref={logoRef} />
+          </div>
+        </div>
+        
+        <div className="flex-1 flex items-center justify-center">
+          <span className="text-sm text-surface-background">Footer (Fixed)</span>
+        </div>
+        
         {/* Developer reset button, subtle and unobtrusive */}
         <button 
           onClick={() => window.resetNotificationBanner?.()}
-          className="absolute right-4 text-[#565e77] opacity-30 hover:opacity-100 text-xs"
+          className="absolute right-4 bottom-4 text-surface-background opacity-30 hover:opacity-100 text-xs"
           aria-label="Reset notification banner (developer only)"
         >
           Reset Banner
         </button>
+        {/* Preview for Tailwind JIT */}
+        <div className="text-surface-background" style={{position: 'absolute', left: -9999}}>Preview text</div>
       </footer>
 
       {/* Overlay/Modal Placeholder */}
       {overlay && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black bg-opacity-30">
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-neutral-foreground bg-opacity-30">
           {overlay}
         </div>
       )}
+
+      {/* Full-width Banner Dropdown Menu */}
+      <NavMenu
+        menuOpen={menuOpen}
+        menuClosing={menuClosing}
+        navLinks={navLinks}
+        showBanner={showBanner}
+        isScrolled={isScrolled}
+      />
     </div>
   );
 };

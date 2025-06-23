@@ -1,11 +1,17 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap');
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 🎨 CSS CUSTOM PROPERTIES - Essential root variables only */
 :root {
+  /* Base theme colors - synchronized with Tailwind config */
   --background: #ffffff;
   --foreground: #171717;
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: Arial, Helvetica, sans-serif;
+  
+  /* Font families */
+  --font-sans: 'Manrope', Arial, Helvetica, sans-serif;
   --font-mono: monospace;
 }
 
@@ -16,27 +22,431 @@
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans);
+/* 🔤 REFINED BASE TYPOGRAPHY - Using new text tokens */
+html, body {
+  background: theme('colors.surface.DEFAULT');
+  color: theme('colors.text.primary'); 
+  font-family: theme('fontFamily.sans');
+  font-weight: theme('fontWeight.light');
+  font-size: theme('fontSize.base');
+  line-height: theme('lineHeight.normal');
+  /* Comprehensive horizontal scroll prevention */
+  overflow-x: hidden;
+  width: 100%;
+  position: relative;
 }
 
-/* Animation utilities */
+/* Mobile-specific overscroll prevention */
+html {
+  overscroll-behavior-x: none;
+  touch-action: pan-y pinch-zoom;
+}
+
+body {
+  overscroll-behavior-x: none;
+}
+
+/* Global font consistency for Manrope */
+* {
+  font-family: theme('fontFamily.sans') !important;
+}
+
+/* Targeted horizontal scroll prevention */
+body {
+  position: relative;
+}
+
+/* Root container constraints - more specific */
+#__next {
+  overflow-x: hidden;
+  position: relative;
+  width: 100%;
+}
+
+/* Typography hierarchy with new text colors */
+h1, h2, h3, h4, h5, h6 {
+  font-family: theme('fontFamily.heading') !important;
+  /* color: theme('colors.text.primary'); */
+  color: inherit;
+  font-weight: theme('fontWeight.normal');
+  line-height: theme('lineHeight.tight');
+  letter-spacing: theme('letterSpacing.tight');
+}
+
+/* Preserve intentional font weights */
+b, strong {
+  font-weight: theme('fontWeight.semibold') !important;
+  /* color: theme('colors.text.primary'); */
+  color: inherit;
+}
+
+/* Secondary text elements */
+p {
+  /* color: theme('colors.text.secondary'); */
+  color: inherit;
+  line-height: theme('lineHeight.normal');
+  font-weight: theme('fontWeight.light');
+}
+
+/* Small and muted text */
+small, .text-small {
+  color: theme('colors.text.tertiary');
+  font-size: theme('fontSize.sm');
+  font-weight: theme('fontWeight.light');
+}
+
+/* Caption and fine print */
+.caption, figcaption {
+  color: theme('colors.text.muted');
+  font-size: theme('fontSize.caption');
+  font-weight: theme('fontWeight.medium');
+  letter-spacing: theme('letterSpacing.wide');
+  text-transform: uppercase;
+}
+
+/* 🎬 ANIMATIONS - Keyframe definitions */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-in-out;
-}
-
 @keyframes slideDown {
-  from { transform: translateY(-100%); }
-  to { transform: translateY(0); }
+  from { 
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to { 
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
-.animate-slide-down {
-  animation: slideDown 0.4s ease-out;
+@keyframes slideUp {
+  from { 
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to { 
+    transform: translateY(-20px);
+    opacity: 0;
+  }
 }
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutLeft {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+@keyframes backdropFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes backdropFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes slideInFromRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slideInFromLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+@keyframes blurSlideUp {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+.animate-blur-slide {
+  animation: blurSlideUp 0.8s ease-out forwards;
+}
+
+@keyframes fadeScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-scale {
+  animation: fadeScaleIn 0.3s ease-out forwards;
+}
+
+/* 🎨 COMPONENT UTILITIES - Reusable patterns */
+.site-section-bg {
+  background-image: linear-gradient(to top, 
+    theme('colors.brand.dark'), 
+    #91594c, 
+    #a35e4a, 
+    #b56448, 
+    #c66a44, 
+    #d1794e, 
+    #db8858, 
+    theme('colors.surface.elevated'), 
+    #edb082, 
+    #f3c8a4, 
+    #f9dfc7, 
+    theme('colors.surface.DEFAULT')
+  );
+}
+
+.balanced-container {
+  @apply mx-auto px-8 sm:px-12 lg:px-16 max-w-5xl;
+}
+
+.section-container {
+  @apply border border-neutral-border p-4 bg-surface;
+}
+
+.text-block {
+  @apply border border-neutral-border p-4 bg-surface font-sans;
+}
+
+/* 🎯 BEHAVIORAL UTILITIES */
+.scrolled {
+  background-color: rgba(86,94,119,0.65);
+  color: #fff;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  transition: background-color 0.3s, backdrop-filter 0.3s;
+}
+
+.text-background {
+  color: theme('colors.surface.DEFAULT');
+}
+
+.bg-light .text-background {
+  color: black;
+}
+
+.bg-dark .text-background {
+  color: theme('colors.surface.DEFAULT');
+}
+
+/* 🎨 INTERACTIVE COMPONENTS */
+.dropdown-item {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-item span {
+  display: inline-block;
+  transition: transform 0.2s ease-out;
+}
+
+.dropdown-item:hover span {
+  transform: translateY(-2px);
+}
+
+.dropdown-item::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background-color: theme('colors.brand.primary');
+  transition: width 0.3s ease;
+}
+
+.dropdown-item:hover::after {
+  width: 100%;
+}
+
+/* 🛒 CART & INTERACTIVE ELEMENTS */
+.cart-count-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: theme('colors.brand.secondary');
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  z-index: 10;
+}
+
+.cupgrade-button, .accent-button {
+  @apply bg-brand-primary text-white px-4 py-2 rounded transition-colors duration-200;
+}
+
+.cupgrade-button:hover, .accent-button:hover {
+  @apply bg-brand-primary-light;
+}
+
+.accent-button:disabled {
+  @apply bg-neutral-muted cursor-not-allowed;
+}
+
+/* 🔧 UTILITY CLASSES */
+.light-gray {
+  @apply text-neutral-muted;
+}
+
+.dark-gray {
+  @apply text-neutral-border;
+}
+
+.top-zone, .mid-zone {
+  @apply text-neutral-border;
+}
+
+.bottom-zone {
+  @apply text-surface-background;
+}
+
+/* 📱 RESPONSIVE & BEHAVIOR */
+@media (max-aspect-ratio: 11/12) {
+  .about-stack {
+    flex-direction: column !important;
+  }
+}
+
+.scroll-locked {
+  overflow: hidden;
+}
+
+/* 🧹 DEBUG & DEVELOPMENT */
+html {
+  scroll-behavior: smooth;
+}
+
+.hide-wireframe-borders {
+  border: none !important;
+}
+
+.hide-wireframe-borders * {
+  border: none !important;
+}
+
+body.hide-wireframes .border,
+body.hide-wireframes .border-t,
+body.hide-wireframes .border-b,
+body.hide-wireframes .border-l,
+body.hide-wireframes .border-r,
+body.hide-wireframes .border-x,
+body.hide-wireframes .border-y,
+body.hide-wireframes .border-2,
+body.hide-wireframes .border-4,
+body.hide-wireframes .border-8 {
+  border: none !important;
+}
+
+/* 🛒 CART & CUPGRADES ITEM ANIMATIONS - Now handled by Framer Motion */
+/* .cart-item and .cupgrade-item animations removed - using Framer Motion instead */
+
+/* 🌊 SCROLL SHADOWS - Subtle visual indication when content extends under anchored sections */
+.scroll-shadow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(to top, rgba(86, 94, 119, 0.15) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 15;
+}
+
+.scroll-shadow-cart {
+  bottom: 0;
+}
+
+.scroll-shadow-cupgrades {
+  bottom: 0;
+}
+
+/* 🎭 HORIZONTAL FADE MASK UTILITY - Creates left/right edge fade effects */
+.mask-fade-sides {
+  /* Mobile fade width: 15% on each side */
+  -webkit-mask-image: linear-gradient(to right, 
+    transparent 0%, 
+    black 10%, /* Mobile left fade width - adjust percentage to control fade area */
+    black 90%, /* Mobile right fade start - should be (100% - left fade width) */
+    transparent 100%
+  );
+  mask-image: linear-gradient(to right, 
+    transparent 0%, 
+    black 10%, /* Mobile left fade width - adjust percentage to control fade area */
+    black 90%, /* Mobile right fade start - should be (100% - left fade width) */
+    transparent 100%
+  );
+}
+
+/* Desktop responsive fade widths */
+@media (min-width: 768px) {
+  .mask-fade-sides {
+    /* Desktop fade width: 12% on each side */
+    -webkit-mask-image: linear-gradient(to right, 
+      transparent 0%, 
+      black 30%, /* Desktop left fade width - adjust percentage to control fade area */
+      black 70%, /* Desktop right fade start - should be (100% - left fade width) */
+      transparent 100%
+    );
+    mask-image: linear-gradient(to right, 
+      transparent 0%, 
+      black 30%, /* Desktop left fade width - adjust percentage to control fade area */
+      black 70%, /* Desktop right fade start - should be (100% - left fade width) */
+      transparent 100%
+    );
+  }
+}
+

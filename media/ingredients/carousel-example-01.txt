@@ -1,0 +1,249 @@
+HTML
+
+<main>  
+  <div id="picker" class="picker">
+    <div class="cell">
+      <div class="cell-content">Card 1</div>
+    </div>     
+    <div class="cell">
+      <div class="cell-content">Card 2</div>
+    </div>  
+    <div class="cell">
+      <div class="cell-content">Card 3</div>
+    </div>  
+    <div class="cell">
+      <div class="cell-content">Card 4</div>
+    </div>  
+    <div class="cell">
+      <div class="cell-content">Card 5</div>
+    </div>  
+    <div class="cell">
+      <div class="cell-content">Card 6</div>
+    </div> 
+  </div>  
+</main>
+
+            <div class="selector">
+                <span id="dot1" class="dot dot1" data-idx="1">  </span>
+                <span id="dot2" class="dot dot2"  data-idx="2">  </span>
+                <span id="dot3" class="dot dot3"  data-idx="3">  </span>
+                <span id="dot4" class="dot dot4"  data-idx="4">  </span>
+                <span id="dot5" class="dot dot5"  data-idx="5">  </span>
+                <span id="dot6" class="dot dot6"  data-idx="6">  </span>                
+                
+            </div>
+
+
+SCSS
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  min-height: 100%;
+  font-family: Roboto,sans-serif;
+  background: #fff;
+}
+
+main {
+  display: flex;
+  position: relative;
+  flex-direction: column;
+  width: 100vw;
+  height: 80vh;
+  overflow: hidden;
+  align-items: center;
+  justify-content: center;
+}
+
+.cell {  
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  font-size: 26px;
+  font-weight: 500;
+  color: rgba(0,0,0,0.87);
+  color: rgba(0,0,0,0.92);
+  user-select: none;  
+  display: flex;
+  align-items: center;
+  justify-content: center;    
+  background: #eee;
+  height: 100%;
+  transform-origin: center bottom;
+}
+
+.cell-content {}
+
+.picker {
+  position: relative;
+  overflow: hidden;  
+  width: 80vw; //225px;
+  height: 90vh;
+  border-radius: 2px;
+  background-color: #fff;  
+  box-shadow: 
+    0 2px 4px -1px rgba(0,0,0,.2), 
+    0 4px 5px 0 rgba(0,0,0,.14), 
+    0 1px 10px 0 rgba(0,0,0,.12);
+}
+.dot{
+    width:11px;
+    height:11px;
+    border-radius: 50%;
+    margin:10px;
+    border:1px solid #BB9704;
+    position: relative;
+    display: inline-block;
+    transition: .3s ease all;
+    -webkit-transition: .3s ease all;
+    cursor: pointer;
+}
+
+.dot:hover{
+    background: #BB9704;
+    -webkit-transition: .3s ease all;
+    
+}
+
+.dot:after{
+    content: "";
+    width: 70%;
+    height: 70%;
+    border-radius: 50%;
+    background: #BB9704;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    background: #BB9704;
+    -webkit-transition: .3s ease all;    
+}
+
+.dot.active:after{
+    opacity: 1;
+    background: #BB9704;
+    -webkit-transition: .3s ease all;    
+}
+.selector {
+  text-align:center;
+  margin:10px;
+}
+
+
+
+JS
+
+
+import $ from "https://cdn.skypack.dev/jquery@3.6.0";
+gsap.defaults({
+  ease: "none"
+});
+
+var picker = document.querySelector(".picker");
+var cells = document.querySelectorAll(".cell");
+var proxy = document.createElement("div");
+
+var cellWidth = 450;
+//var rotationX = 90;
+
+var numCells = cells.length;
+var cellStep = 1 / numCells;
+var wrapWidth = cellWidth * numCells;
+
+var baseTl = gsap.timeline({ paused: true });
+
+gsap.set(picker, {
+  //perspective: 1100,
+  width: wrapWidth - cellWidth
+});
+
+for (var i = 0; i < cells.length; i++) {
+  initCell(cells[i], i);
+}
+
+var animation = gsap
+  .timeline({ repeat: -1, paused: true })
+  .add(baseTl.tweenFromTo(1, 2));
+animation.progress(1, true).progress(0, true);
+var draggable = new Draggable(proxy, {
+  // allowContextMenu: true,
+  type: "x",
+  trigger: picker,
+  inertia: true,
+  onDrag: updateProgress,
+  onThrowUpdate: updateProgress,
+  snap: {
+    x: snapX
+  },
+  onThrowComplete: function () {
+    console.log("onThrowComplete");
+    //TODO: animation that inject selected card title
+  },
+  onPress() {
+    // this.update()
+    
+    // let progress = animation.progress();
+    // let x = progress * wrapWidth;
+    gsap.set(proxy, {
+      x: animation.progress() * wrapWidth
+    });
+    this.update();    
+  },
+});
+
+function snapX(x) {
+  return Math.round(x / cellWidth) * cellWidth;
+}
+const wrap = gsap.utils.wrap(0, 1);
+function updateProgress() {
+  animation.progress(wrap(this.x / wrapWidth));
+}
+
+function initCell(element, index) {
+  gsap.set(element, {
+    width: cellWidth,
+    scale: 1,
+    yPercent: -60,
+    //rotationX: rotationX,
+    x: -cellWidth
+  });
+
+  var tl = gsap
+    .timeline({ repeat: 1 })
+    .to(
+      element,
+      { duration: 1, x: "+=" + wrapWidth /*, rotationX: -rotationX*/ },
+      0
+    )
+    .to(
+      element,
+      {
+        duration: cellStep,
+        color: "#009688",
+        yPercent: 0,
+        scale: 1,
+        repeat: 1,
+        yoyo: true
+      },
+      0.5 - cellStep
+    );
+
+  baseTl.add(tl, i * -cellStep);
+}
+$(".selector .dot").click(function () {
+  var ix = $(this).data("idx");
+
+  gsap.to(animation, 1, {
+    progress: cellStep * ix,
+    ease: Back.easeOut,
+    // onComplete: completeAnimation()
+  });
+});
+function completeAnimation(){
+  draggable.update(true);
+}

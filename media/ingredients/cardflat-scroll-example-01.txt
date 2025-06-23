@@ -1,0 +1,51 @@
+HTML
+<section></section>
+<div class="img-carousel">
+  <img src="https://placehold.co/600x400" alt="" />
+  <img src="https://placehold.co/600x400" alt="" />
+  <img src="https://placehold.co/600x400" alt="" />
+  <img src="https://placehold.co/600x400" alt="" />
+  <img src="https://placehold.co/600x400" alt="" />
+</div>
+<section></section>
+<section></section>
+<section></section>
+<section></section>
+<section></section>
+<section></section>
+
+body {
+  margin: 0;
+  padding: 0;
+  /*   height: 300vh; */
+  /* overflow-x: hidden; */
+  background-color: #161616;
+}
+
+section {
+  display: grid;
+  place-content: center;
+  height: 100vh;
+}
+
+.img-carousel {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+}
+
+JS
+let cont = document.querySelector(".img-carousel");
+gsap.to("img", {
+  ease: "none",
+  x: () => -(cont.scrollWidth - window.innerWidth),
+  scrollTrigger: {
+    trigger: cont,
+    pin: cont,
+    start: "center center",
+    end: () => "+=" + (cont.scrollWidth - window.innerWidth),
+    scrub: true,
+    invalidateOnRefresh: true,
+    markers: true,
+  }
+});
