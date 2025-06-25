@@ -6,7 +6,7 @@ interface VisitorContextType {
   jwt: string | null;
   isReady: boolean;
 }
-
+//git test
 const VisitorContext = createContext<VisitorContextType | undefined>(undefined);
 
 interface VisitorProviderProps {
