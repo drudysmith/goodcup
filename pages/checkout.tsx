@@ -7,7 +7,7 @@
 // - Uses local customer info state to simulate user identity
 
 import { useEffect, useState } from 'react';
-import { useCart, CartItem } from '../lib/hooks/useCart';
+import { useCartStore, CartItem } from '../store/cartStore';
 
 interface StripePrice {
   id: string;
@@ -40,7 +40,8 @@ interface CustomerInfo {
 type CheckoutStage = 'information' | 'shipping';
 
 export default function Checkout() {
-  const { items, clearCart } = useCart();
+  const items = useCartStore((s) => s.items);
+  const clearCart = useCartStore((s) => s.clearCart);
   const [products, setProducts] = useState<StripeProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(false);

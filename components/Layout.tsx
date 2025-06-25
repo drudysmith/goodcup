@@ -4,7 +4,7 @@ import React, { ReactNode, useState, useEffect, useRef, useCallback, useMemo } f
 import LogoAnimated from "./LogoAnimated";
 import Link from 'next/link';
 import { UserIcon, ShoppingBagIcon } from '@heroicons/react/24/outline';
-import { useCart } from '../lib/hooks/useCart';
+import { useCartStore } from '../store/cartStore';
 // @ts-expect-error: No types for flubber
 import * as flubber from "flubber";
 
@@ -94,7 +94,11 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   }, []);
   
   // Optimize cart store selectors
-  const { items, clearCart, updateQuantity, removeItem, addItem } = useCart();
+  const items = useCartStore((state) => state.items);
+  const clearCart = useCartStore((state) => state.clearCart);
+  const updateQuantity = useCartStore((state) => state.updateQuantity);
+  const removeItem = useCartStore((state) => state.removeItem);
+  const addItem = useCartStore((state) => state.addItem);
 
   // Calculate total items in cart with useMemo
   const totalItems = useMemo(() => 
@@ -459,6 +463,7 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
                   onClose={closeCart}
                   cartActions={{ updateQuantity, removeItem }}
                   products={products}
+                  isOpen={cartHovered}
                 />
               )}
             </div>

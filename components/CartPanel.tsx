@@ -1,7 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import VisitorIdentPopup from './VisitorIdentPopup';
-import { getSupabaseClientWithAuth } from '../lib/supabaseClient';
 
 interface CartItem {
   productId: string;
@@ -35,6 +33,7 @@ interface CartPanelProps {
   onClose: () => void;
   cartActions: CartActions;
   products: StripeProduct[];
+  isOpen: boolean;
 }
 
 const CartPanel: React.FC<CartPanelProps> = ({ 
@@ -42,28 +41,12 @@ const CartPanel: React.FC<CartPanelProps> = ({
   cartClosing, 
   onClose, 
   cartActions,
-  products 
+  products,
+  isOpen
 }) => {
-  const [showIdentPopup, setShowIdentPopup] = useState(false);
+  // Visitor tracking functionality has been removed
 
-  // Check if we need to show the identity popup
-  useEffect(() => {
-    const checkVisitorIdentity = async () => {
-      const supabase = getSupabaseClientWithAuth();
-      const { data: visitor } = await supabase
-        .from('visitors')
-        .select('name, email, phone')
-        .single();
-
-      // If we have no identity info, show the popup
-      if (!visitor?.name && !visitor?.email && !visitor?.phone) {
-        console.log('📝 Visitor identity not found - showing identity popup');
-        setShowIdentPopup(true);
-      }
-    };
-
-    checkVisitorIdentity();
-  }, []);
+  // Visitor contact tracking effects have been removed
 
   // Helper to get product/price info for cart items
   const getProductAndPrice = (item: CartItem) => {
@@ -323,11 +306,6 @@ const CartPanel: React.FC<CartPanelProps> = ({
         )}
       </div>
 
-      {/* Visitor Identity Popup */}
-      <VisitorIdentPopup 
-        show={showIdentPopup} 
-        onDismiss={() => setShowIdentPopup(false)} 
-      />
     </>
   );
 };

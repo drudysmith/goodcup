@@ -1,10 +1,10 @@
 import Layout from '../components/Layout';
 import Section from '../components/Section';
-import { useCart } from '../lib/hooks/useCart';
+import { useCartStore } from '../store/cartStore';
 import { useState } from 'react';
 
 export default function ManDust() {
-  const { addItem } = useCart();
+  const addItem = useCartStore((state) => state.addItem);
   const [selectedPlan, setSelectedPlan] = useState('monthly');
 
   // Dummy product data for Man Dust
