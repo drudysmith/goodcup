@@ -104,7 +104,7 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   const addItem = useCartStore((state) => state.addItem);
 
   // Visitor context for contact info popup
-  const { visitorData, isReady: visitorReady } = useVisitor();
+  const { visitorId, visitorData, isReady: visitorReady, updateVisitorIdentity } = useVisitor();
 
   // Calculate total items in cart with useMemo
   const totalItems = useMemo(() => 
@@ -291,10 +291,57 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
     }
   }, [cartHovered, visitorReady, visitorData]);
 
-  const handleContactInfoSubmit = (contactInfo: { email: string; phone?: string; name?: string }) => {
-    // This will be connected to Module 4 in the next implementation
-    console.log('Contact info ready for Module 4:', contactInfo);
-    setShowContactPopup(false);
+  const handleContactInfoSubmit = async (contactInfo: { email: string; phone?: string; name?: string }) => {
+    if (!visitorId) {
+      console.error('Cannot submit contact info: no visitor ID');
+      return;
+    }
+
+    try {
+      console.log('📡 Submitting contact info to Module 4 API:', contactInfo);
+      
+      const response = await fetch('/api/visitor/identify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          visitor_id: visitorId,
+          email: contactInfo.email,
+          phone: contactInfo.phone,
+          name: contactInfo.name
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.merged) {
+          console.log(`🔁 Merge result: updated visitor_id ${data.visitor_id} and JWT`);
+        } else {
+          console.log(`📝 Enriched visitor_id ${data.visitor_id} with contact info`);
+        }
+
+        // Update visitor identity in context and localStorage
+        updateVisitorIdentity(data.visitor_id, data.jwt, {
+          name: data.visitor.name,
+          email: data.visitor.email,
+          phone: data.visitor.phone,
+          cart: data.visitor.cart
+        });
+
+        setShowContactPopup(false);
+        console.log('✅ Contact info merge completed successfully');
+        
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to submit contact info:', errorData.error);
+        // Could show user-facing error here
+      }
+    } catch (error) {
+      console.error('Error submitting contact info:', error);
+      // Could show user-facing error here
+    }
   };
 
   // Modern CSS scrollbar-gutter handles layout shift prevention automatically

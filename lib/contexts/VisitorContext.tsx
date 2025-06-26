@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { useCartStore } from '../../store/cartStore';
 console.log('>> initializing visitor context');
 interface VisitorData {
   name: string | null;
@@ -13,6 +14,7 @@ interface VisitorContextType {
   jwt: string | null;
   visitorData: VisitorData | null;
   isReady: boolean;
+  updateVisitorIdentity: (newVisitorId: string, newJwt: string, newVisitorData: VisitorData) => void;
 }
 
 const VisitorContext = createContext<VisitorContextType | undefined>(undefined);
@@ -26,6 +28,54 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
   const [jwt, setJwt] = useState<string | null>(null);
   const [visitorData, setVisitorData] = useState<VisitorData | null>(null);
   const [isReady, setIsReady] = useState(false);
+
+  // Cart sync state and refs
+  const cartSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSyncedCartRef = useRef<string>('');
+
+  // Get cart items from store
+  const cartItems = useCartStore((state) => state.items);
+
+  // Function to update visitor identity after merge/identify
+  const updateVisitorIdentity = (newVisitorId: string, newJwt: string, newVisitorData: VisitorData) => {
+    console.log('🔁 Updating visitor identity:', {
+      oldVisitorId: visitorId,
+      newVisitorId,
+      newJwt: '***' + newJwt.slice(-8)
+    });
+
+    // Update localStorage
+    localStorage.setItem('visitor_id', newVisitorId);
+    localStorage.setItem('visitor_jwt', newJwt);
+    console.log('💾 Updated localStorage with resolved identity');
+
+    // Update state
+    setVisitorId(newVisitorId);
+    setJwt(newJwt);
+    setVisitorData(newVisitorData);
+  };
+
+  // Function to sync cart to database
+  const syncCartToDatabase = async (cart: object, jwtToken: string) => {
+    try {
+      const response = await fetch('/api/visitor/updateCart', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${jwtToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ cart }),
+      });
+
+      if (response.ok) {
+        console.log('🛒 Cart synced to database');
+      } else {
+        console.error('Failed to sync cart:', response.status);
+      }
+    } catch (error) {
+      console.error('Error syncing cart:', error);
+    }
+  };
 
   useEffect(() => {
     const initializeVisitor = async () => {
@@ -101,6 +151,13 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
               phone: data.visitor.phone,
               cart: data.visitor.cart
             });
+
+            // Hydrate cart store if visitor has saved cart data
+            if (data.visitor.cart && Array.isArray(data.visitor.cart)) {
+              console.log('🛒 Hydrating cart from database:', data.visitor.cart.length, 'items');
+              // Note: Cart hydration would be handled by the store if needed
+              // For now, we just log the available cart data
+            }
           } else {
             // Invalid JWT - clear and restart
             console.log('⚠️ Invalid JWT — clearing localStorage, restarting auth');
@@ -135,8 +192,43 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
     initializeVisitor();
   }, []);
 
+  // Effect to sync cart changes to database
+  useEffect(() => {
+    // Only sync if visitor is authenticated and ready
+    if (!isReady || !jwt || !visitorId) {
+      return;
+    }
+
+    // Convert cart items to JSON string for comparison
+    const currentCartJson = JSON.stringify(cartItems);
+    
+    // Skip if cart hasn't changed
+    if (currentCartJson === lastSyncedCartRef.current) {
+      return;
+    }
+
+    // Clear existing timeout
+    if (cartSyncTimeoutRef.current) {
+      clearTimeout(cartSyncTimeoutRef.current);
+    }
+
+    // Debounce cart sync by 1 second to avoid rapid API calls
+    cartSyncTimeoutRef.current = setTimeout(() => {
+      console.log('🔄 Cart changed, syncing to database...');
+      lastSyncedCartRef.current = currentCartJson;
+      syncCartToDatabase(cartItems, jwt);
+    }, 1000);
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (cartSyncTimeoutRef.current) {
+        clearTimeout(cartSyncTimeoutRef.current);
+      }
+    };
+  }, [cartItems, jwt, visitorId, isReady]);
+
   return (
-    <VisitorContext.Provider value={{ visitorId, jwt, visitorData, isReady }}>
+    <VisitorContext.Provider value={{ visitorId, jwt, visitorData, isReady, updateVisitorIdentity }}>
       {children}
     </VisitorContext.Provider>
   );
@@ -149,7 +241,7 @@ export const useVisitor = () => {
   }
   
   // Smart console log in the hook to show what we have
-  console.log('🔍 useVisitor hook called - Current state:', {
+  /*console.log('🔍 useVisitor hook called - Current state:', {
     visitorId: context.visitorId,
     jwt: context.jwt ? '***' + context.jwt.slice(-8) : null,
     visitorData: context.visitorData ? { 
@@ -159,7 +251,7 @@ export const useVisitor = () => {
       hasCart: !!context.visitorData.cart 
     } : null,
     isReady: context.isReady
-  });
+  });*/
   
   return context;
 }; 

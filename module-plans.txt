@@ -75,6 +75,36 @@ Log:
 💾 Updated localStorage with resolved identity
 
 
+Module 4.1: Cart Persistence
+Below are suggested steps to implement automatic cart persistence for visitors, keeping the rest of the module plan intact.
+1. Create an API route to update a visitor’s cart
+Add a new handler at pages/api/visitor/updateCart.ts.
+It should:
+Require POST.
+Read the JWT from the Authorization: Bearer header (same as in validate.ts).
+Verify the token using process.env.SUPABASE_JWT_SECRET.
+Extract visitor_id from the token.
+Update the cart column of the visitors table for that visitor_id.
+Return success or an error.
+init.ts already inserts a visitor with cart: null on first registration.
+validate.ts returns the cart when validating the JWT, so the new endpoint should mirror this pattern.
+2. Sync the cart on the client
+Within a React effect that has access to both the JWT and the cart items:
+Import useCartStore and select items.
+Debounce or throttle to avoid rapid requests.
+Whenever items changes and the visitor is authenticated, POST the cart JSON to /api/visitor/updateCart with the
+Handle errors gracefully (logging, possibly retrying).
+The VisitorContext already hydrates visitorData with the cart on validation, so an additional effect in this context (or a hook used globally) can watch for cart changes.
+3. Keep module flow unchanged
+No structural changes are needed for modules 5‑8. They already assume the visitors table holds the latest cart so that module 6 can merge it into a user profile. Adding the update endpoint and client sync simply ensures the cart field remains current.
+4. Development tips
+Reuse the service‑role Supabase client from lib/supabaseClient.ts.
+Reuse JWT verification logic from validate.ts to keep security consistent.
+Document the new endpoint and any new environment variables.
+Write a small test or console log to confirm that cart updates appear in the visitors table.
+By isolating the cart synchronization to a dedicated API route and a lightweight client effect, you can add persistent cart storage without altering the existing module plan. This keeps the upcoming modules (5‑8) focused on user authentication and session management while ensuring visitor carts are always saved and ready to merge when a visitor becomes a full user.
+
+
 ✅ Module 4.5: Checkout Mode Toggle UI
 Goal: Let user choose between guest (visitor) or full user checkout.
 UI Placement:
@@ -168,6 +198,27 @@ Return same visitor_id and new JWT (optional)
 Frontend replaces local values
 Update visitor_id + JWT in localStorage and memory
 
+Module 4.1: Cart Persistence
+Summary: Persist visitor carts to the backend to ensure seamless merging during full auth.
+Notes:
+Create POST API route: /api/visitor/updateCart
+Require JWT in Authorization: Bearer <token> header
+Verify JWT using process.env.SUPABASE_JWT_SECRET
+Extract visitor_id from token
+Update cart column in visitors table
+On client:
+Use useCartStore to track cart items
+Debounce sync effect to POST cart JSON to backend when items change and visitor is authed
+Hook can live in VisitorContext or be used globally
+No changes needed for modules 5–8
+They already assume cart is in DB and ready to merge
+Dev tips:
+Reuse service-role Supabase client from lib/supabaseClient.ts
+Use same JWT verification as validate.ts
+Confirm updates with a test or console log
+Document any new env vars
+
+This approach keeps cart persistence isolated and secure without disrupting the broader auth module flow.
 Module 4.5: Checkout Mode Toggle UI
 Summary: Let user choose between guest (visitor) or full user checkout.
 Notes:
