@@ -1,0 +1,212 @@
+✅ Module 1: Visitor ID Lifecycle
+Goal: Generate or retrieve a visitor_id from localStorage. No backend or JWT yet.
+Check localStorage
+If visitor_id exists: store it in memory
+Log: ✅ Found visitor_id in localStorage: <id>
+If not found:
+giving you context is all for now
+Generate a UUID
+Store it in memory (do not write to localStorage yet)
+Log: 🆕 No visitor_id found in storage — generated new one: <id>
+
+
+✅ Module 2: Visitor Record + JWT Retrieval
+Goal: Send visitor_id to backend, insert anonymous visitor record, return JWT, and store both.
+Send visitor_id to backend
+Log: 📡 Sending visitor_id to backend for registration: <id>
+Backend inserts new visitor record
+Returns a JWT linked to the visitor_id
+Store values
+Save visitor_id + JWT in localStorage
+Update in-memory state
+Log:
+✅ Visitor record created — JWT received
+💾 Stored visitor_id and JWT in localStorage
+
+
+Module 3: Returning Visitor Validation
+Goal: On page load, verify JWT and hydrate app for returning visitor.
+Check for existing localStorage values
+If both visitor_id and jwt exist → proceed
+Log: 🔁 Found visitor_id + JWT in localStorage — verifying with backend
+Use JWT to fetch visitor record via Supabase
+Do not use setSession
+Pass JWT in Authorization: Bearer <jwt> header
+RLS-secured fetch << Supabase
+If valid
+  Hydrate app with contact info, cart, etc.
+  Log: ✅ Valid JWT — visitor authed
+If invalid (401/403)
+  Clear visitor_id and jwt from localStorage, restart auth
+  Log: ⚠️ Invalid JWT — clearing localStorage, restarting auth
+
+
+✅ Popup Module: Build Contact Info Popup UI
+Goal: Create a triggerable UI to collect contact info.
+Trigger
+When user clicks cart or tries to start checkout
+Log: 🛒 User triggered contact info collection
+Popup shows input fields
+Email (required)
+Phone (optional)
+Name (optional)
+User clicks submit → pass info + visitor_id to Module 4
+Log: 📨 Contact info submitted from popup
+
+
+✅ Module 4: Triggered Contact Info Merge
+Goal: Merge visitor into existing user identity, or enrich their visitor record.
+POST to /api/visitor/identify
+Payload: visitor_id, email, phone, name
+<< supabase (via API route)
+Server checks DB
+If contact info matches an existing record:
+Merge current visitor into that record
+Return updated visitor_id + new JWT
+Else:
+Update current visitor record with submitted info
+Return same visitor_id and new JWT (optional)
+Frontend replaces local values
+Update visitor_id + JWT in localStorage and memory
+Log:
+🔁 Merge result: updated visitor_id <id> and JWT
+💾 Updated localStorage with resolved identity
+
+
+✅ Module 4.5: Checkout Mode Toggle UI
+Goal: Let user choose between guest (visitor) or full user checkout.
+UI Placement:
+Inline toggle next to/above checkout button
+Default State:
+Toggle defaults to “Check out as user”
+Options:
+“Check out as user” (triggers Module 5 on click)
+“Continue as guest” (bypasses Module 5, proceeds to Stripe with visitor context)
+Log on interaction:
+🧭 Checkout mode selected: <user | guest>
+Downstream control:
+On checkout button click → branch to Module 5 (user) or Stripe flow using visitor_id + JWT (guest)
+
+
+✅ Module 5: User Auth Trigger
+Goal: Allow visitor to choose full user auth (sign in/up) before checkout.
+Trigger:
+User selects “Check out as user” option
+If already signed in (has session):
+Log: ✅ User already authed — skipping sign-in flow
+If not signed in:
+Show auth UI (magic link, email/pass, etc.)
+Log: 🔐 User opted for full auth — showing auth modal
+
+
+✅ Module 6: Auth Completion + Visitor Merge
+Goal: On successful auth, merge visitor data (cart, contact, etc.) into full user profile.
+On auth success:
+Log: ✅ Full user auth complete — checking for visitor merge
+Send current visitor_id to backend
+Backend merges visitor record (cart, contact, etc.) into user
+Log: 🔁 Merging visitor data into user account for visitor_id <id>
+Clear local visitor_id and jwt from localStorage
+Use Supabase session (no longer soft-auth JWT)
+Hydrate app with user context
+Log: 🧹 Cleared visitor tokens — now using full user session
+
+
+✅ Module 7: Supabase User Session Handling
+Goal: Maintain user session using Supabase client methods.
+On page load:
+Check for active Supabase session
+If exists: hydrate user data
+Log: 🔄 User session detected — loading user state
+If not: fallback to Module 3 (soft visitor auth)
+Log: 🚪 No user session — falling back to visitor auth
+
+
+✅ Module 8: Session Expiry Handling
+Goal: Handle expired or invalid user sessions gracefully.
+On 401/403 from Supabase with user session active:
+Attempt silent refresh or prompt login again
+Log: ⏰ User session expired — prompting re-auth
+
+
+summarized 4-5
+
+Module 3: Returning Visitor Validation
+Summary: On page load, verify JWT and hydrate app for returning visitor.
+Notes:
+Check for existing localStorage values
+If both visitor_id and jwt exist → proceed
+Pass JWT in Authorization: Bearer <jwt> header, RLS-secured fetch
+If valid
+Hydrate app with contact info, cart, etc.
+
+Popup Module: Build Contact Info Popup UI
+Summary: Create a triggerable UI to collect contact info.
+Notes:
+Trigger when cart panel is opened
+Popup shows input fields
+Email (required)
+Phone (optional)
+Name (optional)
+User clicks submit → pass info + visitor_id to Module 4
+
+Module 4: Triggered Contact Info Merge
+Summary: Merge visitor into existing user identity, or enrich their visitor record.
+Notes:
+POST to /api/visitor/identify (or whatever is being used/created)
+Payload is visitor_id, email, phone, name
+Server checks DB
+If contact info matches an existing record:
+Merge current visitor into that record
+Return updated visitor_id + new JWT
+Else:
+Update current visitor record with submitted info
+Return same visitor_id and new JWT (optional)
+Frontend replaces local values
+Update visitor_id + JWT in localStorage and memory
+
+Module 4.5: Checkout Mode Toggle UI
+Summary: Let user choose between guest (visitor) or full user checkout.
+Notes:
+UI Placement is inline toggle next to/above checkout button
+Default State is toggle defaults to “Check out as user”
+Options:
+“Check out as user” (triggers Module 5 on click)
+“Continue as guest” (bypasses Module 5, proceeds to Stripe with visitor context)
+Downstream control is on checkout button click → branch to Module 5 (user) or Stripe flow using visitor_id + JWT (guest)
+
+Module 5: User Auth Trigger
+Summary: Allow visitor to choose full user auth (sign in/up) before checkout.
+Trigger is toggle from 4.5 set to “Check out as user” 
+If already signed in (has session) proceed
+If not signed in show auth UI (auto populate with user context if we have anything)
+
+Module 6: Auth Completion + Visitor Merge
+Summary: On successful auth, merge visitor data (cart, contact, etc.) into full user profile.
+On auth success:
+Send current visitor_id to backend
+Backend merges visitor record (cart, contact, etc.) into user
+Clear local visitor_id and jwt from localStorage
+Use Supabase session (no longer soft-auth JWT)
+Hydrate app with user context
+
+Module 7: Supabase User Session Handling
+Summary: Maintain user session using Supabase client methods.
+On page load:
+Check for active Supabase session
+If exists: hydrate user data
+If not: fallback to Module 3 (soft visitor auth)
+
+Module 8: Session Expiry Handling
+Summary: Handle expired or invalid user sessions gracefully.
+On 401/403 from Supabase with user session active:
+Attempt silent refresh or prompt login again
+
+
+
+
+
+
+
+
+

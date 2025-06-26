@@ -280,10 +280,10 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
 
   // Check if contact info popup should be shown when cart opens
   useEffect(() => {
-    if (cartHovered && visitorReady && visitorData) {
+    if (cartHovered && visitorReady) {
       // Check if visitor is missing contact info
-      const hasContactInfo = visitorData.email || visitorData.phone || visitorData.name;
-      
+      const hasContactInfo = visitorData?.email || visitorData?.phone || visitorData?.name;
+      console.log('🔍 Visitor data:', visitorData);
       if (!hasContactInfo) {
         console.log('🛒 User triggered contact info collection');
         setShowContactPopup(true);
