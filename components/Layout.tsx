@@ -5,6 +5,7 @@ import LogoAnimated from "./LogoAnimated";
 import Link from 'next/link';
 import { UserIcon, ShoppingBagIcon } from '@heroicons/react/24/outline';
 import { useCartStore } from '../store/cartStore';
+import { useVisitor } from '../lib/contexts/VisitorContext';
 // @ts-expect-error: No types for flubber
 import * as flubber from "flubber";
 
@@ -13,6 +14,7 @@ import CartPanel from './CartPanel';
 import CupgradesPanel from './CupgradesPanel';
 import NotificationBanner from './NotificationBanner';
 import NavMenu from './NavMenu';
+import { ContactInfoPopup } from './ContactInfoPopup';
 
 // Imported constants and utilities
 import { navLinks } from '../lib/constants';
@@ -52,6 +54,7 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   const [cupgradesClosing, setCupgradesClosing] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [products, setProducts] = useState<StripeProduct[]>([]);
+  const [showContactPopup, setShowContactPopup] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLUListElement>(null);
   const cartRef = useRef<HTMLDivElement>(null);
@@ -99,6 +102,9 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const removeItem = useCartStore((state) => state.removeItem);
   const addItem = useCartStore((state) => state.addItem);
+
+  // Visitor context for contact info popup
+  const { visitorData, isReady: visitorReady } = useVisitor();
 
   // Calculate total items in cart with useMemo
   const totalItems = useMemo(() => 
@@ -271,6 +277,25 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
       }, 300);
     }
   }, [cartHovered, cartClosing]);
+
+  // Check if contact info popup should be shown when cart opens
+  useEffect(() => {
+    if (cartHovered && visitorReady && visitorData) {
+      // Check if visitor is missing contact info
+      const hasContactInfo = visitorData.email || visitorData.phone || visitorData.name;
+      
+      if (!hasContactInfo) {
+        console.log('🛒 User triggered contact info collection');
+        setShowContactPopup(true);
+      }
+    }
+  }, [cartHovered, visitorReady, visitorData]);
+
+  const handleContactInfoSubmit = (contactInfo: { email: string; phone?: string; name?: string }) => {
+    // This will be connected to Module 4 in the next implementation
+    console.log('Contact info ready for Module 4:', contactInfo);
+    setShowContactPopup(false);
+  };
 
   // Modern CSS scrollbar-gutter handles layout shift prevention automatically
   // This effect only manages scroll locking behavior
@@ -514,6 +539,14 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
         {/* Preview for Tailwind JIT */}
         <div className="text-surface-background" style={{position: 'absolute', left: -9999}}>Preview text</div>
       </footer>
+
+      {/* Contact Info Popup */}
+      {showContactPopup && (
+        <ContactInfoPopup
+          onClose={() => setShowContactPopup(false)}
+          onSubmit={handleContactInfoSubmit}
+        />
+      )}
 
       {/* Overlay/Modal Placeholder */}
       {overlay && (
