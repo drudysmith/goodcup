@@ -217,8 +217,8 @@ Reuse service-role Supabase client from lib/supabaseClient.ts
 Use same JWT verification as validate.ts
 Confirm updates with a test or console log
 Document any new env vars
-
 This approach keeps cart persistence isolated and secure without disrupting the broader auth module flow.
+
 Module 4.5: Checkout Mode Toggle UI
 Summary: Let user choose between guest (visitor) or full user checkout.
 Notes:

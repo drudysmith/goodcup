@@ -8,6 +8,8 @@
 
 import { useEffect, useState } from 'react';
 import { useCartStore, CartItem } from '../store/cartStore';
+import { CheckoutModeToggle } from '../components/CheckoutModeToggle';
+import { useVisitor } from '../lib/contexts/VisitorContext';
 
 interface StripePrice {
   id: string;
@@ -47,6 +49,10 @@ export default function Checkout() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [currentStage, setCurrentStage] = useState<CheckoutStage>('information');
   const [orderSummaryExpanded, setOrderSummaryExpanded] = useState(false);
+  const [checkoutMode, setCheckoutMode] = useState<'user' | 'guest'>('user');
+
+  // Visitor context for guest checkout
+  const { visitorId, jwt } = useVisitor();
 
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
     email: 'mock@example.com',
@@ -75,6 +81,11 @@ export default function Checkout() {
       const params = new URLSearchParams(window.location.search);
       if (params.get('success') === '1') {
         clearCart();
+      }
+      // Set checkout mode from URL parameter
+      const modeParam = params.get('mode');
+      if (modeParam === 'guest' || modeParam === 'user') {
+        setCheckoutMode(modeParam);
       }
     }
   }, []);
@@ -106,6 +117,16 @@ export default function Checkout() {
 
   const handleCheckout = async () => {
     setCheckoutLoading(true);
+    
+    if (checkoutMode === 'user') {
+      // TODO: Module 5 - Trigger user authentication flow
+      console.log('🔄 Triggering Module 5: User Authentication Flow');
+      alert('Module 5: User authentication flow will be implemented next');
+      setCheckoutLoading(false);
+      return;
+    }
+
+    // Guest checkout flow using visitor context
     try {
       const response = await fetch('/api/createCheckoutSession', {
         method: 'POST',
@@ -113,6 +134,9 @@ export default function Checkout() {
         body: JSON.stringify({
           items,
           customerEmail: customerInfo.email,
+          // Include visitor context for guest checkout
+          visitorId: visitorId,
+          checkoutMode: 'guest'
         }),
       });
       const data = await response.json();
@@ -201,8 +225,19 @@ export default function Checkout() {
                   {customerInfo.address}, {customerInfo.city}, {customerInfo.state} {customerInfo.zipCode}, {customerInfo.country}
                 </div>
               </div>
+              {/* Checkout Mode Toggle */}
+              <div className="mb-4">
+                <CheckoutModeToggle
+                  onModeChange={setCheckoutMode}
+                  defaultMode={checkoutMode}
+                  className=""
+                />
+              </div>
+
               <button onClick={handleCheckout} disabled={checkoutLoading} className="w-full bg-brand-secondary text-white py-3 px-6 rounded disabled:opacity-50">
-                {checkoutLoading ? 'Processing...' : 'Continue to payment'}
+                {checkoutLoading ? 'Processing...' : 
+                  checkoutMode === 'user' ? 'Continue to sign in' : 'Continue to payment'
+                }
               </button>
               <button
                 onClick={() => window.location.href = '/'}
