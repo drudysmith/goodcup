@@ -15,6 +15,7 @@ interface VisitorContextType {
   visitorData: VisitorData | null;
   isReady: boolean;
   updateVisitorIdentity: (newVisitorId: string, newJwt: string, newVisitorData: VisitorData) => void;
+  syncCartToDatabase: (cart: object, jwtToken: string) => Promise<void>;
 }
 
 const VisitorContext = createContext<VisitorContextType | undefined>(undefined);
@@ -228,7 +229,7 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
   }, [cartItems, jwt, visitorId, isReady]);
 
   return (
-    <VisitorContext.Provider value={{ visitorId, jwt, visitorData, isReady, updateVisitorIdentity }}>
+    <VisitorContext.Provider value={{ visitorId, jwt, visitorData, isReady, updateVisitorIdentity, syncCartToDatabase }}>
       {children}
     </VisitorContext.Provider>
   );

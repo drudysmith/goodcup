@@ -104,7 +104,7 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   const addItem = useCartStore((state) => state.addItem);
 
   // Visitor context for contact info popup
-  const { visitorId, visitorData, isReady: visitorReady, updateVisitorIdentity } = useVisitor();
+  const { visitorId, jwt, visitorData, isReady: visitorReady, updateVisitorIdentity, syncCartToDatabase } = useVisitor();
 
   // Calculate total items in cart with useMemo
   const totalItems = useMemo(() => 
@@ -292,13 +292,18 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   }, [cartHovered, visitorReady, visitorData]);
 
   const handleContactInfoSubmit = async (contactInfo: { email: string; phone?: string; name?: string }) => {
-    if (!visitorId) {
-      console.error('Cannot submit contact info: no visitor ID');
+    if (!visitorId || !jwt) {
+      console.error('Cannot submit contact info: missing visitor ID or JWT');
       return;
     }
 
     try {
       console.log('📡 Submitting contact info to Module 4 API:', contactInfo);
+      
+      // Ensure cart is synced to database before merge
+      console.log('🔄 Flushing cart updates before identity merge...');
+      await syncCartToDatabase(items, jwt);
+      console.log('✅ Cart flushed - proceeding with identity merge');
       
       const response = await fetch('/api/visitor/identify', {
         method: 'POST',

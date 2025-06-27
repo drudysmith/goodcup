@@ -1,6 +1,12 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 import { supabaseServiceRole } from '../../../lib/supabaseClient';
+
+interface CartItem {
+  priceId: string;
+  quantity: number;
+  [key: string]: any; // Allow additional properties
+}
 
 interface IdentifyRequest {
   visitor_id: string;
@@ -65,14 +71,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         .eq('id', visitor_id)
         .single();
 
-      // Merge cart data if both have carts
-      let mergedCart = existingVisitor.cart;
-      if (currentVisitor?.cart && existingVisitor.cart) {
-        // Simple merge strategy - could be enhanced based on business logic
-        mergedCart = { ...existingVisitor.cart, ...currentVisitor.cart };
-      } else if (currentVisitor?.cart) {
-        mergedCart = currentVisitor.cart;
-      }
+      // Merge cart data using array-based approach
+      const currentCart = Array.isArray(currentVisitor?.cart) ? currentVisitor.cart : [];
+      const existingCart = Array.isArray(existingVisitor.cart) ? existingVisitor.cart : [];
+
+      // Concatenate carts and deduplicate by priceId
+      const mergedCart = [...existingCart, ...currentCart].reduce<CartItem[]>((acc, item) => {
+        const found = acc.find(i => i.priceId === item.priceId);
+        if (found) {
+          found.quantity += item.quantity;
+        } else {
+          acc.push({ ...item });
+        }
+        return acc;
+      }, []);
+
+      console.log(`🔄 Merged ${currentCart.length} + ${existingCart.length} cart items = ${mergedCart.length} unique items`);
 
       // Update existing visitor record with merged data
       const { error: updateError } = await supabaseServiceRole
