@@ -1,5 +1,6 @@
-import { Store } from '@tanstack/store';
 import React from 'react';
+import { Store } from '@tanstack/store';
+import { useStore } from '@tanstack/react-store';
 
 export type CartItem = {
   productId: string;
@@ -64,7 +65,7 @@ const saveCartToStorage = (items: CartItem[]) => {
 // Initialize cart store with data from localStorage
 const initialItems = loadCartFromStorage();
 
-// Create the TanStack store
+// Create the TanStack store using the Store constructor
 const cartStore = new Store<CartState>({
   items: initialItems,
 });
@@ -77,6 +78,11 @@ cartStore.subscribe(() => {
 
 // Cart action implementations
 const addItem = (item: CartItem) => {
+  if (!item || !item.priceId) {
+    console.warn('Invalid item passed to addItem:', item);
+    return;
+  }
+  
   cartStore.setState((state) => {
     // If item with same priceId exists, update quantity
     const existing = state.items.find((i) => i.priceId === item.priceId);
@@ -111,34 +117,10 @@ const clearCart = () => {
   cartStore.setState({ items: [] });
 };
 
-// Create the hook that matches the Zustand API
-export const useCartStore = <T>(selector: (state: CartState & CartActions) => T): T => {
-  const [state, setState] = React.useState(() => {
-    const currentState = cartStore.state;
-    return selector({
-      ...currentState,
-      addItem,
-      removeItem,
-      updateQuantity,
-      clearCart,
-    });
-  });
-
-  React.useEffect(() => {
-    const unsubscribe = cartStore.subscribe(() => {
-      const currentState = cartStore.state;
-      const newValue = selector({
-        ...currentState,
-        addItem,
-        removeItem,
-        updateQuantity,
-        clearCart,
-      });
-      setState(newValue);
-    });
-
-    return unsubscribe;
-  }, [selector]);
-
-  return state;
-}; 
+// Export useCartStore using TanStack's official useStore hook
+export const useCartStore = <T>(
+  selector: (state: CartState & CartActions) => T
+): T =>
+  useStore(cartStore, (state) =>
+    selector({ ...state, addItem, removeItem, updateQuantity, clearCart })
+  ); 
