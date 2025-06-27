@@ -1,4 +1,3 @@
-import React from 'react';
 import { Store } from '@tanstack/store';
 import { useStore } from '@tanstack/react-store';
 
@@ -10,39 +9,32 @@ export type CartItem = {
 
 interface CartState {
   items: CartItem[];
-}
-
-interface CartActions {
   addItem: (item: CartItem) => void;
   removeItem: (priceId: string) => void;
   updateQuantity: (priceId: string, quantity: number) => void;
   clearCart: () => void;
 }
 
-// localStorage persistence utilities
-const STORAGE_KEY = 'cart-storage';
-
+// Helper functions for localStorage persistence
 const loadCartFromStorage = (): CartItem[] => {
   if (typeof window === 'undefined') return [];
   
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem('cart-storage');
     if (!stored) return [];
     
     const parsed = JSON.parse(stored);
-    // Handle both old Zustand format {state: {items: []}} and new direct format {items: []}
+    // Handle Zustand persist format: { state: { items: [] }, version: 0 }
     if (parsed.state && Array.isArray(parsed.state.items)) {
       return parsed.state.items;
     }
-    if (parsed.items && Array.isArray(parsed.items)) {
-      return parsed.items;
-    }
+    // Handle direct array format
     if (Array.isArray(parsed)) {
       return parsed;
     }
     return [];
   } catch (error) {
-    console.warn('Failed to load cart from localStorage:', error);
+    console.error('Error loading cart from storage:', error);
     return [];
   }
 };
@@ -51,38 +43,27 @@ const saveCartToStorage = (items: CartItem[]) => {
   if (typeof window === 'undefined') return;
   
   try {
-    // Save in the same format as Zustand persist middleware
-    const dataToStore = {
+    // Save in Zustand persist format for compatibility
+    const persistData = {
       state: { items },
       version: 0
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToStore));
+    localStorage.setItem('cart-storage', JSON.stringify(persistData));
   } catch (error) {
-    console.warn('Failed to save cart to localStorage:', error);
+    console.error('Error saving cart to storage:', error);
   }
 };
 
-// Initialize cart store with data from localStorage
+// Initialize store with items from localStorage
 const initialItems = loadCartFromStorage();
 
-// Create the TanStack store using the Store constructor
-const cartStore = new Store<CartState>({
+// Create TanStack Store - only for data state
+const cartStore = new Store({
   items: initialItems,
 });
 
-// Subscribe to store changes and persist to localStorage
-cartStore.subscribe(() => {
-  const state = cartStore.state;
-  saveCartToStorage(state.items);
-});
-
-// Cart action implementations
+// Action functions that manipulate the store
 const addItem = (item: CartItem) => {
-  if (!item || !item.priceId) {
-    console.warn('Invalid item passed to addItem:', item);
-    return;
-  }
-  
   cartStore.setState((state) => {
     // If item with same priceId exists, update quantity
     const existing = state.items.find((i) => i.priceId === item.priceId);
@@ -117,10 +98,24 @@ const clearCart = () => {
   cartStore.setState({ items: [] });
 };
 
-// Export useCartStore using TanStack's official useStore hook
-export const useCartStore = <T>(
-  selector: (state: CartState & CartActions) => T
-): T =>
-  useStore(cartStore, (state) =>
-    selector({ ...state, addItem, removeItem, updateQuantity, clearCart })
-  ); 
+// Subscribe to changes and save to localStorage
+cartStore.subscribe(() => {
+  const state = cartStore.state;
+  saveCartToStorage(state.items);
+});
+
+// Export hook that maintains the same API as Zustand
+export const useCartStore = <T>(selector: (state: CartState) => T) => {
+  const storeState = useStore(cartStore);
+  
+  // Create the full state object with actions
+  const fullState: CartState = {
+    items: storeState.items,
+    addItem,
+    removeItem,
+    updateQuantity,
+    clearCart,
+  };
+  
+  return selector(fullState);
+}; 

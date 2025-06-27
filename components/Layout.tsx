@@ -106,6 +106,14 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   // Visitor context for contact info popup
   const { visitorId, jwt, visitorData, isReady: visitorReady, updateVisitorIdentity, syncCartToDatabase } = useVisitor();
 
+  // Track cart hydration to prevent SSR/hydration mismatch
+  const [isCartHydrated, setIsCartHydrated] = useState(false);
+
+  // Effect to mark cart as hydrated after client-side mount
+  useEffect(() => {
+    setIsCartHydrated(true);
+  }, []);
+
   // Calculate total items in cart with useMemo
   const totalItems = useMemo(() => 
     items.reduce((sum, item) => sum + item.quantity, 0), 
@@ -525,7 +533,7 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
                 </svg>
                 
                 {/* Item Count Circle */}
-                {totalItems > 0 && (
+                {isCartHydrated && totalItems > 0 && (
                   <span className="cart-count-badge">
                     {totalItems}
                   </span>
