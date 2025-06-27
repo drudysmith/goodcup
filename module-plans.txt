@@ -120,6 +120,63 @@ Downstream control:
 On checkout button click → branch to Module 5 (user) or Stripe flow using visitor_id + JWT (guest)
 
 
+Module 4.7a: Introduce TanStack Cart Store
+Goal: Replace Zustand cart store with a TanStack store implementation, preserving current cart behavior and localStorage sync.
+Install @tanstack/store and @tanstack/react-store
+Create cartStore.ts using TanStack with same exposed API (useCartStore)
+Define store shape:
+export type CartItem = { productId: string; priceId: string; quantity: number };
+Initialize store with empty items array
+Implement core methods: addItem, removeItem, updateQuantity, clearCart
+Persistence:
+Read from localStorage on load
+Subscribe to store changes and write updates back
+Testing:
+Add items, refresh, confirm persistence
+Watch VisitorContext logs — ensure cart sync still triggers /api/visitor/updateCart
+Log:
+🆕 Initialized TanStack cart store
+💾 Cart store persists to localStorage
+📡 Cart updates still syncing via VisitorContext
+
+
+Module 4.7b: Replace Imports + Remove Zustand
+Goal: Swap all cart state usage to the new TanStack store and fully remove Zustand.
+Update imports in:
+Layout.tsx
+CartPanel.tsx
+checkout.tsx
+mandust.tsx
+VisitorContext.tsx
+Keep selector usage consistent:
+useCartStore(state => state.items), etc.
+Cleanup:
+Remove zustand from package.json
+Run npm install to refresh lockfile
+Testing:
+Use cart normally in UI: add/remove/clear/update
+Confirm DB sync still triggers via network logs or DB entries
+Run Module 4 (contact merge) and validate cart contents persist through merge
+Log:
+♻️ Swapped all cart imports to TanStack store
+🗑️ Zustand fully removed
+✅ Cart behavior consistent across UI and merge
+
+
+Module 4.7c: Finalize Migration + Verify Integrity
+Goal: Ensure migration is complete and cart logic is fully stabilized before continuing to Modules 5–8.
+Commit changes and update module-plans.txt to reflect store migration
+Run a project-wide search to confirm no lingering zustand imports
+Manually test full checkout toggle flow, including:
+Page reload persistence
+Visitor contact merge
+Cart handoff to user flow
+Log:
+🧼 Zustand usage removed across project
+📄 Cart store migration documented
+🚀 Ready to proceed with full auth modules (5–8)
+
+
 ✅ Module 5: User Auth Trigger
 Goal: Allow visitor to choose full user auth (sign in/up) before checkout.
 Trigger:
@@ -228,6 +285,31 @@ Options:
 “Check out as user” (triggers Module 5 on click)
 “Continue as guest” (bypasses Module 5, proceeds to Stripe with visitor context)
 Downstream control is on checkout button click → branch to Module 5 (user) or Stripe flow using visitor_id + JWT (guest)
+
+Module 4.7a: Introduce TanStack Cart Store
+Summary: Replace Zustand cart store with TanStack store, maintaining same API and localStorage persistence.
+Notes:
+Install @tanstack/store and @tanstack/react-store
+Define store shape with items: CartItem[]
+Expose useCartStore and core methods (addItem, removeItem, etc.)
+Read from localStorage on init; write back on change
+Test persistence and ensure /api/visitor/updateCart sync still triggers via VisitorContext
+
+Module 4.7b: Replace Imports + Remove Zustand
+Summary: Transition all cart state usage to TanStack store and eliminate Zustand dependency.
+Notes:
+Update imports in key files (Layout, CartPanel, checkout, etc.)
+Maintain selector patterns (useCartStore(state => ...))
+Remove Zustand packages and refresh lockfile
+Test all cart UI behavior and confirm visitor cart sync works post-merge
+
+Module 4.7c: Finalize Migration + Verify Integrity
+Summary: Clean up, document, and validate the completed cart store migration.
+Notes:
+Commit changes and update module-plans.txt
+Confirm Zustand is fully removed from codebase
+Run full checkout + merge flow manually
+Ensure cart state persists and behaves correctly across reloads and auth transitions
 
 Module 5: User Auth Trigger
 Summary: Allow visitor to choose full user auth (sign in/up) before checkout.

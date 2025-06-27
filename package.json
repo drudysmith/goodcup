@@ -14,6 +14,8 @@
     "@stripe/stripe-js": "^7.3.0",
     "@supabase/supabase-js": "^2.49.8",
     "@tanstack/react-query": "^5.81.2",
+    "@tanstack/react-store": "^0.7.1",
+    "@tanstack/store": "^0.7.1",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/uuid": "^10.0.0",
     "@types/validator": "^13.15.2",
