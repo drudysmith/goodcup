@@ -145,11 +145,36 @@ export default function Checkout() {
     if (checkoutMode === 'user') {
       // Module 5: User Auth Trigger
       if (userSession) {
-        // User already signed in
+        // Module 6a: Session Short-Circuit
         console.log('✅ User already authed — skipping sign-in flow');
-        // TODO: Module 6 - Proceed with user checkout flow
-        alert('Module 6: User checkout flow will be implemented next');
-        setCheckoutLoading(false);
+        console.log('🔄 Module 6a: Creating Stripe checkout session with user ID:', userSession.user.id);
+        
+        try {
+          const response = await fetch('/api/createCheckoutSession', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              items,
+              customerEmail: userSession.user.email || customerInfo.email,
+              supabaseUserId: userSession.user.id,
+              checkoutMode: 'user'
+            }),
+          });
+          
+          const data = await response.json();
+          if (data.url) {
+            console.log('✅ Module 6a: Redirecting to Stripe checkout session');
+            window.location.href = data.url;
+          } else {
+            console.error('Module 6a: Checkout session creation failed:', data.error);
+            alert(data.error || 'Checkout failed');
+          }
+        } catch (err) {
+          console.error('Module 6a: Error creating checkout session:', err);
+          alert('Checkout failed');
+        } finally {
+          setCheckoutLoading(false);
+        }
         return;
       } else {
         // User not signed in - show auth modal

@@ -219,14 +219,22 @@ Trigger: User chooses “Check out as user.”
 Action: If a Supabase session already exists, skip the auth modal and create the Stripe checkout session using the session’s user ID.
 Breakpoint: Confirm the call to /api/createCheckoutSession redirects directly to Stripe.
 
-6b. Auth Success & Visitor Merge
-Trigger: Sign‑up or sign‑in completes in AuthModal.
+6b.1 – Merge Endpoint Setup
+Trigger: A user finishes signing in or signing up via AuthModal.
 Action:
-POST the current visitor_id to a merge endpoint (the merge endpoint does not currently exist. When Module 6b is implemented, a new API route will need to be added to accept the visitor_id and associate it with the authenticated Supabase user, updating the visitors table accordingly).
-The backend assigns the visitor’s row to the authenticated user by setting user_id in the visitors table and merging cart/contact data.
-Clear visitor_id and visitor JWT from local storage so only the Supabase session remains.
-Immediately proceed to create the checkout session using the authenticated user’s ID.
-Breakpoint: Verify visitor data is merged and the checkout session is created successfully before continuing.
+Send a POST request to a new /api/user/merge route with the current visitor_id.
+On the server, confirm the Supabase session and set user_id on the corresponding visitor row, merging cart and contact data.
+Return a success response so the client can proceed.
+Breakpoint: Verify that the endpoint correctly attaches the visitor row to the authenticated user_id and that the merged data is available.
+
+6b.2 – Post‑Merge Cleanup and Checkout
+Trigger: The merge endpoint responds successfully.
+Action:
+Clear visitor_id and the visitor JWT from localStorage.
+Use the active Supabase session as the sole auth token.
+Immediately call /api/createCheckoutSession with supabaseUserId to create the Stripe session.
+Redirect the browser to the returned Stripe URL.
+Breakpoint: Confirm visitor tokens are gone, the checkout session is created with the user’s ID, and Stripe redirection occurs without additional prompts.
 
 6c. Guest Flow Reconciliation
 Trigger: Checkout mode is “guest.”
