@@ -1,9 +1,9 @@
-// CHECKOUT PAGE — USER-AGNOSTIC, ZUSTAND-BASED, STRIPPED DATA LAYER
+// CHECKOUT PAGE — USER-AGNOSTIC, TANSTACK-BASED, STRIPPED DATA LAYER
 // --------------------------------------------------------------------------------
 // This rebuild:
 // - Removes all auth, Supabase, router, and eligibility logic
 // - Preserves full UI/UX structure (Information → Shipping → Payment)
-// - Keeps Zustand cart, product fetch, and checkout session creation
+// - Keeps TanStack cart, product fetch, and checkout session creation
 // - Uses local customer info state to simulate user identity
 
 import { useEffect, useState } from 'react';

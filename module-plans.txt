@@ -1,3 +1,23 @@
+Current Modules 1‑8 + A-D (simplified)
+Module 1 – Visitor ID Lifecycle
+Module 2 – Visitor Record & JWT Retrieval
+Module 3 – Returning Visitor Validation
+Module 3.5 – Contact Info Popup UI
+Module 4 – Triggered Contact Info Merge
+Module 4.1 – Cart Persistence – adds /api/visitor/updateCart and client sync
+(see VisitorContext.tsx lines approximately lines 52‑79 and 208‑221)
+Module 4.5 – Checkout Mode Toggle (approximately lines 280‑287)
+✅ Module 4.7 (a–c) – Replace Zustand with TanStack (COMPLETE)
+Module 5 – User Auth Trigger (approximately lines 314‑318)
+Module 6 – Auth Completion & Visitor Merge (approximately lines 320‑327)
+Module 7 – Supabase User Session Handling (approximately lines 329‑334)
+Module 8 – Session Expiry Handling (approximately lines 336‑339)
+Module A. Checkout Session Creation
+Module B. Webhook & Order Persistence
+Module C. Success/Cancellation Handling
+Module D. Customer Portal & Subscription Management
+
+
 MODULES FULL TEXT
 
 ✅ Module 1: Visitor ID Lifecycle
@@ -120,7 +140,7 @@ Downstream control:
 On checkout button click → branch to Module 5 (user) or Stripe flow using visitor_id + JWT (guest)
 
 
-Module 4.7a: Introduce TanStack Cart Store
+✅ Module 4.7a: Introduce TanStack Cart Store (COMPLETE)
 Goal: Replace Zustand cart store with a TanStack store implementation, preserving current cart behavior and localStorage sync.
 Install @tanstack/store and @tanstack/react-store
 Create cartStore.ts using TanStack with same exposed API (useCartStore)
@@ -140,7 +160,7 @@ Log:
 📡 Cart updates still syncing via VisitorContext
 
 
-Module 4.7b: Replace Imports + Remove Zustand
+✅ Module 4.7b: Replace Imports + Remove Zustand (COMPLETE)
 Goal: Swap all cart state usage to the new TanStack store and fully remove Zustand.
 Update imports in:
 Layout.tsx
@@ -163,7 +183,7 @@ Log:
 ✅ Cart behavior consistent across UI and merge
 
 
-Module 4.7c: Finalize Migration + Verify Integrity
+✅ Module 4.7c: Finalize Migration + Verify Integrity (COMPLETE)
 Goal: Ensure migration is complete and cart logic is fully stabilized before continuing to Modules 5–8.
 Commit changes and update module-plans.txt to reflect store migration
 Run a project-wide search to confirm no lingering zustand imports
@@ -218,8 +238,15 @@ Attempt silent refresh or prompt login again
 Log: ⏰ User session expired — prompting re-auth
 
 
+Checkout‑Specific Modules (lettered) will follow Module 8
+A. Checkout Session Creation – send cart and visitor/user info to Stripe (/api/createCheckoutSession.ts handles the details)
+B. Webhook & Order Persistence – record completed payments and subscriptions via stripeWebhook.ts
+C. Success/Cancellation Handling – display order result on return from Stripe (uses query parameters in checkout.tsx lines 80‑87)
+D. Customer Portal & Subscription Management – provide an interface to manage subscriptions using the Stripe customer portal.
 
-MODULES 3-8 SUMMARIES
+
+
+MODULES 3-8 + A-D SUMMARIES
 
 Module 3: Returning Visitor Validation
 Summary: On page load, verify JWT and hydrate app for returning visitor.
@@ -338,6 +365,13 @@ Summary: Handle expired or invalid user sessions gracefully.
 On 401/403 from Supabase with user session active:
 Attempt silent refresh or prompt login again
 
+Module A. Checkout Session Creation – send cart and visitor/user info to Stripe (/api/createCheckoutSession.ts handles the details)
+
+Module B. Webhook & Order Persistence – record completed payments and subscriptions via stripeWebhook.ts
+
+Module C. Success/Cancellation Handling – display order result on return from Stripe (uses query parameters in checkout.tsx lines 80‑87)
+
+Module D. Customer Portal & Subscription Management – provide an interface to manage subscriptions using the Stripe customer portal.
 
 
 
