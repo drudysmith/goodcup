@@ -9,7 +9,9 @@
 import { useEffect, useState } from 'react';
 import { useCartStore, CartItem } from '../store/cartStore';
 import { CheckoutModeToggle } from '../components/CheckoutModeToggle';
+import { AuthModal } from '../components/AuthModal';
 import { useVisitor } from '../lib/contexts/VisitorContext';
+import { supabaseAnon } from '../lib/supabaseClient';
 
 interface StripePrice {
   id: string;
@@ -50,6 +52,8 @@ export default function Checkout() {
   const [currentStage, setCurrentStage] = useState<CheckoutStage>('information');
   const [orderSummaryExpanded, setOrderSummaryExpanded] = useState(false);
   const [checkoutMode, setCheckoutMode] = useState<'user' | 'guest'>('user');
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [userSession, setUserSession] = useState<any>(null);
 
   // Visitor context for guest checkout
   const { visitorId, jwt } = useVisitor();
@@ -74,6 +78,26 @@ export default function Checkout() {
         setProducts(data.products || []);
         setLoading(false);
       });
+  }, []);
+
+  // Check for existing Supabase session on mount
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabaseAnon.auth.getSession();
+      setUserSession(session);
+    };
+    checkSession();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabaseAnon.auth.onAuthStateChange((event, session) => {
+      setUserSession(session);
+      if (event === 'SIGNED_IN' && session) {
+        console.log('✅ User authentication successful');
+        setShowAuthModal(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -119,11 +143,21 @@ export default function Checkout() {
     setCheckoutLoading(true);
     
     if (checkoutMode === 'user') {
-      // TODO: Module 5 - Trigger user authentication flow
-      console.log('🔄 Triggering Module 5: User Authentication Flow');
-      alert('Module 5: User authentication flow will be implemented next');
-      setCheckoutLoading(false);
-      return;
+      // Module 5: User Auth Trigger
+      if (userSession) {
+        // User already signed in
+        console.log('✅ User already authed — skipping sign-in flow');
+        // TODO: Module 6 - Proceed with user checkout flow
+        alert('Module 6: User checkout flow will be implemented next');
+        setCheckoutLoading(false);
+        return;
+      } else {
+        // User not signed in - show auth modal
+        console.log('🔐 User opted for full auth — showing auth modal');
+        setShowAuthModal(true);
+        setCheckoutLoading(false);
+        return;
+      }
     }
 
     // Guest checkout flow using visitor context
@@ -270,6 +304,17 @@ export default function Checkout() {
           </div>
         </div>
       </div>
+
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={() => {
+            setShowAuthModal(false);
+            // Session will be updated via auth state listener
+          }}
+        />
+      )}
     </div>
   );
 }

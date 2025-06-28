@@ -36,6 +36,33 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
 
   // Get cart items from store
   const cartItems = useCartStore((state) => state.items);
+  const cartActions = useCartStore((state) => ({ clearCart: state.clearCart, addItem: state.addItem }));
+
+  // Function to hydrate cart store from database data
+  const hydrateCartFromDatabase = (cartData: any[]) => {
+    if (!Array.isArray(cartData) || cartData.length === 0) {
+      console.log('🛒 No cart data to hydrate');
+      return;
+    }
+
+    console.log('🛒 Hydrating cart store with', cartData.length, 'items from database');
+    
+    // Clear current cart first to avoid duplicates
+    cartActions.clearCart();
+    
+    // Add each item from database to cart store
+    cartData.forEach((item: any) => {
+      if (item.priceId && item.quantity) {
+        cartActions.addItem({
+          productId: item.productId || '', // Handle missing productId gracefully
+          priceId: item.priceId,
+          quantity: item.quantity
+        });
+      }
+    });
+    
+    console.log('✅ Cart store hydrated successfully');
+  };
 
   // Function to update visitor identity after merge/identify
   const updateVisitorIdentity = (newVisitorId: string, newJwt: string, newVisitorData: VisitorData) => {
@@ -54,6 +81,11 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
     setVisitorId(newVisitorId);
     setJwt(newJwt);
     setVisitorData(newVisitorData);
+    
+    // Hydrate cart from merged visitor data
+    if (newVisitorData.cart && Array.isArray(newVisitorData.cart)) {
+      hydrateCartFromDatabase(newVisitorData.cart);
+    }
   };
 
   // Function to sync cart to database
@@ -155,9 +187,7 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
 
             // Hydrate cart store if visitor has saved cart data
             if (data.visitor.cart && Array.isArray(data.visitor.cart)) {
-              console.log('🛒 Hydrating cart from database:', data.visitor.cart.length, 'items');
-              // Note: Cart hydration would be handled by the store if needed
-              // For now, we just log the available cart data
+              hydrateCartFromDatabase(data.visitor.cart);
             }
           } else {
             // Invalid JWT - clear and restart

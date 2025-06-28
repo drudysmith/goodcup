@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import jwt from 'jsonwebtoken';
+import { supabaseServiceRole } from '../../../lib/supabaseClient';
 console.log('>> initializing init.ts');
 interface InitVisitorRequest {
   visitor_id: string;
@@ -23,14 +24,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Create visitor record in database using the visitor_id as the primary key
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
     // Insert visitor record (or ignore if already exists)
-    const { data: visitorRecord, error: insertError } = await supabase
+    const { data: visitorRecord, error: insertError } = await supabaseServiceRole
       .from('visitors')
       .upsert({
         id: visitor_id,
