@@ -54,6 +54,7 @@ export default function Checkout() {
   const [checkoutMode, setCheckoutMode] = useState<'user' | 'guest'>('user');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [userSession, setUserSession] = useState<any>(null);
+  const [isProcessingMerge, setIsProcessingMerge] = useState(false);
 
   // Visitor context for guest checkout
   const { visitorId, jwt } = useVisitor();
@@ -89,11 +90,73 @@ export default function Checkout() {
     checkSession();
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabaseAnon.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabaseAnon.auth.onAuthStateChange(async (event, session) => {
       setUserSession(session);
-      if (event === 'SIGNED_IN' && session) {
+      if (event === 'SIGNED_IN' && session && checkoutMode === 'user' && visitorId && !isProcessingMerge) {
         console.log('✅ User authentication successful');
         setShowAuthModal(false);
+        
+        // Module 6b.2: Post-Merge Cleanup and Checkout
+        setIsProcessingMerge(true);
+        setCheckoutLoading(true);
+        
+        try {
+          console.log('🔄 Module 6b.2: Merging visitor with authenticated user');
+          
+          // Call merge endpoint with visitor_id and session token
+          const mergeResponse = await fetch('/api/visitor/merge', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ visitor_id: visitorId }),
+          });
+
+          const mergeData = await mergeResponse.json();
+          
+          if (mergeResponse.ok && mergeData.success) {
+            console.log('✅ Module 6b.2: Visitor merge successful:', mergeData);
+            
+            // Clear visitor tokens from localStorage
+            console.log('🧹 Module 6b.2: Clearing visitor tokens from localStorage');
+            localStorage.removeItem('visitor_id');
+            localStorage.removeItem('visitor_jwt');
+            
+            // Create checkout session with user ID
+            console.log('🔄 Module 6b.2: Creating Stripe checkout session with user ID:', session.user.id);
+            
+            const checkoutResponse = await fetch('/api/createCheckoutSession', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                items,
+                customerEmail: session.user.email || customerInfo.email,
+                supabaseUserId: session.user.id,
+                checkoutMode: 'user'
+              }),
+            });
+            
+            const checkoutData = await checkoutResponse.json();
+            
+            if (checkoutData.url) {
+              console.log('✅ Module 6b.2: Redirecting to Stripe checkout session');
+              window.location.href = checkoutData.url;
+            } else {
+              console.error('Module 6b.2: Checkout session creation failed:', checkoutData.error);
+              alert(checkoutData.error || 'Checkout failed');
+            }
+          } else {
+            console.error('Module 6b.2: Visitor merge failed:', mergeData);
+            alert('Failed to merge visitor data. Please try again.');
+          }
+        } catch (error) {
+          console.error('Module 6b.2: Error during merge and checkout:', error);
+          alert('An error occurred during checkout. Please try again.');
+        } finally {
+          setIsProcessingMerge(false);
+          setCheckoutLoading(false);
+        }
       }
     });
 
