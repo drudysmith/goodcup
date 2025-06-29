@@ -365,6 +365,39 @@ Action: Call /api/createCheckoutSession with either the Supabase user_id (for us
 Breakpoint: Successful redirection to Stripe marks the end of Module 6.
 
 
+State Mgmt Update 1 – Auth Flow Mutations
+Summary
+Refactor the sign‑in, sign‑up, and magic‑link logic in AuthModal.tsx to use TanStack Mutations. Mutations should expose loading and error states so the modal can react without extra useState flags.
+Where to Look
+components/AuthModal.tsx — existing handlers handleMagicLink and handleEmailPassword.
+Implementation Notes
+Create three mutations: signInWithOtp, signInWithPassword, and signUp.
+Use mutationFn callbacks that call the corresponding supabaseAnon.auth methods.
+Replace manual isLoading and error logic with mutation state (mutation.isLoading, mutation.error).
+Keep animation and basic input state in useState.
+Breakpoint / Bugwatch
+After migrating, confirm the modal’s loading and error indicators respond to mutation state without extra useState flags.
+Watch for “magic link email slippage” (from issues-to-check.txt)—the mutation should still force the known email address and not accept unrecognized ones.
+Earliest Placement
+Add this update after completing Module 6d (Checkout Session Finalization) and before starting Module 7. At that stage the auth flow is working and you can safely refactor the network calls.
+
+
+... give the dev team heads up for module 7, then do Update 2
+State Mgmt Update 2 – Supabase Session Queries
+Summary
+Centralize Supabase session retrieval by turning the manual session check in checkout.tsx into a TanStack Query. Use a key like ['supabaseSession'] with supabaseAnon.auth.getSession() as the queryFn. When onAuthStateChange fires, invalidate or update this query so all components reference a single cached session.
+Where to Look
+pages/checkout.tsx — the effect that currently calls getSession() and sets userSession.
+Implementation Notes
+Declare the query at a shared scope (e.g., a custom hook or context) so other pages can call useQuery(['supabaseSession']).
+In the existing onAuthStateChange listener, call queryClient.setQueryData or invalidateQueries(['supabaseSession']).
+Remove the local state variable that held the session.
+Breakpoint / Bugwatch
+Verify that session data updates correctly when users sign in or sign out.
+Ensure query invalidation does not cause infinite refetching—watch the console for repeated session logs.
+Earliest Placement
+Begin this refactor at the outset of Module 7 (Supabase User Session Handling). Module 7 focuses on session persistence, so introducing a shared query here keeps the new logic contained.
+
 ✅ Module 7: Supabase User Session Handling
 Goal: Maintain user session using Supabase client methods.
 On page load:
@@ -375,6 +408,22 @@ If not: fallback to Module 3 (soft visitor auth)
 Log: 🚪 No user session — falling back to visitor auth
 
 
+State Mgmt Update 3 – Global Banner & UI Toggles
+Summary
+Introduce a lightweight TanStack Store or Query that controls site‑wide banners and layout toggles. Persist dismissal timestamps to localStorage inside store update functions so banner state remains consistent across page navigation.
+Where to Look
+Any existing banner or toggle state in layout components (components/Layout.tsx, etc.).
+Implementation Notes
+Define a store (e.g., bannerStore.ts) with properties like bannerVisible and dismissedAt.
+Use store.subscribe to write updates to localStorage.
+Replace scattered useState flags in components with selectors from this store.
+Breakpoint / Bugwatch
+Check that banner visibility stays consistent when navigating between pages.
+Confirm dismissal timestamps persist in localStorage and that clearing storage resets the banner state correctly.
+Earliest Placement
+Apply this update after Module 7 (once session queries are in place) but before starting Module 8. Doing so ensures all pages share the same cached session and banner state moving forward.
+
+
 ✅ Module 8: Session Expiry Handling
 Goal: Handle expired or invalid user sessions gracefully.
 On 401/403 from Supabase with user session active:
@@ -382,23 +431,44 @@ Attempt silent refresh or prompt login again
 Log: ⏰ User session expired — prompting re-auth
 
 
+general note for modules A-D
+Overall, the groundwork for Modules A–D is present, but some database hooks and final UI pieces remain to be implemented once Module 6 and the user merge are fully integrated.
+
 Checkout‑Specific Modules (lettered) will follow Module 8
 A. Checkout Session Creation – send cart and visitor/user info to Stripe (/api/createCheckoutSession.ts handles the details)
+Module A – Checkout Session Creation
+The route pages/api/createCheckoutSession.ts is implemented and creates a Stripe checkout session using items from the cart, with optional customerEmail and supabaseUserId parameters.
+
 B. Webhook & Order Persistence – record completed payments and subscriptions via stripeWebhook.ts
+Module B – Webhook & Order Persistence
+pages/api/stripeWebhook.ts listens for Stripe webhooks. It logs checkout or subscription events but the database operations are still marked as TODOs.
+
 C. Success/Cancellation Handling – display order result on return from Stripe (uses query parameters in checkout.tsx lines 80‑87)
+Module C – Success/Cancellation Handling
+In pages/checkout.tsx, the code checks query parameters on page load. If success=1 is present, it clears the cart. This is a minimal success/cancel hook and does not yet show a detailed success page.
+
+note, give a heads up to dev team that module D is coming, then do Update 4...
+State Mgmt Update 4 – Dashboard Data via TanStack Query
+Summary
+Replace the placeholder arrays in dashboard.tsx with queries that fetch orders and subscriptions from Supabase. Query keys might be ['orders', userId] and ['subscriptions', userId]. Toggling the “Orders” or “Subscriptions” sections should reference cached data instead of re‑fetching.
+Where to Look
+pages/dashboard.tsx — currently contains hard‑coded orders and subs arrays.
+Implementation Notes
+Create fetchOrders(userId) and fetchSubscriptions(userId) helpers for the queryFns.
+Use useQuery for both datasets and pass userId from the active session.
+Keep the existing expand/collapse UI; just source data from the queries.
+Breakpoint / Bugwatch
+Toggle the “Orders” and “Subscriptions” sections and confirm data comes from the cached queries rather than refetching.
+Watch for query key mistakes that could cause duplicate fetches or stale data when the user signs out or switches accounts.
+Earliest Placement
+Integrate this during Module D (Customer Portal & Subscription Management) when the dashboard is wired to real subscription data.
+
 D. Customer Portal & Subscription Management – provide an interface to manage subscriptions using the Stripe customer portal.
 Notes on Modules A–D: Existing Implementation
 The Stripe-related modules already have partial support in the repository:
-Module A – Checkout Session Creation
-The route pages/api/createCheckoutSession.ts is implemented and creates a Stripe checkout session using items from the cart, with optional customerEmail and supabaseUserId parameters.
-Module B – Webhook & Order Persistence
-pages/api/stripeWebhook.ts listens for Stripe webhooks. It logs checkout or subscription events but the database operations are still marked as TODOs.
-Module C – Success/Cancellation Handling
-In pages/checkout.tsx, the code checks query parameters on page load. If success=1 is present, it clears the cart. This is a minimal success/cancel hook and does not yet show a detailed success page.
 Module D – Customer Portal & Subscription Management
 The API endpoints createCustomerPortalSession.ts and getSubscriptionDetails.ts are implemented to interact with Stripe’s billing portal and fetch subscription details. The dashboard.tsx page, however, uses hard-coded data rather than live Supabase or Stripe data, indicating this part is still a placeholder.
 
-Overall, the groundwork for Modules A–D is present, but some database hooks and final UI pieces remain to be implemented once Module 6 and the user merge are fully integrated.
 
 
 MODULES 3-8 + A-D SUMMARIES

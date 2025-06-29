@@ -107,6 +107,9 @@ export default function Checkout() {
   const [loginLinkSent, setLoginLinkSent] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  
+  // Module 6c: Guest flow reconciliation state
+  const [showGuestConfirmation, setShowGuestConfirmation] = useState(false);
 
   // Visitor context for guest checkout
   const { visitorId, jwt, visitorData } = useVisitor();
@@ -141,6 +144,13 @@ export default function Checkout() {
     }
   }, [showInlineLogin]);
 
+  // Module 6c: Reset guest confirmation when checkout mode changes
+  useEffect(() => {
+    if (checkoutMode === 'user') {
+      setShowGuestConfirmation(false);
+    }
+  }, [checkoutMode]);
+
   // Products query
   const productsQuery = useQuery({
     queryKey: ['products'],
@@ -170,6 +180,7 @@ export default function Checkout() {
     mutationFn: createCheckoutSession,
     onSuccess: (checkoutData) => {
       if (checkoutData.url) {
+        console.log('✅ Module 6d: Checkout session finalized — redirecting to Stripe');
         console.log('✅ Redirecting to Stripe checkout session');
         window.location.href = checkoutData.url;
       } else {
@@ -304,11 +315,23 @@ export default function Checkout() {
       }
     }
 
+    // Module 6c: Guest Flow Reconciliation
+    const hasVisitorContactInfo = visitorData?.email || visitorData?.name || visitorData?.phone;
+    
+    if (hasVisitorContactInfo && !showGuestConfirmation) {
+      // Show confirmation dialog for guests with saved contact info
+      console.log('🧭 Guest checkout with saved contact info — showing confirmation dialog');
+      setShowGuestConfirmation(true);
+      setCheckoutLoading(false);
+      return;
+    }
+
     // Guest checkout flow using visitor context
     try {
+      console.log('🧭 Proceeding with guest checkout');
       await checkoutSessionMutation.mutateAsync({
         items,
-        customerEmail: customerInfo.email,
+        customerEmail: visitorData?.email || customerInfo.email,
         visitorId: visitorId || undefined,
         checkoutMode: 'guest'
       });
@@ -524,6 +547,57 @@ export default function Checkout() {
           </div>
         </div>
       </div>
+
+      {/* Module 6c: Guest Confirmation Dialog */}
+      {showGuestConfirmation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 ease-out" />
+          <div className="relative bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 transform transition-all duration-300 ease-out animate-in zoom-in-95">
+            <div className="px-6 py-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Create an account?</h3>
+              <p className="text-sm text-gray-600 mb-6">
+                We noticed you have contact information saved. Would you like to create an account to track your orders and manage your subscriptions?
+              </p>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => {
+                    console.log('🧭 Guest accepted account creation — switching to user mode');
+                    setShowGuestConfirmation(false);
+                    setCheckoutMode('user');
+                    setShowInlineLogin(true);
+                    setCheckoutLoading(false);
+                  }}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                >
+                  Yes, create account
+                </button>
+                <button
+                  onClick={async () => {
+                    console.log('🧭 Guest declined account creation — continuing as guest');
+                    setShowGuestConfirmation(false);
+                    setCheckoutLoading(true);
+                    
+                    try {
+                      console.log('🧭 Proceeding with guest checkout');
+                      await checkoutSessionMutation.mutateAsync({
+                        items,
+                        customerEmail: visitorData?.email || customerInfo.email,
+                        visitorId: visitorId || undefined,
+                        checkoutMode: 'guest'
+                      });
+                    } finally {
+                      setCheckoutLoading(false);
+                    }
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+                >
+                  No, continue as guest
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Auth Modal */}
       {showAuthModal && (
