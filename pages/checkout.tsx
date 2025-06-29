@@ -100,9 +100,14 @@ export default function Checkout() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [userSession, setUserSession] = useState<any>(null);
   const [isProcessingMerge, setIsProcessingMerge] = useState(false);
+  
+  // Module 6b.3.1: Inline login state
+  const [showInlineLogin, setShowInlineLogin] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginLinkSent, setLoginLinkSent] = useState(false);
 
   // Visitor context for guest checkout
-  const { visitorId, jwt } = useVisitor();
+  const { visitorId, jwt, visitorData } = useVisitor();
 
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
     email: 'mock@example.com',
@@ -116,6 +121,21 @@ export default function Checkout() {
     country: 'United States',
     phone: '555-123-4567',
   });
+
+  // Module 6b.3.1: Prefill login email from available data
+  useEffect(() => {
+    const prefillEmail = visitorData?.email || customerInfo.email;
+    if (prefillEmail && !loginEmail) {
+      setLoginEmail(prefillEmail);
+    }
+  }, [visitorData?.email, customerInfo.email, loginEmail]);
+
+  // Module 6b.3.1: Confirm inline form display
+  useEffect(() => {
+    if (showInlineLogin) {
+      console.log('✅ Inline login form is now displayed');
+    }
+  }, [showInlineLogin]);
 
   // Products query
   const productsQuery = useQuery({
@@ -271,9 +291,9 @@ export default function Checkout() {
         }
         return;
       } else {
-        // User not signed in - show auth modal
-        console.log('🔐 User opted for full auth — showing auth modal');
-        setShowAuthModal(true);
+        // User not signed in - show inline login
+        console.log('🔐 User opted for full auth — will display inline login form');
+        setShowInlineLogin(true);
         setCheckoutLoading(false);
         return;
       }
@@ -380,6 +400,65 @@ export default function Checkout() {
                   checkoutMode === 'user' ? 'Continue to sign in' : 'Continue to payment'
                 }
               </button>
+
+              {/* Module 6b.3.1: Inline Login Form */}
+              {checkoutMode === 'user' && !userSession && showInlineLogin && (
+                <div className="mt-4 p-4 border rounded bg-gray-50">
+                  {!loginLinkSent ? (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium text-gray-700">Sign in to your account</h4>
+                      <input
+                        type="email"
+                        placeholder="Email address"
+                        value={loginEmail}
+                        onChange={(e) => setLoginEmail(e.target.value)}
+                        className="w-full p-3 border rounded"
+                        required
+                      />
+                      <button
+                        onClick={async () => {
+                          if (!loginEmail.trim()) return;
+                          
+                          try {
+                            const { error } = await supabaseAnon.auth.signInWithOtp({
+                              email: loginEmail.trim(),
+                              options: {
+                                emailRedirectTo: `${window.location.origin}/checkout?mode=user`
+                              }
+                            });
+
+                            if (error) {
+                              alert(error.message);
+                            } else {
+                              setLoginLinkSent(true);
+                              console.log('📧 Magic link sent to:', loginEmail);
+                            }
+                          } catch (err) {
+                            alert('Failed to send magic link');
+                          }
+                        }}
+                        className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50"
+                        disabled={!loginEmail.trim()}
+                      >
+                        Send magic link
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <div className="text-green-600 mb-2">
+                        <svg className="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-1">Check your email</h4>
+                      <p className="text-xs text-gray-500">
+                        We've sent a magic link to <strong>{loginEmail}</strong>
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <button
                 onClick={() => window.location.href = '/'}
                 className="text-sm text-brand-secondary hover:underline"
