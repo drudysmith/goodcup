@@ -366,7 +366,7 @@ const session = await stripe.checkout.sessions.create({
 });
 ```
 
-### TanStack Query Pattern (Future)
+### TanStack Query Pattern
 ```typescript
 // ✅ Query pattern to follow
 const { data: visitorData, isLoading } = useQuery({
@@ -377,11 +377,11 @@ const { data: visitorData, isLoading } = useQuery({
   retry: (failureCount, error) => {
     // Don't retry on auth errors
     if (error.status === 401) return false;
-    return failureCount < 3;
+    return failureCount < 2;
   }
 });
 ```
 
 ---
 
-**🎯 Remember**: These patterns were battle-tested through Modules 1-4. Follow them consistently and extend them rather than creating new patterns. The modular approach means you can build on this foundation safely.** 
+**🎯 Remember**: These patterns are validated across Modules 1‑8 and the checkout modules A‑D. Follow them consistently and extend them rather than creating new patterns. The TanStack store and query approach is the standard going forward.**

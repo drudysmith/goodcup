@@ -302,6 +302,43 @@ Bugwatch
 Removing fetch utilities might inadvertently drop logging or error-handling behavior. Mirror the established console‑log conventions when shifting to TanStack Query callbacks.
 
 
+Module 6b.3 “Inline Magic Link on Checkout Page”
+Summary
+Replace the AuthModal trigger during checkout with an inline “Send magic link” form so users log in directly from the checkout page. Returning via that magic link should automatically run the merge step (6b.1) and checkout session creation (6b.2).
+Where to Look
+pages/checkout.tsx
+handleCheckout function around lines 252‑278.
+The auth state listener near lines 168‑208.
+components/AuthModal.tsx for reference OTP logic (lines 28‑42).
+VisitorContext if contact data is needed for autopopulation.
+Implementation Notes
+Toggle Inline Form
+Add state to show a small login section when “user” checkout is selected and no session exists.
+Instead of calling setShowAuthModal(true) at lines 274‑276, render this form below the “Continue to sign in” button or in place of it.
+Send Magic Link
+Use the same signInWithOtp call as in AuthModal (lines 28‑42) but move it into the checkout page component.
+Redirect URL should remain ${window.location.origin}/checkout?mode=user.
+Console log: 📧 Magic link sent to: <email>.
+Prefill Email
+Initialize the email input with any available value (customerInfo.email or visitor data from VisitorContext).
+Update state when the user edits the field.
+Handle Auth Return
+The existing onAuthStateChange listener (lines 168‑208) already merges the visitor and creates the Stripe session when a session appears. Ensure this still fires after a magic-link login.
+UX After Sending
+Display a short success message (“Check your email...”) similar to the one in AuthModal (lines 78‑102).
+Hide the form once the magic link is sent.
+Guest Flow Unchanged
+Keep the guest branch intact. CheckoutModeToggle should still allow guests to bypass the login step, triggering 6c if contact info exists.
+Guardrails
+Preserve all existing checkout layout classes and mobile/desktop behavior.
+Maintain the established logging pattern (emoji prefixes) when sending the link and when the session is detected.
+Do not remove AuthModal entirely; other parts of the app may still open it.
+Ensure no extra prompts appear once the session is active—checkout should proceed automatically.
+Breakpoints / Testing
+After magic link sent: Confirm the console log 📧 Magic link sent to: appears and the form transitions to a success message.
+After clicking the link: Upon returning to /checkout?mode=user, verify the console logs for 6b.2 run in order (🔄 Merging visitor..., ✅ Redirecting to Stripe checkout session) and the browser redirects to Stripe.
+
+
 6c. Guest Flow Reconciliation
 Trigger: Checkout mode is “guest.”
 Action: If the visitor has saved contact info, show a brief confirmation dialog offering to create an account.
@@ -347,6 +384,7 @@ Module C – Success/Cancellation Handling
 In pages/checkout.tsx, the code checks query parameters on page load. If success=1 is present, it clears the cart. This is a minimal success/cancel hook and does not yet show a detailed success page.
 Module D – Customer Portal & Subscription Management
 The API endpoints createCustomerPortalSession.ts and getSubscriptionDetails.ts are implemented to interact with Stripe’s billing portal and fetch subscription details. The dashboard.tsx page, however, uses hard-coded data rather than live Supabase or Stripe data, indicating this part is still a placeholder.
+
 Overall, the groundwork for Modules A–D is present, but some database hooks and final UI pieces remain to be implemented once Module 6 and the user merge are fully integrated.
 
 

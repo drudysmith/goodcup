@@ -1,4 +1,4 @@
-# 🔍 Verification Checklist - Modules 1-4
+# 🔍 Verification Checklist - Modules 1-8 + A-D
 
 ## ✅ Module 1: Visitor ID Handling
 
@@ -98,6 +98,66 @@
 3. **Check Console**: Should see cart merge logs
 4. **Visual**: Cart should contain items from both visitors
 
+## ✅ Module 5: User Auth Trigger
+
+### Test: Checkout as User
+1. Choose **Check out as user** on the checkout page.
+2. If you are not signed in, an auth modal should appear.
+3. **Check Console**: Should log `🔐 User opted for full auth — showing auth modal`.
+4. Complete sign in via magic link or password.
+
+### Test: Continue as Guest
+1. Select **Continue as guest**.
+2. Checkout should proceed without showing the auth modal.
+3. **Check Console**: Should log `🧭 Checkout mode selected: guest`.
+
+## ✅ Module 6: Auth Completion & Visitor Merge
+
+### Test: Merge on Sign In
+1. After signing in from the auth modal, watch for logs:
+   - `🔄 Module 6b.2: Merging visitor with authenticated user`
+   - `✅ Module 6b.2: Visitor merge successful:`
+   - `🧹 Module 6b.2: Clearing visitor tokens from localStorage`
+2. You should be redirected to Stripe checkout as a user.
+
+## ✅ Module 7: Supabase User Session Handling
+
+### Test: Reload with Active Session
+1. Sign in and ensure a Supabase session is stored.
+2. Refresh the page.
+3. **Check Console**: Should log `🔄 User session detected — loading user state`.
+
+## ✅ Module 8: Session Expiry Handling
+
+### Test: Expired Session
+1. Manually expire your Supabase session or wait until expiration.
+2. Refresh the page or trigger an API call.
+3. **Check Console**: Should log `⏰ User session expired — prompting re-auth`.
+
+## ✅ Module A: Checkout Session Creation
+
+### Test: `/api/createCheckoutSession`
+1. Trigger a checkout from the app.
+2. **Check Console**: Should log `✅ Redirecting to Stripe checkout session`.
+
+## ✅ Module B: Webhook & Order Persistence
+
+### Test: Stripe Webhook
+1. Send a test webhook event to `/api/stripeWebhook`.
+2. **Check Server Logs**: Should show `📦 Stripe webhook received:` followed by the event type.
+
+## ✅ Module C: Success/Cancellation Handling
+
+### Test: Successful Checkout Redirect
+1. Complete a Stripe checkout in test mode.
+2. You should return to `/checkout?success=1` and the cart should clear.
+
+## ✅ Module D: Customer Portal & Subscription Management
+
+### Test: Customer Portal Access
+1. On `/dashboard`, click **Manage subscription** after completing a checkout.
+2. **Check Console**: Should log the portal session URL before redirect.
+
 ---
 
 ## 🔧 API Endpoint Tests
@@ -176,4 +236,4 @@ This will start you with a completely fresh visitor state for testing.
 
 ---
 
-**⚡ Pro Tip**: Keep browser dev tools open with console visible during all testing. The emoji-prefixed logs tell you exactly what's happening at each step! 
+
