@@ -24,7 +24,7 @@ const loadCartFromStorage = (): CartItem[] => {
     if (!stored) return [];
     
     const parsed = JSON.parse(stored);
-    // Handle Zustand persist format: { state: { items: [] }, version: 0 }
+    // Handle structured persist format: { state: { items: [] }, version: 0 }
     if (parsed.state && Array.isArray(parsed.state.items)) {
       return parsed.state.items;
     }
@@ -43,7 +43,7 @@ const saveCartToStorage = (items: CartItem[]) => {
   if (typeof window === 'undefined') return;
   
   try {
-    // Save in Zustand persist format for compatibility
+    // Save in structured persist format for consistency
     const persistData = {
       state: { items },
       version: 0
@@ -104,7 +104,7 @@ cartStore.subscribe(() => {
   saveCartToStorage(state.items);
 });
 
-// Export hook that maintains the same API as Zustand
+// Export hook that provides cart state and actions
 export const useCartStore = <T>(selector: (state: CartState) => T) => {
   const storeState = useStore(cartStore);
   

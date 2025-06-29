@@ -1,6 +1,7 @@
 'use client';
 
 import React, { ReactNode, useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import LogoAnimated from "./LogoAnimated";
 import Link from 'next/link';
 import { UserIcon, ShoppingBagIcon } from '@heroicons/react/24/outline';
@@ -41,6 +42,50 @@ interface StripeProduct {
   prices: StripePrice[];
 }
 
+// Query function for products
+const fetchProducts = async (): Promise<{ products: StripeProduct[] }> => {
+  const response = await fetch('/api/products');
+  if (!response.ok) {
+    throw new Error('Failed to fetch products');
+  }
+  return response.json();
+};
+
+// Mutation function for contact info submission
+const submitContactInfo = async ({ 
+  visitorId, 
+  email, 
+  phone, 
+  name 
+}: { 
+  visitorId: string; 
+  email: string; 
+  phone?: string; 
+  name?: string; 
+}) => {
+  console.log('📡 Submitting contact info to Module 4 API:', { email, phone, name });
+  
+  const response = await fetch('/api/visitor/identify', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      visitor_id: visitorId,
+      email,
+      phone,
+      name
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to submit contact info');
+  }
+
+  return response.json();
+};
+
 const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuClosing, setMenuClosing] = useState(false);
@@ -53,7 +98,6 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   const [cupgradesHovered, setCupgradesHovered] = useState(false);
   const [cupgradesClosing, setCupgradesClosing] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [products, setProducts] = useState<StripeProduct[]>([]);
   const [showContactPopup, setShowContactPopup] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLUListElement>(null);
@@ -120,21 +164,50 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
     [items]
   );
 
-  // Fetch products for cart display
-  useEffect(() => {
-    fetch('/api/products')
-      .then((res) => res.json())
-      .then((data) => {
-        setProducts(data.products || []);
-      })
-      .catch((error) => {
-        console.error('Error fetching products:', error);
+  // Products query
+  const productsQuery = useQuery({
+    queryKey: ['products'],
+    queryFn: fetchProducts,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Contact info submission mutation
+  const contactInfoMutation = useMutation({
+    mutationFn: submitContactInfo,
+    onSuccess: (data) => {
+      if (data.merged) {
+        console.log(`🔁 Merge result: updated visitor_id ${data.visitor_id} and JWT`);
+      } else {
+        console.log(`📝 Enriched visitor_id ${data.visitor_id} with contact info`);
+      }
+
+      // Update visitor identity in context and localStorage
+      updateVisitorIdentity(data.visitor_id, data.jwt, {
+        name: data.visitor.name,
+        email: data.visitor.email,
+        phone: data.visitor.phone,
+        cart: data.visitor.cart
       });
-  }, []);
+
+      setShowContactPopup(false);
+      console.log('✅ Contact info merge completed successfully');
+    },
+    onError: (error) => {
+      console.error('Failed to submit contact info:', error.message);
+      // Could show user-facing error here
+    },
+  });
 
   // Find featured products using utility functions
-  const mostPopularProduct = useMemo(() => findMostPopularProduct(products), [products]);
-  const superHealingProduct = useMemo(() => findSuperHealingProduct(products), [products]);
+  const mostPopularProduct = useMemo(() => {
+    const products = productsQuery.data?.products || [];
+    return findMostPopularProduct(products);
+  }, [productsQuery.data?.products]);
+  
+  const superHealingProduct = useMemo(() => {
+    const products = productsQuery.data?.products || [];
+    return findSuperHealingProduct(products);
+  }, [productsQuery.data?.products]);
 
   const closeMenu = useCallback(() => {
     if (menuOpen) {
@@ -306,53 +379,20 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
     }
 
     try {
-      console.log('📡 Submitting contact info to Module 4 API:', contactInfo);
-      
       // Ensure cart is synced to database before merge
       console.log('🔄 Flushing cart updates before identity merge...');
       await syncCartToDatabase(items, jwt);
       console.log('✅ Cart flushed - proceeding with identity merge');
       
-      const response = await fetch('/api/visitor/identify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          visitor_id: visitorId,
-          email: contactInfo.email,
-          phone: contactInfo.phone,
-          name: contactInfo.name
-        }),
+      // Use mutation instead of direct fetch
+      contactInfoMutation.mutate({
+        visitorId,
+        email: contactInfo.email,
+        phone: contactInfo.phone,
+        name: contactInfo.name
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        
-        if (data.merged) {
-          console.log(`🔁 Merge result: updated visitor_id ${data.visitor_id} and JWT`);
-        } else {
-          console.log(`📝 Enriched visitor_id ${data.visitor_id} with contact info`);
-        }
-
-        // Update visitor identity in context and localStorage
-        updateVisitorIdentity(data.visitor_id, data.jwt, {
-          name: data.visitor.name,
-          email: data.visitor.email,
-          phone: data.visitor.phone,
-          cart: data.visitor.cart
-        });
-
-        setShowContactPopup(false);
-        console.log('✅ Contact info merge completed successfully');
-        
-      } else {
-        const errorData = await response.json();
-        console.error('Failed to submit contact info:', errorData.error);
-        // Could show user-facing error here
-      }
     } catch (error) {
-      console.error('Error submitting contact info:', error);
+      console.error('Error syncing cart before contact info submission:', error);
       // Could show user-facing error here
     }
   };
@@ -547,7 +587,7 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
                   cartClosing={cartClosing}
                   onClose={closeCart}
                   cartActions={{ updateQuantity, removeItem }}
-                  products={products}
+                  products={productsQuery.data?.products || []}
                   isOpen={cartHovered}
                 />
               )}
@@ -556,7 +596,7 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
             {/* Cupgrades Panel */}
             {(cupgradesHovered || cupgradesClosing) && (
               <CupgradesPanel
-                products={products}
+                products={productsQuery.data?.products || []}
                 cupgradesClosing={cupgradesClosing}
                 onClose={closeCupgrades}
                 addItem={addItem}

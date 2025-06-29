@@ -3,10 +3,11 @@
 // This rebuild:
 // - Removes all auth, Supabase, router, and eligibility logic
 // - Preserves full UI/UX structure (Information → Shipping → Payment)
-// - Keeps TanStack cart, product fetch, and checkout session creation
+// - Uses TanStack Query for products and API operations
 // - Uses local customer info state to simulate user identity
 
 import { useEffect, useState } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useCartStore, CartItem } from '../store/cartStore';
 import { CheckoutModeToggle } from '../components/CheckoutModeToggle';
 import { AuthModal } from '../components/AuthModal';
@@ -43,11 +44,55 @@ interface CustomerInfo {
 
 type CheckoutStage = 'information' | 'shipping';
 
+// Query functions
+const fetchProducts = async (): Promise<{ products: StripeProduct[] }> => {
+  const response = await fetch('/api/products');
+  if (!response.ok) {
+    throw new Error('Failed to fetch products');
+  }
+  return response.json();
+};
+
+const mergeVisitor = async ({ visitorId, accessToken }: { visitorId: string; accessToken: string }) => {
+  const response = await fetch('/api/visitor/merge', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ visitor_id: visitorId }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to merge visitor');
+  }
+
+  return response.json();
+};
+
+const createCheckoutSession = async (payload: {
+  items: CartItem[];
+  customerEmail: string;
+  supabaseUserId?: string;
+  visitorId?: string;
+  checkoutMode: 'user' | 'guest';
+}) => {
+  const response = await fetch('/api/createCheckoutSession', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to create checkout session');
+  }
+
+  return response.json();
+};
+
 export default function Checkout() {
   const items = useCartStore((s) => s.items);
   const clearCart = useCartStore((s) => s.clearCart);
-  const [products, setProducts] = useState<StripeProduct[]>([]);
-  const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [currentStage, setCurrentStage] = useState<CheckoutStage>('information');
   const [orderSummaryExpanded, setOrderSummaryExpanded] = useState(false);
@@ -72,14 +117,47 @@ export default function Checkout() {
     phone: '555-123-4567',
   });
 
-  useEffect(() => {
-    fetch('/api/products')
-      .then((res) => res.json())
-      .then((data) => {
-        setProducts(data.products || []);
-        setLoading(false);
-      });
-  }, []);
+  // Products query
+  const productsQuery = useQuery({
+    queryKey: ['products'],
+    queryFn: fetchProducts,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Visitor merge mutation
+  const visitorMergeMutation = useMutation({
+    mutationFn: mergeVisitor,
+    onSuccess: (mergeData) => {
+      console.log('✅ Module 6b.2: Visitor merge successful:', mergeData);
+      
+      // Clear visitor tokens from localStorage
+      console.log('🧹 Module 6b.2: Clearing visitor tokens from localStorage');
+      localStorage.removeItem('visitor_id');
+      localStorage.removeItem('visitor_jwt');
+    },
+    onError: (error) => {
+      console.error('Module 6b.2: Visitor merge failed:', error);
+      alert('Failed to merge visitor data. Please try again.');
+    },
+  });
+
+  // Checkout session mutation
+  const checkoutSessionMutation = useMutation({
+    mutationFn: createCheckoutSession,
+    onSuccess: (checkoutData) => {
+      if (checkoutData.url) {
+        console.log('✅ Redirecting to Stripe checkout session');
+        window.location.href = checkoutData.url;
+      } else {
+        console.error('Checkout session creation failed:', checkoutData.error);
+        alert(checkoutData.error || 'Checkout failed');
+      }
+    },
+    onError: (error) => {
+      console.error('Error creating checkout session:', error);
+      alert('Checkout failed');
+    },
+  });
 
   // Check for existing Supabase session on mount
   useEffect(() => {
@@ -103,53 +181,21 @@ export default function Checkout() {
         try {
           console.log('🔄 Module 6b.2: Merging visitor with authenticated user');
           
-          // Call merge endpoint with visitor_id and session token
-          const mergeResponse = await fetch('/api/visitor/merge', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ visitor_id: visitorId }),
+          // Call merge mutation
+          const mergeData = await visitorMergeMutation.mutateAsync({
+            visitorId,
+            accessToken: session.access_token,
           });
-
-          const mergeData = await mergeResponse.json();
           
-          if (mergeResponse.ok && mergeData.success) {
-            console.log('✅ Module 6b.2: Visitor merge successful:', mergeData);
-            
-            // Clear visitor tokens from localStorage
-            console.log('🧹 Module 6b.2: Clearing visitor tokens from localStorage');
-            localStorage.removeItem('visitor_id');
-            localStorage.removeItem('visitor_jwt');
-            
-            // Create checkout session with user ID
-            console.log('🔄 Module 6b.2: Creating Stripe checkout session with user ID:', session.user.id);
-            
-            const checkoutResponse = await fetch('/api/createCheckoutSession', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                items,
-                customerEmail: session.user.email || customerInfo.email,
-                supabaseUserId: session.user.id,
-                checkoutMode: 'user'
-              }),
-            });
-            
-            const checkoutData = await checkoutResponse.json();
-            
-            if (checkoutData.url) {
-              console.log('✅ Module 6b.2: Redirecting to Stripe checkout session');
-              window.location.href = checkoutData.url;
-            } else {
-              console.error('Module 6b.2: Checkout session creation failed:', checkoutData.error);
-              alert(checkoutData.error || 'Checkout failed');
-            }
-          } else {
-            console.error('Module 6b.2: Visitor merge failed:', mergeData);
-            alert('Failed to merge visitor data. Please try again.');
-          }
+          // Create checkout session with user ID
+          console.log('🔄 Module 6b.2: Creating Stripe checkout session with user ID:', session.user.id);
+          
+          await checkoutSessionMutation.mutateAsync({
+            items,
+            customerEmail: session.user.email || customerInfo.email,
+            supabaseUserId: session.user.id,
+            checkoutMode: 'user'
+          });
         } catch (error) {
           console.error('Module 6b.2: Error during merge and checkout:', error);
           alert('An error occurred during checkout. Please try again.');
@@ -161,7 +207,7 @@ export default function Checkout() {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [checkoutMode, visitorId, isProcessingMerge, items, customerInfo.email]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -175,9 +221,10 @@ export default function Checkout() {
         setCheckoutMode(modeParam);
       }
     }
-  }, []);
+  }, [clearCart]);
 
   const getProductAndPrice = (item: CartItem) => {
+    const products = productsQuery.data?.products || [];
     const product = products.find((p) => p.id === item.productId);
     const price = product?.prices.find((pr) => pr.id === item.priceId);
     return { product, price };
@@ -213,28 +260,12 @@ export default function Checkout() {
         console.log('🔄 Module 6a: Creating Stripe checkout session with user ID:', userSession.user.id);
         
         try {
-          const response = await fetch('/api/createCheckoutSession', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              items,
-              customerEmail: userSession.user.email || customerInfo.email,
-              supabaseUserId: userSession.user.id,
-              checkoutMode: 'user'
-            }),
+          await checkoutSessionMutation.mutateAsync({
+            items,
+            customerEmail: userSession.user.email || customerInfo.email,
+            supabaseUserId: userSession.user.id,
+            checkoutMode: 'user'
           });
-          
-          const data = await response.json();
-          if (data.url) {
-            console.log('✅ Module 6a: Redirecting to Stripe checkout session');
-            window.location.href = data.url;
-          } else {
-            console.error('Module 6a: Checkout session creation failed:', data.error);
-            alert(data.error || 'Checkout failed');
-          }
-        } catch (err) {
-          console.error('Module 6a: Error creating checkout session:', err);
-          alert('Checkout failed');
         } finally {
           setCheckoutLoading(false);
         }
@@ -250,31 +281,19 @@ export default function Checkout() {
 
     // Guest checkout flow using visitor context
     try {
-      const response = await fetch('/api/createCheckoutSession', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items,
-          customerEmail: customerInfo.email,
-          // Include visitor context for guest checkout
-          visitorId: visitorId,
-          checkoutMode: 'guest'
-        }),
+      await checkoutSessionMutation.mutateAsync({
+        items,
+        customerEmail: customerInfo.email,
+        visitorId: visitorId || undefined,
+        checkoutMode: 'guest'
       });
-      const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        alert(data.error || 'Checkout failed');
-      }
-    } catch (err) {
-      alert('Checkout failed');
     } finally {
       setCheckoutLoading(false);
     }
   };
 
-  if (loading) return <div className="text-center py-16">Loading...</div>;
+  if (productsQuery.isLoading) return <div className="text-center py-16">Loading...</div>;
+  if (productsQuery.isError) return <div className="text-center py-16">Error loading products</div>;
   if (items.length === 0) return <div className="text-center py-16">Your cart is empty</div>;
 
   return (

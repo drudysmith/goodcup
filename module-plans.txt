@@ -10,6 +10,9 @@ Module 4.5 – Checkout Mode Toggle (approximately lines 280‑287)
 ✅ Module 4.7 (a–c) – Replace Zustand with TanStack (COMPLETE)
 Module 5 – User Auth Trigger (approximately lines 314‑318)
 Module 6 – Auth Completion & Visitor Merge (approximately lines 320‑327)
+6a, 6b1, 6b2
+Blocks 1-4 (move completely to tanstack for state management)
+6b3, 6c, 6d
 Module 7 – Supabase User Session Handling (approximately lines 329‑334)
 Module 8 – Session Expiry Handling (approximately lines 336‑339)
 Module A. Checkout Session Creation
@@ -219,14 +222,85 @@ Trigger: User chooses “Check out as user.”
 Action: If a Supabase session already exists, skip the auth modal and create the Stripe checkout session using the session’s user ID.
 Breakpoint: Confirm the call to /api/createCheckoutSession redirects directly to Stripe.
 
-6b. Auth Success & Visitor Merge
-Trigger: Sign‑up or sign‑in completes in AuthModal.
+6b.1 – Merge Endpoint Setup
+Trigger: A user finishes signing in or signing up via AuthModal.
 Action:
-POST the current visitor_id to a merge endpoint (the merge endpoint does not currently exist. When Module 6b is implemented, a new API route will need to be added to accept the visitor_id and associate it with the authenticated Supabase user, updating the visitors table accordingly).
-The backend assigns the visitor’s row to the authenticated user by setting user_id in the visitors table and merging cart/contact data.
-Clear visitor_id and visitor JWT from local storage so only the Supabase session remains.
-Immediately proceed to create the checkout session using the authenticated user’s ID.
-Breakpoint: Verify visitor data is merged and the checkout session is created successfully before continuing.
+Send a POST request to a new /api/user/merge route with the current visitor_id.
+On the server, confirm the Supabase session and set user_id on the corresponding visitor row, merging cart and contact data.
+Return a success response so the client can proceed.
+Breakpoint: Verify that the endpoint correctly attaches the visitor row to the authenticated user_id and that the merged data is available.
+
+6b.2 – Post‑Merge Cleanup and Checkout
+Trigger: The merge endpoint responds successfully.
+Action:
+Clear visitor_id and the visitor JWT from localStorage.
+Use the active Supabase session as the sole auth token.
+Immediately call /api/createCheckoutSession with supabaseUserId to create the Stripe session.
+Redirect the browser to the returned Stripe URL.
+Breakpoint: Confirm visitor tokens are gone, the checkout session is created with the user’s ID, and Stripe redirection occurs without additional prompts.
+
+
+Blocks 1-4 Summary
+Migrating these remaining pieces to TanStack Query and Mutation hooks will harmonize state management across modules without disturbing the UI/UX or animation layers. Guardrails and bugwatch notes help ensure the transition does not introduce regressions.
+
+Block 1: Convert Visitor Context to TanStack Query
+Summary
+The existing VisitorProvider keeps visitor ID, JWT, and visitor data in local useState variables. Initialization and cart synchronization rely on fetch calls. Converting this logic to TanStack Query ensures consistent caching and easier invalidation.
+Where to Look
+lib/contexts/VisitorContext.tsx — state initialization begins around lines 28‑31 and cart hydration around line 41. Fetch calls to /api/visitor/init and /api/visitor/validate appear near lines 140‑176, while cart syncing logic sits around lines 226‑251
+Implementation Notes
+Introduce a useQuery hook to fetch visitor data keyed by [ 'visitor', visitorId ].
+Wrap cart updates in a useMutation so cart changes automatically invalidate visitor queries.
+Maintain the context API (updateVisitorIdentity, syncCartToDatabase) so components do not need refactoring.
+Guardrails
+Keep the hook names and return shapes unchanged; components should receive the same values.
+Do not alter the CSS classes controlling the popup or cart animations.
+Bugwatch
+After moving to queries, ensure window.location.reload() inside the invalid-JWT branch does not trigger infinite reloads if the query retries fail.
+
+Block 2: Replace Ad‑hoc Fetch Calls with TanStack Queries and Mutations
+Summary
+Pages such as the checkout flow and layout still fetch products and trigger API endpoints with plain fetch calls. Replacing these with useQuery/useMutation ensures unified error handling and cache control.
+Where to Look
+pages/checkout.tsx fetches /api/products at lines 75‑81 and later calls /api/visitor/merge and /api/createCheckoutSession around lines 103‑129
+components/Layout.tsx fetches products in an effect around lines 125‑133
+Implementation Notes
+Convert data retrievals (product lists, session checks) to queries with meaningful keys (e.g., [ 'products' ]).
+Wrap POST operations (checkout session creation, visitor merge) in mutations that invalidate related queries upon success.
+Keep query functions lightweight to avoid blocking UI transitions.
+Guardrails
+Preserve all modal behavior and page transitions exactly—loading indicators and success banners must still fire in response to the same events.
+Keep local useState for UI toggles and simple form fields.
+Bugwatch
+When switching to queries, verify that dependency arrays or query keys do not create unwanted loops, especially around the checkout session creation logic.
+
+Block 3: Confirm Central Query Cache Management
+Summary
+A QueryClientProvider already wraps the component tree in _app.tsx lines 11‑15, instantiating a QueryClient once at import time. This block simply confirms that configuration and scope remain correct.
+Where to Look
+pages/_app.tsx for the existing provider setup.
+Implementation Notes
+Ensure only one QueryClient instance exists and is provided at the root.
+Optionally specify global query defaults (e.g., staleTime) if different modules require them.
+Guardrails
+Leave surrounding layout classes untouched; the provider should not affect page positioning or animation triggers.
+Bugwatch
+If default options are added, double‑check that suspense or refetch behavior doesn’t break page navigation or cause unexpected spinner flashes.
+
+Block 4: Remove Leftover Zustand and Manual Fetch Utilities
+Summary
+The cart store is already implemented with @tanstack/store (store/cartStore.ts), and no files currently import zustand. This step verifies that no stray fetch helpers or stale dependencies remain once queries are in place.
+Where to Look
+Run a repository search for the string “zustand” (returns none in code) and check package.json to confirm removal.
+Identify any utility functions solely supporting the old fetch pattern.
+Implementation Notes
+Clean up unused helpers after the queries and mutations are confirmed to work.
+Validate that cart syncing and visitor flows operate normally.
+Guardrails
+User experience—especially the cart panel, header animations, and contact info popup—must remain identical.
+Bugwatch
+Removing fetch utilities might inadvertently drop logging or error-handling behavior. Mirror the established console‑log conventions when shifting to TanStack Query callbacks.
+
 
 6c. Guest Flow Reconciliation
 Trigger: Checkout mode is “guest.”
