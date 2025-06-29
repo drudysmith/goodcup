@@ -105,6 +105,8 @@ export default function Checkout() {
   const [showInlineLogin, setShowInlineLogin] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginLinkSent, setLoginLinkSent] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   // Visitor context for guest checkout
   const { visitorId, jwt, visitorData } = useVisitor();
@@ -134,6 +136,8 @@ export default function Checkout() {
   useEffect(() => {
     if (showInlineLogin) {
       console.log('✅ Inline login form is now displayed');
+      // Reset error state when form is shown
+      setLoginError(null);
     }
   }, [showInlineLogin]);
 
@@ -193,6 +197,7 @@ export default function Checkout() {
       if (event === 'SIGNED_IN' && session && checkoutMode === 'user' && visitorId && !isProcessingMerge) {
         console.log('✅ User authentication successful');
         setShowAuthModal(false);
+        setShowInlineLogin(false);
         
         // Module 6b.2: Post-Merge Cleanup and Checkout
         setIsProcessingMerge(true);
@@ -401,58 +406,87 @@ export default function Checkout() {
                 }
               </button>
 
-              {/* Module 6b.3.1: Inline Login Form */}
+              {/* Module 6b.3.1 & 6b.3.2: Inline Login Form */}
               {checkoutMode === 'user' && !userSession && showInlineLogin && (
                 <div className="mt-4 p-4 border rounded bg-gray-50">
                   {!loginLinkSent ? (
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-medium text-gray-700">Sign in to your account</h4>
-                      <input
-                        type="email"
-                        placeholder="Email address"
-                        value={loginEmail}
-                        onChange={(e) => setLoginEmail(e.target.value)}
-                        className="w-full p-3 border rounded"
-                        required
-                      />
-                      <button
-                        onClick={async () => {
-                          if (!loginEmail.trim()) return;
-                          
-                          try {
-                            const { error } = await supabaseAnon.auth.signInWithOtp({
-                              email: loginEmail.trim(),
-                              options: {
-                                emailRedirectTo: `${window.location.origin}/checkout?mode=user`
-                              }
-                            });
+                    <form 
+                      onSubmit={async (e: React.FormEvent) => {
+                        e.preventDefault();
+                        
+                        if (!loginEmail.trim()) {
+                          setLoginError('Email is required');
+                          return;
+                        }
 
-                            if (error) {
-                              alert(error.message);
-                            } else {
-                              setLoginLinkSent(true);
-                              console.log('📧 Magic link sent to:', loginEmail);
+                        setLoginLoading(true);
+                        setLoginError(null);
+
+                        try {
+                          const { error } = await supabaseAnon.auth.signInWithOtp({
+                            email: loginEmail.trim(),
+                            options: {
+                              emailRedirectTo: `${window.location.origin}/checkout?mode=user`
                             }
-                          } catch (err) {
-                            alert('Failed to send magic link');
+                          });
+
+                          if (error) {
+                            setLoginError(error.message);
+                          } else {
+                            setLoginLinkSent(true);
+                            console.log('📧 Magic link sent to:', loginEmail);
                           }
-                        }}
-                        className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50"
-                        disabled={!loginEmail.trim()}
+                        } catch (err) {
+                          setLoginError('Failed to send magic link');
+                        } finally {
+                          setLoginLoading(false);
+                        }
+                      }}
+                      className="space-y-3"
+                    >
+                      <h4 className="text-sm font-medium text-gray-700">Sign in to your account</h4>
+                      
+                      <div>
+                        <label htmlFor="inline-email" className="block text-sm font-medium text-gray-700 mb-1">
+                          Email address
+                        </label>
+                        <input
+                          type="email"
+                          id="inline-email"
+                          placeholder="your@email.com"
+                          value={loginEmail}
+                          onChange={(e) => setLoginEmail(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          required
+                          disabled={loginLoading}
+                        />
+                      </div>
+
+                      {/* Error Message */}
+                      {loginError && (
+                        <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
+                          {loginError}
+                        </div>
+                      )}
+                      
+                      <button
+                        type="submit"
+                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        disabled={loginLoading}
                       >
-                        Send magic link
+                        {loginLoading ? 'Sending...' : 'Send magic link'}
                       </button>
-                    </div>
+                    </form>
                   ) : (
                     <div className="text-center">
-                      <div className="text-green-600 mb-2">
-                        <svg className="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="text-green-500 mb-4">
+                        <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                         </svg>
                       </div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-1">Check your email</h4>
-                      <p className="text-xs text-gray-500">
-                        We've sent a magic link to <strong>{loginEmail}</strong>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Check your email</h3>
+                      <p className="text-sm text-gray-500 mb-4">
+                        We've sent a magic link to <strong>{loginEmail}</strong>. Click the link to sign in and complete your checkout.
                       </p>
                     </div>
                   )}

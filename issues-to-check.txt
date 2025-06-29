@@ -1,0 +1,13 @@
+*duplicate cart items*
+i was a known visitor with cart items 
+next day came back and accessed again, and somehow the system recognized my cart itmes but gave me a new uuid
+then asked me to log in when i accessed cart
+when i did it merged the cart items in session with the db cart items so i had two of everything
+not sure what is going on
+
+*magic link email slippage*
+magic link worked to push me to checkout
+not sure whether i was authorized
+but it allowed me to use a different email than the one i had provided in session and was recorded for me in db, we should not do that, we should use the one we recongize from the db
+
+
