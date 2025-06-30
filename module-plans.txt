@@ -443,7 +443,6 @@ Avoid duplicate address entries during merges; the server should update existing
 Ensure stale cache issues are resolved with TanStack’s invalidation patterns.
 
 
-
 State Mgmt Update 1 – Auth Flow Mutations
 Summary
 Refactor the sign‑in, sign‑up, and magic‑link logic in AuthModal.tsx to use TanStack Mutations. Mutations should expose loading and error states so the modal can react without extra useState flags.
@@ -459,6 +458,14 @@ After migrating, confirm the modal’s loading and error indicators respond to m
 Watch for “magic link email slippage” (from issues-to-check.txt)—the mutation should still force the known email address and not accept unrecognized ones.
 Earliest Placement
 Add this update after completing Module 6d (Checkout Session Finalization) and before starting Module 7. At that stage the auth flow is working and you can safely refactor the network calls.
+
+
+
+added this in between:
+"this works it seems with the exception that the magilink is accepting emails other than the one we have stored for the user, the magilink prefills with the correct email, but user is able to change to any email send the magiclink
+the mutation should still force the known email address and not accept unrecognized ones.
+analyze to determine the minimal update required to fix this, then cleanly make the change, staying scoped to the minimal update you identify, keep it tight"
+
 
 
 ... give the dev team heads up for module 7, then do Update 2

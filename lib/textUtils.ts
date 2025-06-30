@@ -1,4 +1,6 @@
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
+
 
 // Supported text styles and their corresponding Tailwind classes
 const TEXT_STYLES = {

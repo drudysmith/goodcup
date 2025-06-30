@@ -2,6 +2,7 @@
 
 import React, { ReactNode, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useSupabaseSession } from '../lib/queries/sessionQueries';
 import LogoAnimated from "./LogoAnimated";
 import Link from 'next/link';
 import { UserIcon, ShoppingBagIcon } from '@heroicons/react/24/outline';
@@ -48,6 +49,25 @@ const fetchProducts = async (): Promise<{ products: StripeProduct[] }> => {
   if (!response.ok) {
     throw new Error('Failed to fetch products');
   }
+  return response.json();
+};
+
+// Module 7: User profile data fetching
+const fetchUserProfile = async (session: any) => {
+  if (!session?.user?.id) {
+    throw new Error('No user session provided');
+  }
+
+  const response = await fetch('/api/user/profile', {
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch user profile');
+  }
+
   return response.json();
 };
 
@@ -106,14 +126,31 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   const logoRef = useRef<{ animateToNext: () => void }>(null);
   const headerRef = useRef<HTMLElement>(null);
 
-  // Dummy user data for development - replace with real auth later
-  const user = { 
-    id: 'dummy-user-id', 
-    email: 'dev@example.com', 
-    name: 'Dev User' 
-  };
-  const signOut = () => {
-    console.log('Sign out clicked - implement real auth later');
+  // Module 7: Supabase User Session Handling
+  const sessionQuery = useSupabaseSession();
+  const userSession = sessionQuery.data;
+
+  // Module 7: User profile query for authenticated users
+  const userProfileQuery = useQuery({
+    queryKey: ['userProfile', userSession?.user?.id],
+    queryFn: () => fetchUserProfile(userSession),
+    enabled: !!userSession?.user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Module 7: Derive user object from session and profile data
+  const user = userSession ? {
+    id: userSession.user.id,
+    email: userSession.user.email || userProfileQuery.data?.email || '',
+    name: userProfileQuery.data?.name || userSession.user.user_metadata?.name || ''
+  } : null;
+
+  const signOut = async () => {
+    console.log('🚪 User signing out');
+    if (userSession) {
+      const { supabaseAnon } = await import('../lib/supabaseClient');
+      await supabaseAnon.auth.signOut();
+    }
     clearCart();
   };
 
@@ -149,6 +186,17 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
 
   // Visitor context for contact info popup
   const { visitorId, jwt, visitorData, isReady: visitorReady, updateVisitorIdentity, syncCartToDatabase } = useVisitor();
+
+  // Module 7: Session handling and fallback logic
+  useEffect(() => {
+    if (sessionQuery.isSuccess) {
+      if (userSession) {
+        console.log('✅ Module 7: User session active - user data hydration in progress');
+      } else if (visitorReady) {
+        console.log('✅ Module 7: No user session - falling back to visitor auth');
+      }
+    }
+  }, [sessionQuery.isSuccess, userSession, visitorReady]);
 
   // Track cart hydration to prevent SSR/hydration mismatch
   const [isCartHydrated, setIsCartHydrated] = useState(false);

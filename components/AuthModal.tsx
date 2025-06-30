@@ -1,79 +1,109 @@
 import React, { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { supabaseAnon } from '../lib/supabaseClient';
 
 interface AuthModalProps {
   onClose: () => void;
   onSuccess: () => void;
+  email?: string; // Optional prefilled email that should be enforced
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
-  const [email, setEmail] = useState('');
+export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, email: enforcedEmail }) => {
+  const [email, setEmail] = useState(enforcedEmail || '');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
 
-  const handleMagicLink = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!email.trim()) {
-      setError('Email is required');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
+  // State Mgmt Update 1: TanStack mutations for auth flows
+  const signInWithOtpMutation = useMutation({
+    mutationFn: async (email: string) => {
       const { error } = await supabaseAnon.auth.signInWithOtp({
         email: email.trim(),
         options: {
           emailRedirectTo: `${window.location.origin}/checkout?mode=user`
         }
       });
-
+      
       if (error) {
-        setError(error.message);
-      } else {
-        setMagicLinkSent(true);
-        console.log('📧 Magic link sent to:', email);
+        throw new Error(error.message);
       }
-    } catch (err) {
-      setError('Failed to send magic link');
-    } finally {
-      setIsLoading(false);
+      
+      return { success: true };
+    },
+    onSuccess: () => {
+      setMagicLinkSent(true);
+      console.log('📧 Magic link sent to:', email);
+    },
+  });
+
+  const signInWithPasswordMutation = useMutation({
+    mutationFn: async ({ email, password }: { email: string; password: string }) => {
+      const { error } = await supabaseAnon.auth.signInWithPassword({ 
+        email: email.trim(), 
+        password 
+      });
+      
+      if (error) {
+        throw new Error(error.message);
+      }
+      
+      return { success: true };
+    },
+    onSuccess: () => {
+      console.log('✅ User sign in successful');
+      onSuccess();
+    },
+  });
+
+  const signUpMutation = useMutation({
+    mutationFn: async ({ email, password }: { email: string; password: string }) => {
+      const { error } = await supabaseAnon.auth.signUp({ 
+        email: email.trim(), 
+        password 
+      });
+      
+      if (error) {
+        throw new Error(error.message);
+      }
+      
+      return { success: true };
+    },
+    onSuccess: () => {
+      console.log('✅ User sign up successful');
+      onSuccess();
+    },
+  });
+
+  const handleMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Use enforced email if provided, otherwise use user-entered email
+    const emailToUse = enforcedEmail || email;
+    
+    if (!emailToUse.trim()) {
+      return;
     }
+
+    signInWithOtpMutation.mutate(emailToUse);
   };
 
   const handleEmailPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email.trim() || !password.trim()) {
-      setError('Email and password are required');
+    // Use enforced email if provided, otherwise use user-entered email
+    const emailToUse = enforcedEmail || email;
+    
+    if (!emailToUse.trim() || !password.trim()) {
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const { error } = isSignUp 
-        ? await supabaseAnon.auth.signUp({ email: email.trim(), password })
-        : await supabaseAnon.auth.signInWithPassword({ email: email.trim(), password });
-
-      if (error) {
-        setError(error.message);
-      } else {
-        console.log('✅ User authentication successful');
-        onSuccess();
-      }
-    } catch (err) {
-      setError(`Failed to ${isSignUp ? 'sign up' : 'sign in'}`);
-    } finally {
-      setIsLoading(false);
-    }
+    const mutation = isSignUp ? signUpMutation : signInWithPasswordMutation;
+    mutation.mutate({ email: emailToUse, password });
   };
+
+  // Computed states from mutations
+  const isLoading = signInWithOtpMutation.isPending || signInWithPasswordMutation.isPending || signUpMutation.isPending;
+  const error = signInWithOtpMutation.error?.message || signInWithPasswordMutation.error?.message || signUpMutation.error?.message;
 
   if (magicLinkSent) {
     return (
@@ -88,7 +118,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Check your email</h3>
             <p className="text-sm text-gray-500 mb-6">
-              We've sent a magic link to <strong>{email}</strong>. Click the link to sign in and complete your checkout.
+              We've sent a magic link to <strong>{enforcedEmail || email}</strong>. Click the link to sign in and complete your checkout.
             </p>
             <button
               onClick={onClose}
@@ -142,6 +172,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
                 placeholder="your@email.com"
                 required
                 disabled={isLoading}
+                readOnly={!!enforcedEmail}
               />
             </div>
             
@@ -176,6 +207,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
                 placeholder="your@email.com"
                 required
                 disabled={isLoading}
+                readOnly={!!enforcedEmail}
               />
             </div>
 

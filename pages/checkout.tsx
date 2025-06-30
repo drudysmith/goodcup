@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSupabaseSession, useSupabaseSessionHelpers } from '../lib/queries/sessionQueries';
 import { useCartStore, CartItem } from '../store/cartStore';
 import { CheckoutModeToggle } from '../components/CheckoutModeToggle';
 import { AuthModal } from '../components/AuthModal';
@@ -108,20 +109,24 @@ const saveAddress = async (address: any, token: string) => {
   return response.json();
 };
 
-// Module 6e: User profile data fetching
+// Module 7: User profile data fetching via secure API endpoint
 const fetchUserProfile = async (session: any) => {
-  const { data, error } = await supabaseAnon
-    .from('visitors')
-    .select('email, name, phone, street, unit, city, state, postal_code, country')
-    .eq('user_id', session.user.id)
-    .single();
+  if (!session?.user?.id) {
+    throw new Error('No user session provided');
+  }
 
-  if (error) {
+  const response = await fetch('/api/user/profile', {
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+  });
+
+  if (!response.ok) {
     console.log('⚠️ No profile data found for user:', session.user.id);
     return null;
   }
 
-  return data;
+  return response.json();
 };
 
 export default function Checkout() {
@@ -133,8 +138,12 @@ export default function Checkout() {
   const [orderSummaryExpanded, setOrderSummaryExpanded] = useState(false);
   const [checkoutMode, setCheckoutMode] = useState<'user' | 'guest'>('user');
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [userSession, setUserSession] = useState<any>(null);
   const [isProcessingMerge, setIsProcessingMerge] = useState(false);
+  
+  // State Mgmt Update 2: Use centralized session query
+  const sessionQuery = useSupabaseSession();
+  const { setSessionData } = useSupabaseSessionHelpers();
+  const userSession = sessionQuery.data;
   
   // Module 6b.3.1: Inline login state
   const [showInlineLogin, setShowInlineLogin] = useState(false);
@@ -299,17 +308,11 @@ export default function Checkout() {
     },
   });
 
-  // Check for existing Supabase session on mount
+  // State Mgmt Update 2: Setup auth state change listener
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabaseAnon.auth.getSession();
-      setUserSession(session);
-    };
-    checkSession();
-
-    // Listen for auth state changes
+    // Listen for auth state changes and update query cache
     const { data: { subscription } } = supabaseAnon.auth.onAuthStateChange(async (event, session) => {
-      setUserSession(session);
+      setSessionData(session);
       if (event === 'SIGNED_IN' && session && checkoutMode === 'user' && visitorId && !isProcessingMerge) {
         console.log('✅ User authentication successful');
         setShowAuthModal(false);
@@ -348,7 +351,7 @@ export default function Checkout() {
     });
 
     return () => subscription.unsubscribe();
-  }, [checkoutMode, visitorId, isProcessingMerge, items, customerInfo.email]);
+  }, [checkoutMode, visitorId, isProcessingMerge, items, customerInfo.email, setSessionData, visitorMergeMutation, checkoutSessionMutation]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -583,8 +586,10 @@ export default function Checkout() {
                         setLoginError(null);
 
                         try {
+                          // Use original prefilled email if available, otherwise use current input
+                          const emailToUse = (visitorData?.email || customerInfo.email) || loginEmail;
                           const { error } = await supabaseAnon.auth.signInWithOtp({
-                            email: loginEmail.trim(),
+                            email: emailToUse.trim(),
                             options: {
                               emailRedirectTo: `${window.location.origin}/checkout?mode=user`
                             }
@@ -594,7 +599,7 @@ export default function Checkout() {
                             setLoginError(error.message);
                           } else {
                             setLoginLinkSent(true);
-                            console.log('📧 Magic link sent to:', loginEmail);
+                            console.log('📧 Magic link sent to:', emailToUse);
                           }
                         } catch (err) {
                           setLoginError('Failed to send magic link');
@@ -619,6 +624,7 @@ export default function Checkout() {
                           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           required
                           disabled={loginLoading}
+                          readOnly={!!(visitorData?.email || customerInfo.email)}
                         />
                       </div>
 
@@ -646,7 +652,7 @@ export default function Checkout() {
                       </div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">Check your email</h3>
                       <p className="text-sm text-gray-500 mb-4">
-                        We've sent a magic link to <strong>{loginEmail}</strong>. Click the link to sign in and complete your checkout.
+                        We've sent a magic link to <strong>{(visitorData?.email || customerInfo.email) || loginEmail}</strong>. Click the link to sign in and complete your checkout.
                       </p>
                     </div>
                   )}
@@ -744,6 +750,7 @@ export default function Checkout() {
             setShowAuthModal(false);
             // Session will be updated via auth state listener
           }}
+          email={visitorData?.email || customerInfo.email}
         />
       )}
     </div>
