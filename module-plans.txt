@@ -365,6 +365,59 @@ Action: Call /api/createCheckoutSession with either the Supabase user_id (for us
 Breakpoint: Successful redirection to Stripe marks the end of Module 6.
 
 
+Module 6e – Address Data Model & API Setup
+Summary
+Prepare the database and API routes so both visitors and authenticated users have a place to store shipping addresses. This groundwork allows the checkout page to persist addresses in later modules.
+Where to Look
+Supabase schema definitions (tables visitors and users).
+pages/api/visitor/* and the root of pages/api/ for new endpoints.
+lib/supabaseClient.ts for service‑role client access.
+Implementation Notes
+Add columns for street, city, state, postal code and country to the visitors table, or create a related visitor_addresses table keyed by visitor_id.
+Mirror this structure for users (user_addresses or additional profile fields).
+Create placeholder routes /api/visitor/updateAddress.ts and /api/user/updateAddress.ts that verify tokens but initially just log payloads.
+Endpoints should follow the existing pattern so TanStack mutations can integrate cleanly in Modules 6f.1 and 6f.2. TanStack state management is required for any frontend interaction with these routes.
+Breakpoints / Testing
+Hitting the new endpoints manually should write or log address data without errors.
+Schema changes should not affect earlier modules (cart sync, contact info merge).
+Bugwatch
+Watch for RLS or permission mismatches when adding new tables or columns.
+
+Module 6f.1 – Guest Checkout Address Capture
+Summary
+Persist the shipping address entered during the “Information” stage when a visitor proceeds with guest checkout. The address is stored under the visitor record and can later merge into a user profile.
+Where to Look
+pages/checkout.tsx — customerInfo state and handleContinueToShipping.
+pages/api/visitor/updateAddress.ts — the soft‑auth endpoint from Module 6e.
+lib/contexts/VisitorContext.tsx — visitor JWT retrieval.
+Implementation Notes
+Add a TanStack mutation in checkout.tsx that posts the address fields to /api/visitor/updateAddress after the Information step is confirmed.
+Invalidate ['visitor', visitorId] so cached visitor data reflects the saved address.
+Follow the mutation pattern introduced in State Mgmt Update 1 and Update 2 to keep network calls consistent. TanStack state management is mandatory for this flow.
+Breakpoints / Testing
+After advancing to Shipping, verify the visitor record shows the stored address by calling /api/visitor/validate.
+Ensure multiple edits do not create duplicate requests.
+Bugwatch
+Stale cache issues may occur if the visitor query isn’t invalidated correctly.
+
+Module 6f.2 – User Address Merge & Storage
+Summary
+When a visitor authenticates, any saved address merges into their user account. Authenticated users can update their shipping address directly from the checkout page.
+Where to Look
+pages/api/visitor/merge.ts — extend merge logic to include address fields.
+pages/api/user/updateAddress.ts — user‑auth endpoint from Module 6e.
+pages/checkout.tsx — submission path when a Supabase session is active.
+Implementation Notes
+During merge, move the visitor’s address into the user record (either profile columns or a user_addresses table).
+Use a TanStack mutation in checkout.tsx that hits /api/user/updateAddress when the user is logged in. Invalidate the relevant user query (e.g., ['userProfile', user.id]) afterward.
+Maintain parity with the guest flow so the checkout page behaves the same regardless of auth state. TanStack state management must govern these updates.
+Breakpoints / Testing
+Signing in after entering an address should show merge logs confirming the transfer.
+Reloading the checkout page with an active session should prefill the address from the user record.
+Bugwatch
+Avoid duplicate address entries if both visitor and user records already contain identical data. The merge step should check before inserting.
+
+
 State Mgmt Update 1 – Auth Flow Mutations
 Summary
 Refactor the sign‑in, sign‑up, and magic‑link logic in AuthModal.tsx to use TanStack Mutations. Mutations should expose loading and error states so the modal can react without extra useState flags.

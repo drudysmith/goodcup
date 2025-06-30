@@ -2,8 +2,9 @@ import React, { createContext, useContext, useEffect, useState, ReactNode, useRe
 import { v4 as uuidv4 } from 'uuid';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCartStore } from '../../store/cartStore';
+import { VisitorAddressFields } from '../types/address';
 console.log('>> initializing visitor context');
-interface VisitorData {
+interface VisitorData extends VisitorAddressFields {
   name: string | null;
   email: string | null;
   phone: string | null;
@@ -130,7 +131,13 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
               name: validateData.visitor.name,
               email: validateData.visitor.email,
               phone: validateData.visitor.phone,
-              cart: validateData.visitor.cart
+              cart: validateData.visitor.cart,
+              // Module 6e: Include address fields
+              address_street: validateData.visitor.address_street,
+              address_city: validateData.visitor.address_city,
+              address_state: validateData.visitor.address_state,
+              address_postal_code: validateData.visitor.address_postal_code,
+              address_country: validateData.visitor.address_country
             },
             needsReload: false
           };
