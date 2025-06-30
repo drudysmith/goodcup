@@ -365,57 +365,64 @@ Action: Call /api/createCheckoutSession with either the Supabase user_id (for us
 Breakpoint: Successful redirection to Stripe marks the end of Module 6.
 
 
-Module 6e – Address Data Model & API Setup
-Summary
-Prepare the database and API routes so both visitors and authenticated users have a place to store shipping addresses. This groundwork allows the checkout page to persist addresses in later modules.
-Where to Look
-Supabase schema definitions (tables visitors and users).
-pages/api/visitor/* and the root of pages/api/ for new endpoints.
-lib/supabaseClient.ts for service‑role client access.
-Implementation Notes
-Add columns for street, city, state, postal code and country to the visitors table, or create a related visitor_addresses table keyed by visitor_id.
-Mirror this structure for users (user_addresses or additional profile fields).
-Create placeholder routes /api/visitor/updateAddress.ts and /api/user/updateAddress.ts that verify tokens but initially just log payloads.
-Endpoints should follow the existing pattern so TanStack mutations can integrate cleanly in Modules 6f.1 and 6f.2. TanStack state management is required for any frontend interaction with these routes.
-Breakpoints / Testing
-Hitting the new endpoints manually should write or log address data without errors.
-Schema changes should not affect earlier modules (cart sync, contact info merge).
-Bugwatch
-Watch for RLS or permission mismatches when adding new tables or columns.
 
-Module 6f.1 – Guest Checkout Address Capture
+6e.p – Address Endpoint Preparation
+Before implementing modules 6e and 6f, set up the shared address infrastructure so both guest and authenticated paths can store shipping information.
 Summary
-Persist the shipping address entered during the “Information” stage when a visitor proceeds with guest checkout. The address is stored under the visitor record and can later merge into a user profile.
+The visitors table has been expanded with address columns (street, unit, city, state, postal_code, country). Introduce a unified API route. The new endpoint verifies either the visitor JWT or the Supabase session token, then writes to the appropriate record. The route simply logs payloads for now.
 Where to Look
-pages/checkout.tsx — customerInfo state and handleContinueToShipping.
-pages/api/visitor/updateAddress.ts — the soft‑auth endpoint from Module 6e.
-lib/contexts/VisitorContext.tsx — visitor JWT retrieval.
+Supabase schema for the single visitors table.
+pages/api/visitor/ for existing JWT‑based endpoints.
+pages/api/ for the upcoming unified route.
 Implementation Notes
-Add a TanStack mutation in checkout.tsx that posts the address fields to /api/visitor/updateAddress after the Information step is confirmed.
-Invalidate ['visitor', visitorId] so cached visitor data reflects the saved address.
-Follow the mutation pattern introduced in State Mgmt Update 1 and Update 2 to keep network calls consistent. TanStack state management is mandatory for this flow.
+Note that street, unit, city, state, postal_code, and country columns are already added to the visitors table in supabase. Dummy info has been manually inserted into these table fields already for dev and testing purposes.
+Create /api/saveAddress that handles both authentication paths.
+If a Supabase session is found, update the corresponding user record.
+If no session is present, validate the visitor JWT and update the visitor record.
+Keep TanStack as the state manager for any future calls to this route.
 Breakpoints / Testing
-After advancing to Shipping, verify the visitor record shows the stored address by calling /api/visitor/validate.
-Ensure multiple edits do not create duplicate requests.
-Bugwatch
-Stale cache issues may occur if the visitor query isn’t invalidated correctly.
+Manually hitting /api/saveAddress with either auth method should log the address payload without errors.
+Decision on Endpoints
+A single endpoint keeps the client simple while letting the server decide which record to update. This accommodates merged users whose visitor tokens were cleared, yet still accepts JWTs from guests.
 
-Module 6f.2 – User Address Merge & Storage
-Summary
-When a visitor authenticates, any saved address merges into their user account. Authenticated users can update their shipping address directly from the checkout page.
+6e – Checkout Data Prefill
+Ensure the checkout “Information” and “Shipping” stages populate with real data instead of placeholders.
 Where to Look
-pages/api/visitor/merge.ts — extend merge logic to include address fields.
-pages/api/user/updateAddress.ts — user‑auth endpoint from Module 6e.
-pages/checkout.tsx — submission path when a Supabase session is active.
+pages/checkout.tsx – customerInfo initialization and TanStack state hooks.
+lib/contexts/VisitorContext.tsx – retrieval of visitorData and JWT.
+Supabase profile queries when a user session is active.
 Implementation Notes
-During merge, move the visitor’s address into the user record (either profile columns or a user_addresses table).
-Use a TanStack mutation in checkout.tsx that hits /api/user/updateAddress when the user is logged in. Invalidate the relevant user query (e.g., ['userProfile', user.id]) afterward.
-Maintain parity with the guest flow so the checkout page behaves the same regardless of auth state. TanStack state management must govern these updates.
+Initialize customerInfo through TanStack, prefilling from visitorData or the signed‑in user’s profile.
+When a Supabase session exists, fetch saved address details and log
+🔄 Prefilling checkout fields from user profile.
+If only visitorData is available, prefill email (and name if present) and log
+🔄 Prefilling checkout fields from visitor data.
+Keep fields editable so users can modify them. Any updates remain in TanStack state.
+Pass the updated customerInfo to the merge logic or checkout session steps.
 Breakpoints / Testing
-Signing in after entering an address should show merge logs confirming the transfer.
-Reloading the checkout page with an active session should prefill the address from the user record.
+Visitors with saved contact info should see those fields filled automatically.
+After proceeding to Shipping, verify the values persist and appear in subsequent API requests.
+TanStack must remain the sole state manager for checkout data.
+
+Module 6f – Address Persistence at Checkout
+Capture and store the shipping address provided on the checkout page, ensuring it survives the checkout process and merges correctly.
+Where to Look
+pages/checkout.tsx – TanStack state around the “Continue to shipping” handler.
+/api/saveAddress – unified endpoint from 6e.p.
+pages/api/createCheckoutSession.ts – final step before redirecting to Stripe.
+Narrative Steps
+Detect Address Submission – When the user completes the Information stage, gather the address fields from TanStack-managed customerInfo.
+Persist via Unified Endpoint – Call /api/saveAddress. The server checks for a Supabase session; if one exists, it updates the user record. Otherwise it verifies the visitor JWT and updates the visitor record.
+Maintain Merge Continuity – When a visitor later authenticates (Module 6b.2), the stored address remains with them by virtue of the unified storage.
+Use in Checkout Session – /api/createCheckoutSession can now read the address directly from the database or accept it from TanStack state, ensuring shipping details accompany the order.
+Breakpoints / Testing
+After clicking “Continue to shipping,” confirm the address is saved by inspecting /api/visitor/validate or the user’s profile.
+Reloading the checkout page with a session should prefill the saved address.
+TanStack query invalidation must keep local data consistent with the backend.
 Bugwatch
-Avoid duplicate address entries if both visitor and user records already contain identical data. The merge step should check before inserting.
+Avoid duplicate address entries during merges; the server should update existing records rather than insert new ones.
+Ensure stale cache issues are resolved with TanStack’s invalidation patterns.
+
 
 
 State Mgmt Update 1 – Auth Flow Mutations

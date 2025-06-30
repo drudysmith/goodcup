@@ -90,6 +90,22 @@ const createCheckoutSession = async (payload: {
   return response.json();
 };
 
+// Module 6e: User profile data fetching
+const fetchUserProfile = async (session: any) => {
+  const { data, error } = await supabaseAnon
+    .from('visitors')
+    .select('email, name, phone, street, unit, city, state, postal_code, country')
+    .eq('user_id', session.user.id)
+    .single();
+
+  if (error) {
+    console.log('⚠️ No profile data found for user:', session.user.id);
+    return null;
+  }
+
+  return data;
+};
+
 export default function Checkout() {
   const items = useCartStore((s) => s.items);
   const clearCart = useCartStore((s) => s.clearCart);
@@ -114,18 +130,21 @@ export default function Checkout() {
   // Visitor context for guest checkout
   const { visitorId, jwt, visitorData } = useVisitor();
 
+  // Module 6e: Initialize customerInfo with empty defaults
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
-    email: 'mock@example.com',
-    firstName: 'John',
-    lastName: 'Doe',
-    address: '123 Mockingbird Lane',
+    email: '',
+    firstName: '',
+    lastName: '',
+    address: '',
     apartment: '',
-    city: 'Faketown',
-    state: 'CA',
-    zipCode: '90210',
-    country: 'United States',
-    phone: '555-123-4567',
+    city: '',
+    state: '',
+    zipCode: '',
+    country: '',
+    phone: '',
   });
+
+
 
   // Module 6b.3.1: Prefill login email from available data
   useEffect(() => {
@@ -157,6 +176,48 @@ export default function Checkout() {
     queryFn: fetchProducts,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
+
+  // Module 6e: User profile query for authenticated users
+  const userProfileQuery = useQuery({
+    queryKey: ['userProfile', userSession?.user?.id],
+    queryFn: () => fetchUserProfile(userSession),
+    enabled: !!userSession?.user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Module 6e: Prefill customerInfo from available data
+  useEffect(() => {
+    const profileData = userProfileQuery.data;
+    
+    if (userSession && profileData) {
+      // Prefill from user profile data
+      console.log('🔄 Module 6e: Prefilling checkout fields from user profile');
+      const nameParts = profileData.name ? profileData.name.split(' ') : ['', ''];
+      setCustomerInfo({
+        email: userSession.user.email || profileData.email || '',
+        firstName: nameParts[0] || '',
+        lastName: nameParts.slice(1).join(' ') || '',
+        address: profileData.street || '',
+        apartment: profileData.unit || '',
+        city: profileData.city || '',
+        state: profileData.state || '',
+        zipCode: profileData.postal_code || '',
+        country: profileData.country || '',
+        phone: profileData.phone || '',
+      });
+    } else if (visitorData && !userSession) {
+      // Prefill from visitor data
+      console.log('🔄 Module 6e: Prefilling checkout fields from visitor data');
+      const nameParts = visitorData.name ? visitorData.name.split(' ') : ['', ''];
+      setCustomerInfo(prev => ({
+        ...prev,
+        email: visitorData.email || '',
+        firstName: nameParts[0] || '',
+        lastName: nameParts.slice(1).join(' ') || '',
+        phone: visitorData.phone || '',
+      }));
+    }
+  }, [userSession, userProfileQuery.data, visitorData]);
 
   // Visitor merge mutation
   const visitorMergeMutation = useMutation({
