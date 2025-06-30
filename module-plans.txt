@@ -404,6 +404,25 @@ Visitors with saved contact info should see those fields filled automatically.
 After proceeding to Shipping, verify the values persist and appear in subsequent API requests.
 TanStack must remain the sole state manager for checkout data.
 
+6e.1 Extend Visitor Validation
+File: pages/api/visitor/validate.ts
+The validation route currently selects only id, name, email, phone, and cart from the visitors table.
+Update its select clause so the response includes all address columns (street, city, unit, state, postal_code, and country).
+Returning these fields lets the client store and display existing address data alongside contact info. TanStack Query consumers can then cache the full visitor record.
+
+6e.2 Update Visitor Context
+File: lib/contexts/VisitorContext.tsx
+The VisitorData interface and context value need to match what validate.ts returns. Add the new address fields to this type definition.
+When VisitorContext fetches visitor data and writes it to TanStack Query’s cache, include those address properties so components receive them automatically.
+This makes the address available across the app via the same query key, without extra state.
+
+6e.3 Prefill Checkout Fields
+File: pages/checkout.tsx
+The checkout page already prefills name and email from visitor data when a user session isn’t present. Expand that logic so the effect also populates street, city, state, postal code, and country from visitorData.
+Keep the unified /api/saveAddress endpoint in mind: regardless of visitor or signed‑in user, any later mutations to update the address will go through this single route.
+All prefilled values remain editable, with changes persisted in the TanStack-managed customerInfo state.
+
+
 Module 6f – Address Persistence at Checkout
 Capture and store the shipping address provided on the checkout page, ensuring it survives the checkout process and merges correctly.
 Where to Look

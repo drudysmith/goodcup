@@ -63,7 +63,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           return res.status(404).json({ error: 'Visitor record not found for user' });
         }
 
-        console.log('📍 Module 6e.p: Would update visitor record', visitorData.id, 'with address:', address);
+        // Module 6f: Actually update the visitor record with address
+        const { error: updateError } = await supabaseServiceRole
+          .from('visitors')
+          .update({
+            street: address.street,
+            unit: address.unit || null,
+            city: address.city,
+            state: address.state,
+            postal_code: address.postal_code,
+            country: address.country
+          })
+          .eq('id', visitorData.id);
+
+        if (updateError) {
+          console.error('⚠️ Module 6f: Failed to update visitor address:', updateError);
+          return res.status(500).json({ error: 'Failed to save address' });
+        }
+
+        console.log('✅ Module 6f: Address saved for user visitor record:', visitorData.id);
 
         return res.status(200).json({
           success: true,
@@ -101,7 +119,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(404).json({ error: 'Visitor not found' });
       }
 
-      console.log('📍 Module 6e.p: Would update visitor record', visitor_id, 'with address:', address);
+      // Module 6f: Actually update the visitor record with address
+      const { error: updateError } = await supabaseServiceRole
+        .from('visitors')
+        .update({
+          street: address.street,
+          unit: address.unit || null,
+          city: address.city,
+          state: address.state,
+          postal_code: address.postal_code,
+          country: address.country
+        })
+        .eq('id', visitor_id);
+
+      if (updateError) {
+        console.error('⚠️ Module 6f: Failed to update visitor address:', updateError);
+        return res.status(500).json({ error: 'Failed to save address' });
+      }
+
+      console.log('✅ Module 6f: Address saved for visitor record:', visitor_id);
 
       return res.status(200).json({
         success: true,

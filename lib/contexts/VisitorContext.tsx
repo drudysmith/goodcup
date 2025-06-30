@@ -8,6 +8,12 @@ interface VisitorData {
   email: string | null;
   phone: string | null;
   cart: object | null;
+  street: string | null;
+  unit: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  country: string | null;
 }
 
 interface VisitorContextType {
@@ -130,7 +136,13 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
               name: validateData.visitor.name,
               email: validateData.visitor.email,
               phone: validateData.visitor.phone,
-              cart: validateData.visitor.cart
+              cart: validateData.visitor.cart,
+              street: validateData.visitor.street,
+              unit: validateData.visitor.unit,
+              city: validateData.visitor.city,
+              state: validateData.visitor.state,
+              postal_code: validateData.visitor.postal_code,
+              country: validateData.visitor.country
             },
             needsReload: false
           };

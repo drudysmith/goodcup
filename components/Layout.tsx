@@ -186,7 +186,13 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
         name: data.visitor.name,
         email: data.visitor.email,
         phone: data.visitor.phone,
-        cart: data.visitor.cart
+        cart: data.visitor.cart,
+        street: data.visitor.street || null,
+        unit: data.visitor.unit || null,
+        city: data.visitor.city || null,
+        state: data.visitor.state || null,
+        postal_code: data.visitor.postal_code || null,
+        country: data.visitor.country || null
       });
 
       setShowContactPopup(false);

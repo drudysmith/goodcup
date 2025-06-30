@@ -7,7 +7,7 @@
 // - Uses local customer info state to simulate user identity
 
 import { useEffect, useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCartStore, CartItem } from '../store/cartStore';
 import { CheckoutModeToggle } from '../components/CheckoutModeToggle';
 import { AuthModal } from '../components/AuthModal';
@@ -90,6 +90,24 @@ const createCheckoutSession = async (payload: {
   return response.json();
 };
 
+// Module 6f: Address saving function
+const saveAddress = async (address: any, token: string) => {
+  const response = await fetch('/api/saveAddress', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ address }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to save address');
+  }
+
+  return response.json();
+};
+
 // Module 6e: User profile data fetching
 const fetchUserProfile = async (session: any) => {
   const { data, error } = await supabaseAnon
@@ -109,6 +127,7 @@ const fetchUserProfile = async (session: any) => {
 export default function Checkout() {
   const items = useCartStore((s) => s.items);
   const clearCart = useCartStore((s) => s.clearCart);
+  const queryClient = useQueryClient();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [currentStage, setCurrentStage] = useState<CheckoutStage>('information');
   const [orderSummaryExpanded, setOrderSummaryExpanded] = useState(false);
@@ -215,6 +234,13 @@ export default function Checkout() {
         firstName: nameParts[0] || '',
         lastName: nameParts.slice(1).join(' ') || '',
         phone: visitorData.phone || '',
+        // Module 6e.3: Include address fields from visitor data
+        address: visitorData.street || '',
+        apartment: visitorData.unit || '',
+        city: visitorData.city || '',
+        state: visitorData.state || '',
+        zipCode: visitorData.postal_code || '',
+        country: visitorData.country || '',
       }));
     }
   }, [userSession, userProfileQuery.data, visitorData]);
@@ -252,6 +278,24 @@ export default function Checkout() {
     onError: (error) => {
       console.error('Error creating checkout session:', error);
       alert('Checkout failed');
+    },
+  });
+
+  // Module 6f: Address saving mutation
+  const saveAddressMutation = useMutation({
+    mutationFn: ({ address, token }: { address: any; token: string }) => saveAddress(address, token),
+    onSuccess: (data) => {
+      console.log('✅ Module 6f: Address saved successfully:', data);
+      // Invalidate visitor query to refresh data with saved address
+      queryClient.invalidateQueries({ queryKey: ['visitor', visitorId] });
+      if (userSession) {
+        // Also invalidate user profile if authenticated
+        queryClient.invalidateQueries({ queryKey: ['userProfile', userSession.user.id] });
+      }
+    },
+    onError: (error) => {
+      console.error('Module 6f: Error saving address:', error);
+      alert('Failed to save address. Please try again.');
     },
   });
 
@@ -336,8 +380,40 @@ export default function Checkout() {
     return customerInfo.email && customerInfo.firstName && customerInfo.lastName && customerInfo.address && customerInfo.city && customerInfo.state && customerInfo.zipCode;
   };
 
-  const handleContinueToShipping = () => {
-    if (validateInformationStage()) {
+  const handleContinueToShipping = async () => {
+    if (!validateInformationStage()) {
+      return;
+    }
+
+    // Module 6f: Save address before proceeding to shipping
+    console.log('📍 Module 6f: Saving address information');
+    
+    const addressPayload = {
+      street: customerInfo.address,
+      unit: customerInfo.apartment || '',
+      city: customerInfo.city,
+      state: customerInfo.state,
+      postal_code: customerInfo.zipCode,
+      country: customerInfo.country,
+    };
+
+    try {
+      // Determine which token to use
+      const token = userSession?.access_token || jwt;
+      
+      if (!token) {
+        console.error('⚠️ Module 6f: No authentication token available');
+        alert('Authentication required to save address');
+        return;
+      }
+
+      await saveAddressMutation.mutateAsync({ address: addressPayload, token });
+      
+      // Proceed to shipping stage after successful save
+      setCurrentStage('shipping');
+    } catch (error) {
+      console.error('Module 6f: Failed to save address:', error);
+      // Still allow proceeding to shipping even if save fails
       setCurrentStage('shipping');
     }
   };
@@ -450,8 +526,8 @@ export default function Checkout() {
               <input type="text" placeholder="State" value={customerInfo.state} onChange={(e) => setCustomerInfo({ ...customerInfo, state: e.target.value })} className="w-full p-3 border rounded" />
               <input type="text" placeholder="ZIP code" value={customerInfo.zipCode} onChange={(e) => setCustomerInfo({ ...customerInfo, zipCode: e.target.value })} className="w-full p-3 border rounded" />
               <input type="text" placeholder="Country" value={customerInfo.country} onChange={(e) => setCustomerInfo({ ...customerInfo, country: e.target.value })} className="w-full p-3 border rounded" />
-              <button onClick={handleContinueToShipping} className="w-full bg-brand-secondary text-white py-3 px-6 rounded disabled:opacity-50" disabled={!validateInformationStage()}>
-                Continue to shipping
+              <button onClick={handleContinueToShipping} className="w-full bg-brand-secondary text-white py-3 px-6 rounded disabled:opacity-50" disabled={!validateInformationStage() || saveAddressMutation.isPending}>
+                {saveAddressMutation.isPending ? 'Saving address...' : 'Continue to shipping'}
               </button>
               <button
                 onClick={() => window.location.href = '/'}

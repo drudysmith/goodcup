@@ -8,6 +8,12 @@ interface VisitorData {
   email: string | null;
   phone: string | null;
   cart: object | null;
+  street: string | null;
+  unit: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  country: string | null;
 }
 
 interface ValidateResponse {
@@ -51,7 +57,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Fetch visitor data from Supabase with RLS
     const { data: visitorData, error } = await supabaseServiceRole
       .from('visitors')
-      .select('id, name, email, phone, cart')
+      .select('id, name, email, phone, cart, street, unit, city, state, postal_code, country')
       .eq('id', visitor_id)
       .single();
 
