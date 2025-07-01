@@ -23,7 +23,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, email:
           emailRedirectTo: `${window.location.origin}/checkout?mode=user`
         }
       });
-      
+
       if (error) {
         throw new Error(error.message);
       }
@@ -31,8 +31,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, email:
       return { success: true };
     },
     onSuccess: () => {
-      setMagicLinkSent(true);
-      console.log('📧 Magic link sent to:', email);
+        setMagicLinkSent(true);
+        console.log('📧 Magic link sent to:', email);
     },
   });
 

@@ -2,7 +2,7 @@
 
 import React, { ReactNode, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { useSupabaseSession } from '../lib/queries/sessionQueries';
+import { useSupabaseSession, useSupabaseSessionHelpers, useSessionExpiryMutation } from '../lib/queries/sessionQueries';
 import LogoAnimated from "./LogoAnimated";
 import Link from 'next/link';
 import { UserIcon, ShoppingBagIcon } from '@heroicons/react/24/outline';
@@ -52,8 +52,8 @@ const fetchProducts = async (): Promise<{ products: StripeProduct[] }> => {
   return response.json();
 };
 
-// Module 7: User profile data fetching
-const fetchUserProfile = async (session: any) => {
+// Module 7: User profile data fetching (with Module 8 session expiry handling)
+const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promise<boolean>) => {
   if (!session?.user?.id) {
     throw new Error('No user session provided');
   }
@@ -65,6 +65,15 @@ const fetchUserProfile = async (session: any) => {
   });
 
   if (!response.ok) {
+    // Module 8: Handle session expiry (401/403 errors)
+    if ((response.status === 401 || response.status === 403) && sessionExpiryHandler) {
+      console.log('⏰ User session expired — prompting re-auth');
+      const refreshed = await sessionExpiryHandler();
+      if (refreshed) {
+        // Retry the request with the refreshed session
+        return fetchUserProfile(session, sessionExpiryHandler);
+      }
+    }
     throw new Error('Failed to fetch user profile');
   }
 
@@ -119,6 +128,11 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   const [cupgradesClosing, setCupgradesClosing] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showContactPopup, setShowContactPopup] = useState(false);
+  
+  // Module 7.5: Session status popup state
+  const [showSessionPopup, setShowSessionPopup] = useState(false);
+  const [sessionPopupMessage, setSessionPopupMessage] = useState('');
+  const [sessionPopupTimer, setSessionPopupTimer] = useState<NodeJS.Timeout | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLUListElement>(null);
   const cartRef = useRef<HTMLDivElement>(null);
@@ -129,13 +143,24 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   // Module 7: Supabase User Session Handling
   const sessionQuery = useSupabaseSession();
   const userSession = sessionQuery.data;
+  
+  // Module 8: Session expiry handling
+  const { handleExpiredSession } = useSupabaseSessionHelpers();
+  const sessionExpiryMutation = useSessionExpiryMutation();
 
-  // Module 7: User profile query for authenticated users
+  // Module 7: User profile query for authenticated users (with Module 8 session expiry handling)
   const userProfileQuery = useQuery({
     queryKey: ['userProfile', userSession?.user?.id],
-    queryFn: () => fetchUserProfile(userSession),
+    queryFn: () => fetchUserProfile(userSession, handleExpiredSession),
     enabled: !!userSession?.user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: (failureCount, error: any) => {
+      // Module 8: Don't retry on auth errors - they're handled by session expiry logic
+      if (error?.message?.includes('401') || error?.message?.includes('403')) {
+        return false;
+      }
+      return failureCount < 3;
+    },
   });
 
   // Module 7: Derive user object from session and profile data
@@ -197,6 +222,67 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
       }
     }
   }, [sessionQuery.isSuccess, userSession, visitorReady]);
+
+  // Module 7.5: Session status popup management
+  const showSessionStatusPopup = (message: string) => {
+    // Clear existing timer
+    if (sessionPopupTimer) {
+      clearTimeout(sessionPopupTimer);
+    }
+    
+    setSessionPopupMessage(message);
+    setShowSessionPopup(true);
+    
+    // Auto-dismiss after 3 seconds
+    const timer = setTimeout(() => {
+      setShowSessionPopup(false);
+    }, 3000);
+    
+    setSessionPopupTimer(timer);
+  };
+
+  // Module 7.5: Track previous session state to detect changes
+  const [prevUserSessionId, setPrevUserSessionId] = useState<string | null>(null);
+  const [hasInitialLoad, setHasInitialLoad] = useState(false);
+
+  // Module 7.5: Monitor session changes for popup display
+  useEffect(() => {
+    if (sessionQuery.isSuccess) {
+      const currentUserId = userSession?.user?.id || null;
+      
+      // Mark initial load as complete
+      if (!hasInitialLoad) {
+        setHasInitialLoad(true);
+        setPrevUserSessionId(currentUserId);
+        return;
+      }
+
+      // Only show popup for actual session changes, not initial loads
+      if (currentUserId && currentUserId !== prevUserSessionId) {
+        console.log('✅ Session status popup: user logged in');
+        showSessionStatusPopup("You're logged in.");
+      }
+
+      setPrevUserSessionId(currentUserId);
+    }
+
+    if (sessionQuery.isError) {
+      // Show session expired message for actual errors
+      if (hasInitialLoad && prevUserSessionId) {
+        console.log('⚠️ Session status popup: session expired');
+        showSessionStatusPopup('Session expired — please log in again.');
+      }
+    }
+  }, [sessionQuery.isSuccess, sessionQuery.isError, userSession?.user?.id, prevUserSessionId, hasInitialLoad]);
+
+  // Module 7.5: Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (sessionPopupTimer) {
+        clearTimeout(sessionPopupTimer);
+      }
+    };
+  }, [sessionPopupTimer]);
 
   // Track cart hydration to prevent SSR/hydration mismatch
   const [isCartHydrated, setIsCartHydrated] = useState(false);
@@ -597,6 +683,21 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
                     Dashboard
                   </div>
                 </>
+              )}
+
+              {/* Module 7.5: Session Status Popup */}
+              {showSessionPopup && (
+                <div 
+                  className={`absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-4 py-2 bg-brand-secondary text-white rounded-lg shadow-lg text-sm z-50 whitespace-nowrap transition-all duration-300 ${
+                    showSessionPopup ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-2'
+                  }`}
+                  onClick={() => setShowSessionPopup(false)}
+                  style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+                >
+                  {sessionPopupMessage}
+                  {/* Small arrow pointing down */}
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-brand-secondary"></div>
+                </div>
               )}
             </div>
 

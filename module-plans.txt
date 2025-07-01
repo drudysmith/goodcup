@@ -510,6 +510,23 @@ Earliest Placement
 Apply this update after Module 7 (once session queries are in place) but before starting Module 8. Doing so ensures all pages share the same cached session and banner state moving forward.
 
 
+Module 7.5 – Session Status Popup
+Position in roadmap: After Module 7 and before Module 8.
+Goal: Provide immediate feedback about the user’s session state by displaying a small popup directly above the dashboard icon.
+Behavior:
+When useSupabaseSession (created in Module 7) confirms a valid session—either on page load or after sign‑in—show a brief popup near the icon stating “You’re logged in.”
+If the session query later yields null or a 401/403 error triggers Module 8’s expiry handling, display “Session expired — please log in again.”
+The popup fades out automatically after a short delay or can be dismissed. It does not interfere with any other aspect of the ui.
+Implementation notes:
+Render the popup inside Layout.tsx, using absolute positioning above the account icon so it stays anchored to the header.
+Control visibility through local state or the small store introduced in State Mgmt Update 3.
+Keep z‑index above the header (similar to the sign‑out tooltip’s z-40).
+Console logs should follow existing patterns, e.g.
+console.log('✅ Session status popup: user logged in');
+Why module 7.5?
+Module 7 establishes centralized session detection. Module 8 deals with session expiry. The popup relies on those mechanisms, so inserting it as Module 7.5 keeps the flow consistent—UI feedback comes immediately after the session query is in place but before implementing expiry prompts.
+
+
 ✅ Module 8: Session Expiry Handling
 Goal: Handle expired or invalid user sessions gracefully.
 On 401/403 from Supabase with user session active:

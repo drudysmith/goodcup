@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSupabaseSession, useSupabaseSessionHelpers } from '../lib/queries/sessionQueries';
+import { useSupabaseSession, useSupabaseSessionHelpers, useSessionExpiryMutation } from '../lib/queries/sessionQueries';
 import { useCartStore, CartItem } from '../store/cartStore';
 import { CheckoutModeToggle } from '../components/CheckoutModeToggle';
 import { AuthModal } from '../components/AuthModal';
@@ -109,8 +109,8 @@ const saveAddress = async (address: any, token: string) => {
   return response.json();
 };
 
-// Module 7: User profile data fetching via secure API endpoint
-const fetchUserProfile = async (session: any) => {
+// Module 7: User profile data fetching via secure API endpoint (with Module 8 session expiry handling)
+const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promise<boolean>) => {
   if (!session?.user?.id) {
     throw new Error('No user session provided');
   }
@@ -122,6 +122,15 @@ const fetchUserProfile = async (session: any) => {
   });
 
   if (!response.ok) {
+    // Module 8: Handle session expiry (401/403 errors)
+    if ((response.status === 401 || response.status === 403) && sessionExpiryHandler) {
+      console.log('⏰ User session expired — prompting re-auth');
+      const refreshed = await sessionExpiryHandler();
+      if (refreshed) {
+        // Retry the request with the refreshed session
+        return fetchUserProfile(session, sessionExpiryHandler);
+      }
+    }
     console.log('⚠️ No profile data found for user:', session.user.id);
     return null;
   }
@@ -142,8 +151,11 @@ export default function Checkout() {
   
   // State Mgmt Update 2: Use centralized session query
   const sessionQuery = useSupabaseSession();
-  const { setSessionData } = useSupabaseSessionHelpers();
+  const { setSessionData, handleExpiredSession } = useSupabaseSessionHelpers();
   const userSession = sessionQuery.data;
+  
+  // Module 8: Session expiry handling
+  const sessionExpiryMutation = useSessionExpiryMutation();
   
   // Module 6b.3.1: Inline login state
   const [showInlineLogin, setShowInlineLogin] = useState(false);
@@ -205,12 +217,19 @@ export default function Checkout() {
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  // Module 6e: User profile query for authenticated users
+  // Module 6e: User profile query for authenticated users (with Module 8 session expiry handling)
   const userProfileQuery = useQuery({
     queryKey: ['userProfile', userSession?.user?.id],
-    queryFn: () => fetchUserProfile(userSession),
+    queryFn: () => fetchUserProfile(userSession, handleExpiredSession),
     enabled: !!userSession?.user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: (failureCount, error: any) => {
+      // Module 8: Don't retry on auth errors - they're handled by session expiry logic
+      if (error?.message?.includes('401') || error?.message?.includes('403')) {
+        return false;
+      }
+      return failureCount < 3;
+    },
   });
 
   // Module 6e: Prefill customerInfo from available data
