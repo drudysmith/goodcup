@@ -1,0 +1,18 @@
+# All text files: normalize to LF
+* text=auto eol=lf
+
+# Windows-specific scripts: keep CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Shell scripts: force LF
+*.sh text eol=lf
+
+# Prevent normalization of images/binaries
+*.png binary
+*.jpg binary
+*.gif binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
