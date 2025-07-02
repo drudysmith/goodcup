@@ -10,4 +10,8 @@ $branch = git rev-parse --abbrev-ref HEAD
 # Add, commit, and push
 git add .
 git commit -m "$message"
+
+#comment out next line if you want to answer the questions
+$env:GIT_ASK_YESNO = "false"
+
 git push origin $branch

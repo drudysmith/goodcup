@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode, useRe
 import { v4 as uuidv4 } from 'uuid';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCartStore } from '../../store/cartStore';
+import { supabaseAnon } from '../supabaseClient';
 console.log('>> initializing visitor context');
 interface VisitorData {
   name: string | null;
@@ -74,29 +75,41 @@ const fetchVisitorValidate = async (jwt: string) => {
 
 export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) => {
   const queryClient = useQueryClient();
-  
-  // Initialize visitor ID from localStorage or generate new one
-  const [visitorId] = useState<string>(() => {
-    if (typeof window === 'undefined') return '';
-    
-    const existingVisitorId = localStorage.getItem('visitor_id');
-    if (existingVisitorId) {
-      console.log('✅ Found existing visitor_id in localStorage:', existingVisitorId);
-      return existingVisitorId;
-    } else {
-      const newVisitorId = uuidv4();
-      console.log('🆕 No visitor_id found in storage — generated new one:', newVisitorId);
-      localStorage.setItem('visitor_id', newVisitorId);
-      console.log('💾 Stored new visitor_id to localStorage:', newVisitorId);
-      return newVisitorId;
-    }
-  });
+  const [skipVisitor, setSkipVisitor] = useState<boolean | null>(null);
+  const [visitorId, setVisitorId] = useState<string>('');
 
-  // Initialize JWT from localStorage
-  const [storedJwt] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem('visitor_jwt');
-  });
+  // Before generating a visitor ID, check if a Supabase user session exists.
+  // When a session is detected we set `skipVisitor` so the rest of the
+  // visitor effects (ID generation, JWT fetch, cart sync) are bypassed.
+  useEffect(() => {
+    const init = async () => {
+      const { data: { session } } = await supabaseAnon.auth.getSession();
+      if (session) {
+        console.log('🔒 User session detected — skipping visitor auth');
+        setSkipVisitor(true);
+        return;
+      }
+
+      setSkipVisitor(false);
+
+      if (typeof window === 'undefined') return;
+
+      const existingVisitorId = localStorage.getItem('visitor_id');
+      if (existingVisitorId) {
+        console.log('✅ Found existing visitor_id in localStorage:', existingVisitorId);
+        setVisitorId(existingVisitorId);
+      } else {
+        const newVisitorId = uuidv4();
+        console.log('🆕 No visitor_id found in storage — generated new one:', newVisitorId);
+        localStorage.setItem('visitor_id', newVisitorId);
+        console.log('💾 Stored new visitor_id to localStorage:', newVisitorId);
+        setVisitorId(newVisitorId);
+      }
+    };
+
+    init();
+  }, []);
+
 
   // Cart sync state and refs
   const cartSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -166,7 +179,7 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
         }
       }
     },
-    enabled: !!visitorId,
+    enabled: !!visitorId && skipVisitor === false,
     retry: (failureCount, error) => {
       // Don't retry if it's an auth error to prevent loops
       if (error?.message?.includes('Failed to validate visitor')) {
@@ -180,10 +193,11 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
 
   // Handle reload for invalid JWT case
   useEffect(() => {
+    if (skipVisitor) return;
     if (visitorQuery.data?.needsReload) {
       window.location.reload();
     }
-  }, [visitorQuery.data?.needsReload]);
+  }, [visitorQuery.data?.needsReload, skipVisitor]);
 
   // Cart sync mutation
   const cartSyncMutation = useMutation({
@@ -241,10 +255,11 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
 
   // Hydrate cart when visitor data changes
   useEffect(() => {
+    if (skipVisitor) return;
     if (visitorQuery.data?.visitorData?.cart && Array.isArray(visitorQuery.data.visitorData.cart)) {
       hydrateCartFromDatabase(visitorQuery.data.visitorData.cart);
     }
-  }, [visitorQuery.data?.visitorData?.cart]);
+  }, [visitorQuery.data?.visitorData?.cart, skipVisitor]);
 
   // Function to update visitor identity after merge/identify
   const updateVisitorIdentity = (newVisitorId: string, newJwt: string, newVisitorData: VisitorData) => {
@@ -287,6 +302,7 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
 
   // Effect to sync cart changes to database
   useEffect(() => {
+    if (skipVisitor) return;
     const jwt = visitorQuery.data?.jwt;
     const isReady = !visitorQuery.isLoading && !visitorQuery.isError;
     
@@ -321,14 +337,20 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
         clearTimeout(cartSyncTimeoutRef.current);
       }
     };
-  }, [cartItems, visitorQuery.data?.jwt, visitorId, visitorQuery.isLoading, visitorQuery.isError]);
+  }, [cartItems, visitorQuery.data?.jwt, visitorId, visitorQuery.isLoading, visitorQuery.isError, skipVisitor]);
 
   // Derive context values from query state
+  let isReady = false;
+  if (skipVisitor === true) {
+    isReady = true;
+  } else if (skipVisitor === false) {
+    isReady = !visitorQuery.isLoading && !visitorQuery.isError && !!visitorQuery.data;
+  }
   const contextValue: VisitorContextType = {
-    visitorId: visitorId || null,
-    jwt: visitorQuery.data?.jwt || null,
-    visitorData: visitorQuery.data?.visitorData || null,
-    isReady: !visitorQuery.isLoading && !visitorQuery.isError && !!visitorQuery.data,
+    visitorId: skipVisitor ? null : visitorId || null,
+    jwt: skipVisitor ? null : visitorQuery.data?.jwt || null,
+    visitorData: skipVisitor ? null : visitorQuery.data?.visitorData || null,
+    isReady,
     updateVisitorIdentity,
     syncCartToDatabase,
   };

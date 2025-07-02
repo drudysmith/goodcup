@@ -250,15 +250,14 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
     if (sessionQuery.isSuccess) {
       const currentUserId = userSession?.user?.id || null;
       
-      // Mark initial load as complete
+      // login notification
       if (!hasInitialLoad) {
         setHasInitialLoad(true);
-        setPrevUserSessionId(currentUserId);
-        return;
-      }
-
-      // Only show popup for actual session changes, not initial loads
-      if (currentUserId && currentUserId !== prevUserSessionId) {
+        if (currentUserId) {
+          console.log('✅ Session status popup: user logged in');
+          showSessionStatusPopup("You're logged in.");
+        }
+      } else if (currentUserId && currentUserId !== prevUserSessionId) {
         console.log('✅ Session status popup: user logged in');
         showSessionStatusPopup("You're logged in.");
       }

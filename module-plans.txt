@@ -533,6 +533,13 @@ On 401/403 from Supabase with user session active:
 Attempt silent refresh or prompt login again
 Log: ⏰ User session expired — prompting re-auth
 
+Module 8.5: Fix No Session Detection
+1. In `lib/contexts/VisitorContext.tsx`, before creating a visitor ID, call `supabaseAnon.auth.getSession()` and detect an active session.
+2. If a session is found, set a `skipVisitor` flag and avoid generating a new visitor ID or JWT.
+3. Guard all visitor-related effects (queries, cart sync, etc.) behind `!skipVisitor`.
+4. Expose `isReady: true` with null visitor data when `skipVisitor` is set so components know the context is initialized.
+5. Document this logic in comments near the new session check.
+6. include one console log to the effect that skip visitor is set true, and one more to the effect that skipvisitor has been set false (as applies)
 
 general note for modules A-D
 Overall, the groundwork for Modules A–D is present, but some database hooks and final UI pieces remain to be implemented once Module 6 and the user merge are fully integrated.
