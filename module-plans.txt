@@ -558,20 +558,37 @@ Module C – Success/Cancellation Handling
 In pages/checkout.tsx, the code checks query parameters on page load. If success=1 is present, it clears the cart. This is a minimal success/cancel hook and does not yet show a detailed success page.
 
 note, give a heads up to dev team that module D is coming, then do Update 4...
-State Mgmt Update 4 – Dashboard Data via TanStack Query
+SMU 4.1 – Stripe Data Helpers
 Summary
-Replace the placeholder arrays in dashboard.tsx with queries that fetch orders and subscriptions from Supabase. Query keys might be ['orders', userId] and ['subscriptions', userId]. Toggling the “Orders” or “Subscriptions” sections should reference cached data instead of re‑fetching.
+Introduce helpers that retrieve orders and subscription details directly from Stripe.
+These helpers can call the existing endpoints (createCustomerPortalSession.ts and getSubscriptionDetails.ts) or similar API routes.
+No data will be written to or read from Supabase.
 Where to Look
-pages/dashboard.tsx — currently contains hard‑coded orders and subs arrays.
+pages/api/createCustomerPortalSession.ts and pages/api/getSubscriptionDetails.ts – both already interact with Stripe.
 Implementation Notes
-Create fetchOrders(userId) and fetchSubscriptions(userId) helpers for the queryFns.
-Use useQuery for both datasets and pass userId from the active session.
-Keep the existing expand/collapse UI; just source data from the queries.
+Create lightweight fetchOrders() and fetchSubscriptions() functions that call the Stripe endpoints.
+Return arrays formatted like the current dashboard placeholders (id, amount, status, etc.).
+If no real Stripe data is required yet, simply export the placeholder arrays from these helpers.
 Breakpoint / Bugwatch
-Toggle the “Orders” and “Subscriptions” sections and confirm data comes from the cached queries rather than refetching.
-Watch for query key mistakes that could cause duplicate fetches or stale data when the user signs out or switches accounts.
-Earliest Placement
-Integrate this during Module D (Customer Portal & Subscription Management) when the dashboard is wired to real subscription data.
+Verify that calling these helpers (either from the console or a test component) returns data in the expected shape.
+Ensure the helpers never hit Supabase—only Stripe or the placeholders.
+
+SMU 4.2 – Dashboard Query Integration
+Summary
+Replace the hard-coded orders and subs arrays in dashboard.tsx with TanStack Query hooks.
+The queries should invoke the fetchOrders() and fetchSubscriptions() helpers from SMU 4.1 or use the placeholder arrays if Stripe data isn’t needed yet.
+Caching via useQuery prevents redundant calls when toggling between “Orders” and “Subscriptions.”
+Where to Look
+pages/dashboard.tsx — currently contains the static orders and subs arrays.
+Implementation Notes
+Import fetchOrders and fetchSubscriptions.
+Define const { data: orders } = useQuery(['orders'], fetchOrders) and similarly for subscriptions.
+Keep the expand/collapse UI intact—just map over the queried data instead of the hard-coded arrays.
+Do not store any order or subscription information in Supabase.
+Breakpoint / Bugwatch
+Toggle the “Orders” and “Subscriptions” sections and confirm data comes from the query cache rather than refetching.
+Watch for stale results or repeated fetches if the user signs out or navigates away and back.
+
 
 D. Customer Portal & Subscription Management – provide an interface to manage subscriptions using the Stripe customer portal.
 Notes on Modules A–D: Existing Implementation
