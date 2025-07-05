@@ -3,6 +3,7 @@
 import React, { ReactNode, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useSupabaseSession, useSupabaseSessionHelpers, useSessionExpiryMutation } from '../lib/queries/sessionQueries';
+import { useWebhookSync } from '../lib/queries/webhookQueries';
 import LogoAnimated from "./LogoAnimated";
 import Link from 'next/link';
 import { UserIcon, ShoppingBagIcon } from '@heroicons/react/24/outline';
@@ -147,6 +148,9 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   // Module 8: Session expiry handling
   const { handleExpiredSession } = useSupabaseSessionHelpers();
   const sessionExpiryMutation = useSessionExpiryMutation();
+
+  // Module B: Webhook sync for real-time Stripe data updates
+  useWebhookSync();
 
   // Module 7: User profile query for authenticated users (with Module 8 session expiry handling)
   const userProfileQuery = useQuery({

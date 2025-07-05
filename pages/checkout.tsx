@@ -76,6 +76,7 @@ const createCheckoutSession = async (payload: {
   customerEmail: string;
   supabaseUserId?: string;
   visitorId?: string;
+  visitorJwt?: string;
   checkoutMode: 'user' | 'guest';
 }) => {
   const response = await fetch('/api/createCheckoutSession', {
@@ -297,7 +298,7 @@ export default function Checkout() {
       if (checkoutData.url) {
         console.log('✅ Module 6d: Checkout session finalized — redirecting to Stripe');
         console.log('✅ Redirecting to Stripe checkout session');
-        window.location.href = checkoutData.url;
+        window.location.assign(checkoutData.url);
       } else {
         console.error('Checkout session creation failed:', checkoutData.error);
         alert(checkoutData.error || 'Checkout failed');
@@ -492,6 +493,7 @@ export default function Checkout() {
         items,
         customerEmail: visitorData?.email || customerInfo.email,
         visitorId: visitorId || undefined,
+        visitorJwt: jwt || undefined,
         checkoutMode: 'guest'
       });
     } finally {

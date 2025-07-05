@@ -1,0 +1,9 @@
+pressing
+1. the contact info popup is displaying when we have an active user session running
+2. it looks like 6f is saving address information again (we may want this if we allow them to update)
+3. when checkout completes the user goes back to a page that says your cart is empty, and it has no other buttons...
+
+not pressing
+A. what does module state mgmt update 3 give us in options for ui/ux (was it even implemented?)
+B. capture email and phone on entry witout submission
+

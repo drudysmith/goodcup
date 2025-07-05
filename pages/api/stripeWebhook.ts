@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
+import { addWebhookEvent } from './webhook-events';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: '2025-05-28.basil',
@@ -22,6 +23,20 @@ function buffer(readable: any) {
   });
 }
 
+// Module B: Helper to trigger client-side query invalidation
+const notifyClientQueryInvalidation = async (eventType: string, metadata?: any) => {
+  console.log(`🔄 Module B: Query invalidation needed for event: ${eventType}`);
+  
+  // Add event to the tracking system so clients can poll for updates
+  addWebhookEvent(eventType, metadata);
+  
+  if (eventType === 'checkout.session.completed') {
+    console.log('📦 Module B: Should invalidate orders and subscriptions queries');
+  } else if (eventType.includes('subscription') || eventType === 'invoice.paid') {
+    console.log('📦 Module B: Should invalidate subscriptions queries');
+  }
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   console.log("WEBHOOK: Stripe event received", req.body);
 
@@ -37,12 +52,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const buf = await buffer(req);
     if (!sig || !webhookSecret) throw new Error('Missing Stripe signature or webhook secret');
     event = stripe.webhooks.constructEvent(buf, sig as string, webhookSecret);
-    console.log('📦 Stripe webhook received:', event.type);
+    
+    // Module B: Required logging
+    console.log(`📦 Stripe webhook received: ${event.type}`);
   } catch (err: any) {
     console.error('Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
+  // Module B: Handle checkout.session.completed events
   if (event.type === 'checkout.session.completed') {
     console.log("WEBHOOK: Handling checkout.session.completed", event.data.object);
     const session = event.data.object as Stripe.Checkout.Session;
@@ -56,11 +74,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log('📧 Email fallback:', session.customer_email || session.customer_details?.email);
     console.log('🧍 Supabase user ID from metadata:', session.metadata?.supabase_user_id);
 
+    // Module B: Notify that orders and subscriptions should be refreshed
+    await notifyClientQueryInvalidation('checkout.session.completed', {
+      sessionId: session.id,
+      customerId: stripeCustomerId,
+      supabaseUserId
+    });
+
     // TODO: Add visitor table operations here when ready
     console.log('💾 Database operations removed - checkout completed successfully');
   }
 
-  // Handle subscription-related events
+  // Module B: Handle subscription-related events
   if (
     event.type === 'invoice.paid' ||
     event.type === 'customer.subscription.created' ||
@@ -99,10 +124,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log(`⏰ CANCELLATION SCHEDULED: Subscription ${subscription.id} will cancel at period end`);
     }
     
+    // Module B: Notify that subscriptions should be refreshed
+    await notifyClientQueryInvalidation(event.type, {
+      subscriptionId: subscription.id,
+      customerId: stripeCustomerId,
+      status: subscription.status
+    });
+    
     // TODO: Add visitor table operations here when ready
     console.log('💾 Database operations removed - subscription event processed successfully');
   }
 
-  // For now, just acknowledge receipt
+  // Module B: Respond quickly to Stripe to avoid retries
   res.status(200).json({ received: true, type: event.type });
 } 

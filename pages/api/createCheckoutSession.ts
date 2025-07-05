@@ -11,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { items, customerId, customerEmail, supabaseUserId } = req.body;
+    const { items, customerId, customerEmail, supabaseUserId, visitorId, visitorJwt, checkoutMode } = req.body;
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'No items in cart' });
     }
@@ -32,11 +32,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log('stripeCustomerId:', stripeCustomerId);
     console.log('customerEmail:', customerEmail);
     console.log('supabaseUserId:', supabaseUserId);
+    console.log('visitorId:', visitorId);
+    console.log('visitorJwt:', visitorJwt ? 'present' : 'not provided');
+    console.log('checkoutMode:', checkoutMode);
 
     const line_items = items.map((item: { priceId: string; quantity: number }) => ({
       price: item.priceId,
       quantity: item.quantity,
     }));
+
+    // Build metadata based on checkout mode
+    const metadata: any = {
+      checkout_mode: checkoutMode || 'guest',
+    };
+
+    if (supabaseUserId) {
+      metadata.supabase_user_id = supabaseUserId;
+    }
+
+    if (visitorId) {
+      metadata.visitor_id = visitorId;
+    }
 
     const sessionConfig: any = {
       payment_method_types: ['card'],
@@ -48,15 +64,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         : {
             customer_email: customerEmail,
           }),
-      metadata: {
-        supabase_user_id: supabaseUserId || '',
-      },
+      metadata,
       allow_promotion_codes: true,
     };
 
     const session = await stripe.checkout.sessions.create(sessionConfig);
 
-    res.status(200).json({ url: session.url, stripeCustomerId, customerEmail, supabaseUserId });
+    res.status(200).json({ url: session.url, stripeCustomerId, customerEmail, supabaseUserId, visitorId, visitorJwt: visitorJwt ? 'present' : 'not provided', checkoutMode });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Internal server error' });
   }

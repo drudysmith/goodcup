@@ -542,62 +542,57 @@ Module 8.5: Fix No Session Detection
 6. include one console log to the effect that skip visitor is set true, and one more to the effect that skipvisitor has been set false (as applies)
 
 
-
 Module A. Checkout Session Creation – send cart and visitor/user info to Stripe (/api/createCheckoutSession.ts handles the details)
 Title: Module A – Checkout Session Creation
 Summary
-Create a Stripe checkout session using the contents of the TanStack cart store.
-The endpoint accepts optional customerEmail and supabaseUserId so both guest and
-authenticated flows work.
+Create a Stripe checkout session using the TanStack cart store. The endpoint accepts optional customerEmail and supabaseUserId so guest and authenticated flows both work. After payment, order and subscription details will be fetched from Stripe and cached in TanStack state (per SMU 4), not stored in Supabase.
 Where to Look
-- pages/api/createCheckoutSession.ts for the server logic
-- pages/checkout.tsx handleCheckout() around lines 250‑300
+pages/api/createCheckoutSession.ts for the server logic
+pages/checkout.tsx handleCheckout() around lines 250‑300
 Implementation Notes
-- Gather items from useCartStore and visitor or user data
-- POST to /api/createCheckoutSession and redirect to the returned session URL
-- Log ✅ Redirecting to Stripe checkout session before window.location.assign
+Gather items from useCartStore along with visitor or user data
+POST to /api/createCheckoutSession and redirect to the returned session URL
+Log ✅ “Redirecting to Stripe checkout session” before window.location.assign
 Guardrails
-- Keep existing button styling and loading spinner intact
-- Ensure guest flows include visitor_id + JWT in the payload
+Keep existing button styling and the loading spinner
+Ensure guest flows include visitor_id plus JWT in the payload
 Breakpoints / Testing
-- Trigger checkout and watch the console for the redirect log
-- Stripe test mode should open with the correct line items
+Trigger checkout and watch the console for the redirect log
+Stripe test mode should open with the correct line items
 
-Module B. Webhook & Order Persistence – record completed payments and subscriptions via stripeWebhook.ts
-Title: Module B – Webhook & Order Persistence
+Module B. Webhook & State Sync – process Stripe events via stripeWebhook.ts
+Title: Module B – Webhook & State Sync
 Summary
-Listen for Stripe events and record orders or subscriptions in Supabase. The
-endpoint already verifies signatures; database writes are still TODO.
+Listen for Stripe events and update TanStack state so orders and subscriptions reflect the latest Stripe data. No order or subscription records are stored in Supabase.
 Where to Look
-- pages/api/stripeWebhook.ts
-- Supabase schema tables orders and subscriptions
+pages/api/stripeWebhook.ts
+fetchOrders and fetchSubscriptions helpers introduced in SMU 4.1
 Implementation Notes
-- Parse checkout.session.completed and subscription events
-- Insert or update records in the corresponding tables
-- Log 📦 Stripe webhook received: <event.type> for each event
+Parse checkout.session.completed and subscription events
+Invalidate or refresh the relevant TanStack queries
+Log 📦 “Stripe webhook received: <event.type>” for each event
 Guardrails
-- Respond 200 to Stripe quickly to avoid retries
-- Keep the JSON payload parsing exactly as Stripe expects
+Respond 200 to Stripe quickly to avoid retries
+Keep the JSON payload parsing exactly as Stripe expects
 Breakpoints / Testing
-- Use the Stripe CLI to send test events
-- Confirm logs show the event type and database writes
+Use the Stripe CLI to send test events
+Confirm logs show the event type and that TanStack queries refresh
 
-Module C. Success/Cancellation Handling – display order result on return from Stripe (uses query parameters in checkout.tsx lines 80‑87)
+Module C. Success/Cancellation Handling – return to user dashboard on return from stripe, display order result on return from Stripe (uses query parameters in checkout.tsx lines 80‑87)
 Title: Module C – Success/Cancellation Handling
 Summary
-Provide user feedback after returning from Stripe. Query parameters control a
-lightweight success or cancel banner.
+Provide user feedback after returning from Stripe. Query parameters control a lightweight success or cancel banner. Successful checkouts refresh orders and subscriptions through the SMU 4 query helpers.
 Where to Look
-- pages/checkout.tsx at the top-level useEffect
+pages/checkout.tsx at the top‑level useEffect
 Implementation Notes
-- On success=1 clear the cart and show a “Payment successful” notice
-- On canceled=1 show “Checkout canceled”
-- Log 🏁 Checkout result: success or canceled
+On success=1 clear the cart, refresh the TanStack queries, and show “Payment successful”
+On canceled=1 show “Checkout canceled”
+Log 🏁 “Checkout result: success” or “Checkout result: canceled”
 Guardrails
-- Banner should disappear after a few seconds and not disrupt layout
+The banner should disappear after a few seconds and not disrupt layout
 Breakpoints / Testing
-- Complete a checkout in test mode and verify the success banner and log
-- Trigger a canceled session and verify the cancel banner
+Complete a checkout in test mode and verify the success banner, log, and refreshed data
+Trigger a canceled session and verify the cancel banner
 
 
 note, give a heads up to dev team that module D is coming, then do Update 4...
@@ -633,23 +628,21 @@ Toggle the “Orders” and “Subscriptions” sections and confirm data comes 
 Watch for stale results or repeated fetches if the user signs out or navigates away and back.
 
 
-
-Module D. Customer Portal & Subscription Management – provide an interface to manage subscriptions using the Stripe customer portal.
+Module D. Customer Portal & Subscription Management – provide an interface to manage subscriptions using the Stripe customer portal
 Title: Module D – Customer Portal & Subscription Management
 Summary
-Allow authenticated users to manage subscriptions via Stripe’s customer portal.
-Existing API endpoints createCustomerPortalSession.ts and
-getSubscriptionDetails.ts handle the heavy lifting.
+Allow authenticated users to manage subscriptions via Stripe’s customer portal. Subscription details shown on the dashboard come from the TanStack queries (fetchSubscriptions) rather than Supabase tables.
 Where to Look
-- pages/dashboard.tsx for the Manage Subscription button and data display
-- pages/api/createCustomerPortalSession.ts for the portal session logic
+pages/dashboard.tsx for the Manage Subscription button and data display
+pages/api/createCustomerPortalSession.ts for the portal session logic
 Implementation Notes
-- When the button is clicked, POST to the API to create the portal session
-- Redirect to the returned URL
-- Log 🛠️ Opening customer portal: <url> before redirect
+When the button is clicked, POST to the API to create the portal session
+Redirect to the returned URL
+After returning, invalidate or refetch subscription data
+Log 🛠️ “Opening customer portal: <url>” before redirect
 Guardrails
-- Only show the button when a Supabase session exists
-- Keep the dashboard placeholders until State Mgmt Update 4 wires real data
+Only show the button when a Supabase user session exists
+Keep the dashboard placeholders until State Mgmt Update 4 wires real data
 Breakpoints / Testing
-- Click Manage Subscription and confirm the console log with the portal URL
-- Returning from the portal should reload dashboard data when Update 4 is in place
+Click Manage Subscription and confirm the console log with the portal URL
+Returning from the portal should reload dashboard data using the TanStack queries

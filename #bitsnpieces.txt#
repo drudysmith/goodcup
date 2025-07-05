@@ -1,0 +1,14 @@
+pressing
+1. the contact info popup is displaying when we have an active user session running
+2. it looks like 6f is saving address information again (we may want this if we allow them to update)
+3. when checkout completes the user goes back to a page that says your cart is empty, and it has no other buttons...
+4. need to be able to log in with email pwd as well as magiclink
+5. flows
+- as soon as visitor is known to have user account, we offer to log them in, at jwt (on site return and htye are not logged in), or on contact popup (if they cleared their cache, or the jwt expired), don't know of other later times
+- 6. recognize and merge on email only, not phone ... (sure?)
+7. when magiclink is clicked...	  
+
+not pressing
+A. what does module state mgmt update 3 give us in options for ui/ux (was it even implemented?)
+B. capture email and phone on entry witout submission
+
