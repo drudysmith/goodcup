@@ -5,8 +5,9 @@ pressing
 4. need to be able to log in with email pwd as well as magiclink
 5. flows
 - as soon as visitor is known to have user account, we offer to log them in, at jwt (on site return and htye are not logged in), or on contact popup (if they cleared their cache, or the jwt expired), don't know of other later times
-- 6. recognize and merge on email only, not phone ... (sure?)
-7. when magiclink is cliked in email the user goes back to info page then they have to click the same button to log in, it advances past magiclink, but its very non intuitive
+6. recognize and merge on email only, not phone ... (sure?)
+7. when magiclink is clicked in email, it opens the information page again, no data populates, they have to click the advance button again, and do a new magiclink, unless they realize they can go back to the other tab, which has already gone ahead to the checkout, so we should redirec tto that flow and be directed right to checkout, yeah?
+8. When a user session is activated, the cart is not being pulled in from visit to visit, we detect a continuous user session, but the cart info is not getting pulled in from supabase...
 
 not pressing
 A. what does module state mgmt update 3 give us in options for ui/ux (was it even implemented?)

@@ -578,21 +578,29 @@ Breakpoints / Testing
 Use the Stripe CLI to send test events
 Confirm logs show the event type and that TanStack queries refresh
 
-Module C. Success/Cancellation Handling – return to user dashboard on return from stripe, display order result on return from Stripe (uses query parameters in checkout.tsx lines 80‑87)
-Title: Module C – Success/Cancellation Handling
+Module C – Success/Cancellation Handling
 Summary
-Provide user feedback after returning from Stripe. Query parameters control a lightweight success or cancel banner. Successful checkouts refresh orders and subscriptions through the SMU 4 query helpers.
+After completing or canceling a Stripe checkout, the user is redirected to /dashboard with query parameters specifying success or cancellation. The dashboard page reads these parameters to clear the cart, refresh orders and subscriptions via the SMU 4 helpers, and log the result. Visitor initialization through VisitorProvider continues to occur on this page.
 Where to Look
-pages/checkout.tsx at the top‑level useEffect
+pages/dashboard.tsx – top‑level useEffect handling success=1 or canceled=1
+pages/api/createCheckoutSession.ts – success_url and cancel_url
 Implementation Notes
-On success=1 clear the cart, refresh the TanStack queries, and show “Payment successful”
-On canceled=1 show “Checkout canceled”
-Log 🏁 “Checkout result: success” or “Checkout result: canceled”
+In createCheckoutSession.ts, set the redirect URLs to:
+success_url: `${req.headers.origin}/dashboard?success=1`,
+cancel_url:  `${req.headers.origin}/dashboard?canceled=1`,
+In dashboard.tsx:
+When success=1 is present:
+Clear the cart.
+Invalidate or refetch the orders and subscriptions queries (['orders'] and ['subscriptions']).
+Log 🏁 Checkout result: success.
+When canceled=1 is present:
+Log 🏁 Checkout result: canceled.
 Guardrails
-The banner should disappear after a few seconds and not disrupt layout
+No banner should be shown. The dashboard should return to its normal layout after processing the query parameters.
 Breakpoints / Testing
-Complete a checkout in test mode and verify the success banner, log, and refreshed data
-Trigger a canceled session and verify the cancel banner
+Complete a Stripe checkout in test mode. You should return to /dashboard?success=1. Orders and subscriptions refresh, the cart clears, and the success log appears.
+Cancel a checkout. You should return to /dashboard?canceled=1 with the cancel log.
+Ensure new visitor records continue to be created in Supabase after either redirect
 
 
 note, give a heads up to dev team that module D is coming, then do Update 4...

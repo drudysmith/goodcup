@@ -58,8 +58,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       payment_method_types: ['card'],
       mode: 'subscription',
       line_items,
-      success_url: `${req.headers.origin}/checkout?success=1`,
-      cancel_url: `${req.headers.origin}/checkout?canceled=1`,
+      success_url: `${req.headers.origin}/dashboard?success=1`,
+      cancel_url: `${req.headers.origin}/dashboard?canceled=1`,
       ...(stripeCustomerId ? { customer: stripeCustomerId }
         : {
             customer_email: customerEmail,

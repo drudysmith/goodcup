@@ -5,22 +5,51 @@
 
 import Layout from '../components/Layout';
 import Section from '../components/Section';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { useQueryClient } from '@tanstack/react-query';
+import { useOrders, useSubscriptions } from '../lib/queries/stripeQueries';
+import { useCartStore } from '../store/cartStore';
 
 export default function Dashboard() {
   const [ordersExpanded, setOrdersExpanded] = useState(false);
   const [subsExpanded, setSubsExpanded] = useState(false);
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const user = { email: 'mockuser@example.com' };
+  
+  // SMU 4.2: Use TanStack Query hooks for orders and subscriptions
+  const { data: orders = [] } = useOrders();
+  const { data: subs = [] } = useSubscriptions();
+  
+  // Get cart clear function
+  const clearCart = useCartStore((state) => state.clearCart);
 
-  const orders = [
-    { id: 'order_1', stripe_payment_intent_id: 'pi_ABC12345', created_at: new Date().toISOString(), amount: 1999 },
-    { id: 'order_2', stripe_payment_intent_id: 'pi_DEF67890', created_at: new Date().toISOString(), amount: 2999 },
-  ];
-
-  const subs = [
-    { id: 'sub_1', stripe_subscription_id: 'sub_12345678', created_at: new Date().toISOString(), current_period_end: new Date().toISOString(), amount: 999, status: 'active' },
-    { id: 'sub_2', stripe_subscription_id: 'sub_87654321', created_at: new Date().toISOString(), canceled_at: new Date().toISOString(), amount: 1499, status: 'canceled' },
-  ];
+  // Handle success/cancel query parameters
+  useEffect(() => {
+    const { success, canceled } = router.query;
+    
+    if (success === '1') {
+      // Clear the cart
+      clearCart();
+      
+      // Invalidate and refetch orders and subscriptions
+      queryClient.invalidateQueries({ queryKey: ['orders'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'], exact: false });
+      
+      // Log success
+      console.log('🏁 Checkout result: success');
+      
+      // Remove query parameter from URL
+      router.replace('/dashboard', undefined, { shallow: true });
+    } else if (canceled === '1') {
+      // Log cancellation
+      console.log('🏁 Checkout result: canceled');
+      
+      // Remove query parameter from URL
+      router.replace('/dashboard', undefined, { shallow: true });
+    }
+  }, [router.query, clearCart, queryClient, router]);
 
   const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', {
     year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
