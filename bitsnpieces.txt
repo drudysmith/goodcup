@@ -11,6 +11,8 @@ pressing
 
 9. After auth and purchase, the cart is not cleared, neither are the contents showing in the ui, but then you add an item to the cart and the supabase updates and the cart displays in the ui, so it looks like the issue is just with not clearing the cart after purchase, still, its odd that in that case even on refresh the ui does not reflect cart contents until you add something (full update happening on add/remove action, this needs to happen on transaction end)
 
+10. with the auth modal its a catch all, with toggle at bottom, we are not smart about knowing which customers have only used magic key and which have a password, we could use a has_pwd boolean on the visitors table if we want to make it smoother for visitors
+
 not pressing
 A. what does module state mgmt update 3 give us in options for ui/ux (was it even implemented?)
 B. capture email and phone on entry witout submission

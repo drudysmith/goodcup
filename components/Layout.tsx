@@ -19,6 +19,7 @@ import NotificationBanner from './NotificationBanner';
 import NavMenu from './NavMenu';
 import { ContactInfoPopup } from './ContactInfoPopup';
 import { AuthModal } from './AuthModal';
+import { openAuthModal, updateCachedCredentials } from '../store/authModalStore';
 
 // Imported constants and utilities
 import { navLinks } from '../lib/constants';
@@ -561,6 +562,52 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
       // Could show user-facing error here
     }
   };
+
+  // UxAuth 2: Auto-login prompt for returning visitors with accounts
+  useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+
+    // Check all conditions for auto-login prompt
+    const hasAccount = visitorData?.has_account === true;
+    const noUserSession = !userSession;
+    const loginOffered = sessionStorage.getItem('loginOffered') === 'true';
+
+    console.log('🔄 UxAuth 2: Checking auto-login conditions:', {
+      hasAccount,
+      noUserSession,
+      loginOffered: !loginOffered,
+      visitorEmail: visitorData?.email ? '***' + visitorData.email.slice(-8) : undefined
+    });
+
+    if (hasAccount && noUserSession && !loginOffered) {
+      console.log('🔐 UxAuth 2: Triggering auto-login prompt for returning visitor');
+      
+      // Get cached password if available
+      const cachedCredentials = (() => {
+        try {
+          const cached = localStorage.getItem('cached_login_info');
+          return cached ? JSON.parse(cached) : {};
+        } catch {
+          return {};
+        }
+      })();
+
+      // Set flag to prevent repeated prompts this visit
+      sessionStorage.setItem('loginOffered', 'true');
+
+      // Open auth modal with prefilled email and password
+      openAuthModal(visitorData?.email || undefined, cachedCredentials.password);
+    }
+  }, [visitorData?.has_account, visitorData?.email, userSession]);
+
+  // UxAuth 2: Clear loginOffered flag when user signs in
+  useEffect(() => {
+    if (userSession) {
+      console.log('🔄 UxAuth 2: User signed in, clearing loginOffered flag');
+      sessionStorage.removeItem('loginOffered');
+    }
+  }, [userSession]);
 
   // Modern CSS scrollbar-gutter handles layout shift prevention automatically
   // This effect only manages scroll locking behavior

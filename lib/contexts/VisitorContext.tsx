@@ -15,6 +15,7 @@ interface VisitorData {
   state: string | null;
   postal_code: string | null;
   country: string | null;
+  has_account?: boolean;
 }
 
 interface VisitorContextType {
@@ -155,7 +156,8 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
               city: validateData.visitor.city,
               state: validateData.visitor.state,
               postal_code: validateData.visitor.postal_code,
-              country: validateData.visitor.country
+              country: validateData.visitor.country,
+              has_account: validateData.visitor.has_account
             },
             needsReload: false
           };

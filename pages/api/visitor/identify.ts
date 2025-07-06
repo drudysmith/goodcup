@@ -20,6 +20,7 @@ interface IdentifyResponse {
   visitor_id: string;
   jwt: string;
   merged?: boolean;
+  has_account?: boolean;
   visitor?: {
     id: string;
     name: string | null;
@@ -158,13 +159,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return res.status(500).json({ error: 'Failed to fetch updated visitor data' });
     }
 
-    console.log(`✅ Identity resolved: visitor_id=${targetVisitorId}, merged=${merged}`);
+    // UxAuth 2: Check if visitor has an associated account
+    const hasAccount = !!updatedVisitor.user_id;
+    
+    console.log(`✅ Identity resolved: visitor_id=${targetVisitorId}, merged=${merged}, has_account=${hasAccount}`);
 
     return res.status(200).json({
       success: true,
       visitor_id: targetVisitorId,
       jwt: newJwt,
       merged,
+      has_account: hasAccount,
       visitor: {
         id: updatedVisitor.id,
         name: updatedVisitor.name,

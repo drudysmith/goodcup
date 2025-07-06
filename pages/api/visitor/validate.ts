@@ -14,6 +14,7 @@ interface VisitorData {
   state: string | null;
   postal_code: string | null;
   country: string | null;
+  has_account?: boolean;
 }
 
 interface ValidateResponse {
@@ -57,7 +58,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Fetch visitor data from Supabase with RLS
     const { data: visitorData, error } = await supabaseServiceRole
       .from('visitors')
-      .select('id, name, email, phone, cart, street, unit, city, state, postal_code, country')
+      .select('id, name, email, phone, cart, street, unit, city, state, postal_code, country, user_id')
       .eq('id', visitor_id)
       .single();
 
@@ -71,10 +72,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(401).json({ error: 'Visitor not found' });
     }
 
-    console.log('✅ Visitor data fetched successfully:', visitor_id);
+    // UxAuth 2: Check if visitor has an associated account
+    const hasAccount = !!visitorData.user_id;
+    
+    console.log('✅ Visitor data fetched successfully:', visitor_id, 'has_account:', hasAccount);
 
     const response: ValidateResponse = {
-      visitor: visitorData,
+      visitor: {
+        ...visitorData,
+        has_account: hasAccount
+      },
       visitor_id
     };
 

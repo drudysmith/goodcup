@@ -12,6 +12,9 @@ import { useSupabaseSession, useSupabaseSessionHelpers } from '../lib/queries/se
 import { useOrders, useSubscriptions } from '../lib/queries/stripeQueries';
 import { useCartStore } from '../store/cartStore';
 import { openAuthModal } from '../store/authModalStore';
+import { useVisitor } from '../lib/contexts/VisitorContext';
+import { supabaseAnon } from '../lib/supabaseClient';
+import { useMutation } from '@tanstack/react-query';
 
 // SMU 4.3c: User profile response interface
 interface UserProfileResponse {
@@ -64,6 +67,10 @@ const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promi
 export default function Dashboard() {
   const [ordersExpanded, setOrdersExpanded] = useState(false);
   const [subsExpanded, setSubsExpanded] = useState(false);
+  const [settingsExpanded, setSettingsExpanded] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordUpdateStatus, setPasswordUpdateStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -71,6 +78,9 @@ export default function Dashboard() {
   const sessionQuery = useSupabaseSession();
   const { handleExpiredSession } = useSupabaseSessionHelpers();
   const userSession = sessionQuery.data;
+
+  // UxAuth 1: Get visitor context for email prefilling
+  const { visitorData } = useVisitor();
 
   // SMU 4.3c: User profile query for authenticated users
   const userProfileQuery = useQuery({
@@ -105,8 +115,11 @@ export default function Dashboard() {
       });
     } else {
       console.log('🔄 SMU 4.3c: User in visitor mode - not authenticated');
+      if (visitorData?.email) {
+        console.log('🔄 UxAuth 1: Visitor email available for auth modal:', visitorData.email);
+      }
     }
-  }, [userSession, user]);
+  }, [userSession, user, visitorData?.email]);
 
   // SMU 4.3c: Use TanStack Query hooks with customer ID
   const { data: orders = [] } = useOrders(user?.stripeCustomerId || undefined);
@@ -123,6 +136,48 @@ export default function Dashboard() {
   
   // Get cart clear function
   const clearCart = useCartStore((state) => state.clearCart);
+
+  // Password update mutation
+  const passwordUpdateMutation = useMutation({
+    mutationFn: async (password: string) => {
+      const { error } = await supabaseAnon.auth.updateUser({ password });
+      if (error) throw error;
+      return { success: true };
+    },
+    onSuccess: () => {
+      console.log('✅ Password updated successfully');
+      setPasswordUpdateStatus('success');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setPasswordUpdateStatus('idle'), 3000);
+    },
+    onError: (error: any) => {
+      console.error('❌ Password update failed:', error);
+      setPasswordUpdateStatus('error');
+      setTimeout(() => setPasswordUpdateStatus('idle'), 3000);
+    },
+  });
+
+  const handlePasswordUpdate = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newPassword.trim()) {
+      alert('Please enter a password');
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      alert('Password must be at least 6 characters');
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      alert('Passwords do not match');
+      return;
+    }
+    
+    passwordUpdateMutation.mutate(newPassword);
+  };
 
   // Handle success/cancel query parameters
   useEffect(() => {
@@ -184,13 +239,13 @@ export default function Dashboard() {
                 </p>
                 <div className="space-y-3">
                   <button 
-                    onClick={() => openAuthModal()}
+                    onClick={() => openAuthModal(visitorData?.email || undefined)}
                     className="w-full bg-primary text-primary-foreground py-2 px-4 rounded-lg hover:bg-primary/90 transition-colors"
                   >
                     Sign In
                   </button>
                   <button 
-                    onClick={() => openAuthModal()}
+                    onClick={() => openAuthModal(visitorData?.email || undefined)}
                     className="w-full border border-neutral-border bg-surface text-text-primary py-2 px-4 rounded-lg hover:bg-neutral-muted-bg transition-colors"
                   >
                     Create Account
