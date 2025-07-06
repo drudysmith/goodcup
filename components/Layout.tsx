@@ -18,6 +18,7 @@ import CupgradesPanel from './CupgradesPanel';
 import NotificationBanner from './NotificationBanner';
 import NavMenu from './NavMenu';
 import { ContactInfoPopup } from './ContactInfoPopup';
+import { AuthModal } from './AuthModal';
 
 // Imported constants and utilities
 import { navLinks } from '../lib/constants';
@@ -826,6 +827,9 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
           onSubmit={handleContactInfoSubmit}
         />
       )}
+
+      {/* UxAuth 1: Universal Auth Modal */}
+      <AuthModal />
 
       {/* Overlay/Modal Placeholder */}
       {overlay && (

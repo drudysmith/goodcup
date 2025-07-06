@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSupabaseSession, useSupabaseSessionHelpers } from '../lib/queries/sessionQueries';
 import { useOrders, useSubscriptions } from '../lib/queries/stripeQueries';
 import { useCartStore } from '../store/cartStore';
+import { openAuthModal } from '../store/authModalStore';
 
 // SMU 4.3c: User profile response interface
 interface UserProfileResponse {
@@ -55,7 +56,7 @@ const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promi
   const profileData = await response.json();
   
   // SMU 4.3c: Log the Stripe customer ID from client
-  console.log('🔄 SMU 4.3c: Stripe customer ID loaded:', profileData.stripe_customer_id);
+  console.log('🔄 SMU 4.3c: Stripe customer ID loaded in dashboard:', profileData.stripe_customer_id);
   
   return profileData;
 };
@@ -66,7 +67,7 @@ export default function Dashboard() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  // SMU 4.3c: Session and profile queries
+  // SMU 4.3c: Use centralized session query
   const sessionQuery = useSupabaseSession();
   const { handleExpiredSession } = useSupabaseSessionHelpers();
   const userSession = sessionQuery.data;
@@ -92,11 +93,33 @@ export default function Dashboard() {
     email: userSession.user.email || userProfileQuery.data?.email || '',
     name: userProfileQuery.data?.name || userSession.user.user_metadata?.name || '',
     stripeCustomerId: userProfileQuery.data?.stripe_customer_id || null
-  } : { email: 'mockuser@example.com' };
+  } : null;
 
-  // SMU 4.3c: Use TanStack Query hooks for orders and subscriptions with customer ID
-  const { data: orders = [] } = useOrders(user.stripeCustomerId || undefined);
-  const { data: subs = [] } = useSubscriptions(user.stripeCustomerId || undefined);
+  // SMU 4.3c: Console logging for user identification and authentication
+  useEffect(() => {
+    if (userSession && user) {
+      console.log('🔄 SMU 4.3c: User identified as authenticated:', {
+        userId: user.id,
+        email: user.email,
+        stripeCustomerId: user.stripeCustomerId
+      });
+    } else {
+      console.log('🔄 SMU 4.3c: User in visitor mode - not authenticated');
+    }
+  }, [userSession, user]);
+
+  // SMU 4.3c: Use TanStack Query hooks with customer ID
+  const { data: orders = [] } = useOrders(user?.stripeCustomerId || undefined);
+  const { data: subs = [] } = useSubscriptions(user?.stripeCustomerId || undefined);
+
+  // SMU 4.3c: Console logging for Stripe history loading
+  useEffect(() => {
+    if (user?.stripeCustomerId) {
+      console.log('🔄 SMU 4.3c: Loading Stripe history for customer:', user.stripeCustomerId);
+      console.log('🔄 SMU 4.3c: Orders loaded:', orders.length);
+      console.log('🔄 SMU 4.3c: Subscriptions loaded:', subs.length);
+    }
+  }, [user?.stripeCustomerId, orders, subs]);
   
   // Get cart clear function
   const clearCart = useCartStore((state) => state.clearCart);
@@ -147,6 +170,40 @@ export default function Dashboard() {
     return statusColors[status] || { bg: 'bg-neutral-muted-bg', text: 'text-text-tertiary', label: 'Unknown' };
   };
 
+  // SMU 4.3c: Handle visitor mode - show login invitation instead of dashboard
+  if (!userSession) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex flex-col justify-between site-section-bg">
+          <div className="flex-1 flex items-center justify-center py-8">
+            <div className="max-w-md w-full mx-4">
+              <div className="bg-surface border border-neutral-border rounded-lg p-8 text-center">
+                <h1 className="text-heading-lg font-semibold text-text-primary mb-4">Access Your Dashboard</h1>
+                <p className="text-text-secondary mb-6">
+                  Sign in to view your orders, subscriptions, and account information.
+                </p>
+                <div className="space-y-3">
+                  <button 
+                    onClick={() => openAuthModal()}
+                    className="w-full bg-primary text-primary-foreground py-2 px-4 rounded-lg hover:bg-primary/90 transition-colors"
+                  >
+                    Sign In
+                  </button>
+                  <button 
+                    onClick={() => openAuthModal()}
+                    className="w-full border border-neutral-border bg-surface text-text-primary py-2 px-4 rounded-lg hover:bg-neutral-muted-bg transition-colors"
+                  >
+                    Create Account
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="min-h-screen flex flex-col justify-between site-section-bg">
@@ -157,7 +214,7 @@ export default function Dashboard() {
                 <h1 className="text-heading-lg font-semibold text-text-primary">Dashboard</h1>
                 <button className="text-text-secondary hover:text-text-primary transition-colors">Sign out</button>
               </div>
-              <p className="text-text-secondary">Welcome back, {user.email}</p>
+              <p className="text-text-secondary">Welcome back, {user?.email}</p>
             </div>
 
             <div className="bg-surface border border-neutral-border rounded-lg p-6 mb-6">
@@ -181,34 +238,40 @@ export default function Dashboard() {
               {subsExpanded && (
                 <div className="mt-2 max-h-80 overflow-y-auto bg-surface border border-neutral-border rounded">
                   <div className="space-y-4 p-4">
-                    {subs.map((sub) => {
-                      const statusInfo = formatSubscriptionStatus(sub);
-                      return (
-                        <div 
-                          key={sub.id} 
-                          className="border border-neutral-border rounded-lg p-3 mb-2 relative"
-                        >
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <div className="text-text-primary font-medium">
-                                Subscription {sub.stripe_subscription_id?.slice(-8)}
-                              </div>
-                              <div className="text-sm text-text-secondary space-y-1">
-                                <div>Amount: {formatCurrency(sub.amount)}</div>
-                                <div>Started: {formatDate(sub.created_at)}</div>
-                                {sub.current_period_end && <div>Next billing: {formatDate(sub.current_period_end)}</div>}
-                                {sub.canceled_at && <div>Canceled: {formatDate(sub.canceled_at)}</div>}
-                                <div className="flex items-center gap-2">
-                                  <span className={`px-2 py-1 rounded text-xs ${statusInfo.bg} ${statusInfo.text}`}>
-                                    {statusInfo.label}
-                                  </span>
+                    {subs.length === 0 ? (
+                      <div className="text-center py-8 text-text-secondary">
+                        <p>No subscription history found.</p>
+                      </div>
+                    ) : (
+                      subs.map((sub) => {
+                        const statusInfo = formatSubscriptionStatus(sub);
+                        return (
+                          <div 
+                            key={sub.id} 
+                            className="border border-neutral-border rounded-lg p-3 mb-2 relative"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <div className="text-text-primary font-medium">
+                                  Subscription {sub.stripe_subscription_id?.slice(-8)}
+                                </div>
+                                <div className="text-sm text-text-secondary space-y-1">
+                                  <div>Amount: {formatCurrency(sub.amount)}</div>
+                                  <div>Started: {formatDate(sub.created_at)}</div>
+                                  {sub.current_period_end && <div>Next billing: {formatDate(sub.current_period_end)}</div>}
+                                  {sub.canceled_at && <div>Canceled: {formatDate(sub.canceled_at)}</div>}
+                                  <div className="flex items-center gap-2">
+                                    <span className={`px-2 py-1 rounded text-xs ${statusInfo.bg} ${statusInfo.text}`}>
+                                      {statusInfo.label}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })
+                    )}
                   </div>
                 </div>
               )}
@@ -235,14 +298,20 @@ export default function Dashboard() {
               {ordersExpanded && (
                 <div className="mt-2 max-h-80 overflow-y-auto bg-surface border border-neutral-border rounded">
                   <div className="space-y-2 p-4">
-                    {orders.map((order) => (
-                      <div key={order.id} className="border border-neutral-border rounded-lg p-3">
-                        <div className="text-text-primary font-medium">Order #{order.stripe_payment_intent_id?.slice(-8)}</div>
-                        <div className="text-xs text-text-tertiary mt-1">
-                          {formatDate(order.created_at)} • {formatCurrency(order.amount)}
-                        </div>
+                    {orders.length === 0 ? (
+                      <div className="text-center py-8 text-text-secondary">
+                        <p>No order history found.</p>
                       </div>
-                    ))}
+                    ) : (
+                      orders.map((order) => (
+                        <div key={order.id} className="border border-neutral-border rounded-lg p-3">
+                          <div className="text-text-primary font-medium">Order #{order.stripe_payment_intent_id?.slice(-8)}</div>
+                          <div className="text-xs text-text-tertiary mt-1">
+                            {formatDate(order.created_at)} • {formatCurrency(order.amount)}
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}

@@ -1,18 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { supabaseAnon } from '../lib/supabaseClient';
+import { useAuthModalState, closeAuthModal, updateCachedCredentials } from '../store/authModalStore';
 
+// UxAuth 1: Updated interface - onSuccess now optional since it's handled globally
 interface AuthModalProps {
-  onClose: () => void;
-  onSuccess: () => void;
-  email?: string; // Optional prefilled email that should be enforced
+  onSuccess?: () => void;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, email: enforcedEmail }) => {
-  const [email, setEmail] = useState(enforcedEmail || '');
+export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
+  const modalState = useAuthModalState();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+
+  // UxAuth 1: Prefill email and password from store when modal opens
+  useEffect(() => {
+    if (modalState.isOpen) {
+      setEmail(modalState.email || '');
+      setPassword(modalState.password || '');
+      setMagicLinkSent(false);
+      console.log('🔐 UxAuth 1: Modal opened with prefilled data', {
+        email: modalState.email ? '***' + modalState.email.slice(-8) : undefined,
+        hasPassword: !!modalState.password,
+      });
+    }
+  }, [modalState.isOpen, modalState.email, modalState.password]);
+
+  // UxAuth 1: Handle modal close
+  const handleClose = () => {
+    closeAuthModal();
+  };
+
+  // UxAuth 1: Handle success with caching
+  const handleSuccess = () => {
+    // Update cached credentials
+    updateCachedCredentials(email, password);
+    
+    // Close modal
+    closeAuthModal();
+    
+    // Call optional success callback
+    if (onSuccess) {
+      onSuccess();
+    }
+  };
 
   // State Mgmt Update 1: TanStack mutations for auth flows
   const signInWithOtpMutation = useMutation({
@@ -51,7 +84,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, email:
     },
     onSuccess: () => {
       console.log('✅ User sign in successful');
-      onSuccess();
+      handleSuccess();
     },
   });
 
@@ -70,15 +103,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, email:
     },
     onSuccess: () => {
       console.log('✅ User sign up successful');
-      onSuccess();
+      handleSuccess();
     },
   });
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Use enforced email if provided, otherwise use user-entered email
-    const emailToUse = enforcedEmail || email;
+    // Use enforced email from store if provided, otherwise use user-entered email
+    const emailToUse = modalState.email || email;
     
     if (!emailToUse.trim()) {
       return;
@@ -90,8 +123,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, email:
   const handleEmailPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Use enforced email if provided, otherwise use user-entered email
-    const emailToUse = enforcedEmail || email;
+    // Use enforced email from store if provided, otherwise use user-entered email
+    const emailToUse = modalState.email || email;
     
     if (!emailToUse.trim() || !password.trim()) {
       return;
@@ -105,23 +138,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, email:
   const isLoading = signInWithOtpMutation.isPending || signInWithPasswordMutation.isPending || signUpMutation.isPending;
   const error = signInWithOtpMutation.error?.message || signInWithPasswordMutation.error?.message || signUpMutation.error?.message;
 
+  // UxAuth 1: Don't render if modal is not open
+  if (!modalState.isOpen) {
+    return null;
+  }
+
   if (magicLinkSent) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 ease-out" onClick={onClose} />
+        <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 ease-out" onClick={handleClose} />
         <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 ease-out animate-in zoom-in-95">
           <div className="px-6 py-8 text-center">
             <div className="text-green-500 mb-4">
               <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2z" />
               </svg>
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Check your email</h3>
             <p className="text-sm text-gray-500 mb-6">
-              We've sent a magic link to <strong>{enforcedEmail || email}</strong>. Click the link to sign in and complete your checkout.
+              We've sent a magic link to <strong>{modalState.email || email}</strong>. Click the link to sign in and complete your checkout.
             </p>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
             >
               Got it
@@ -134,7 +172,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, email:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 ease-out" onClick={onClose} />
+      <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 ease-out" onClick={handleClose} />
       
       <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 ease-out animate-in zoom-in-95">
         {/* Header */}
@@ -144,7 +182,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, email:
               {isSignUp ? 'Create your account' : 'Sign in to your account'}
             </h3>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
               aria-label="Close"
             >
@@ -172,7 +210,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, email:
                 placeholder="your@email.com"
                 required
                 disabled={isLoading}
-                readOnly={!!enforcedEmail}
+                readOnly={!!modalState.email}
               />
             </div>
             
@@ -207,7 +245,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, email:
                 placeholder="your@email.com"
                 required
                 disabled={isLoading}
-                readOnly={!!enforcedEmail}
+                readOnly={!!modalState.email}
               />
             </div>
 

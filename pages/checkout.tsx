@@ -11,7 +11,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSupabaseSession, useSupabaseSessionHelpers, useSessionExpiryMutation } from '../lib/queries/sessionQueries';
 import { useCartStore, CartItem } from '../store/cartStore';
 import { CheckoutModeToggle } from '../components/CheckoutModeToggle';
-import { AuthModal } from '../components/AuthModal';
+import { openAuthModal } from '../store/authModalStore';
 import { useVisitor } from '../lib/contexts/VisitorContext';
 import { supabaseAnon } from '../lib/supabaseClient';
 
@@ -167,7 +167,7 @@ export default function Checkout() {
   const [currentStage, setCurrentStage] = useState<CheckoutStage>('information');
   const [orderSummaryExpanded, setOrderSummaryExpanded] = useState(false);
   const [checkoutMode, setCheckoutMode] = useState<'user' | 'guest'>('user');
-  const [showAuthModal, setShowAuthModal] = useState(false);
+
   const [isProcessingMerge, setIsProcessingMerge] = useState(false);
   
   // State Mgmt Update 2: Use centralized session query
@@ -355,7 +355,6 @@ export default function Checkout() {
       setSessionData(session);
       if (event === 'SIGNED_IN' && session && checkoutMode === 'user' && visitorId && !isProcessingMerge) {
         console.log('✅ User authentication successful');
-        setShowAuthModal(false);
         setShowInlineLogin(false);
         
         // Module 6b.2: Post-Merge Cleanup and Checkout
@@ -783,17 +782,7 @@ export default function Checkout() {
         </div>
       )}
 
-      {/* Auth Modal */}
-      {showAuthModal && (
-        <AuthModal
-          onClose={() => setShowAuthModal(false)}
-          onSuccess={() => {
-            setShowAuthModal(false);
-            // Session will be updated via auth state listener
-          }}
-          email={visitorData?.email || customerInfo.email}
-        />
-      )}
+
     </div>
   );
 }

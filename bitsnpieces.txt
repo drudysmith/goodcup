@@ -9,6 +9,8 @@ pressing
 7. when magiclink is clicked in email, it opens the information page again, no data populates, they have to click the advance button again, and do a new magiclink, unless they realize they can go back to the other tab, which has already gone ahead to the checkout, so we should redirec tto that flow and be directed right to checkout, yeah?
 8. When a user session is activated, the cart is not being pulled in from visit to visit, we detect a continuous user session, but the cart info is not getting pulled in from supabase...
 
+9. After auth and purchase, the cart is not cleared, neither are the contents showing in the ui, but then you add an item to the cart and the supabase updates and the cart displays in the ui, so it looks like the issue is just with not clearing the cart after purchase, still, its odd that in that case even on refresh the ui does not reflect cart contents until you add something (full update happening on add/remove action, this needs to happen on transaction end)
+
 not pressing
 A. what does module state mgmt update 3 give us in options for ui/ux (was it even implemented?)
 B. capture email and phone on entry witout submission
