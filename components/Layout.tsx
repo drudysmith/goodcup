@@ -44,6 +44,21 @@ interface StripeProduct {
   prices: StripePrice[];
 }
 
+// SMU 4.3b: User profile response interface
+interface UserProfileResponse {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  street: string | null;
+  unit: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  country: string | null;
+  stripe_customer_id: string | null;
+}
+
 // Query function for products
 const fetchProducts = async (): Promise<{ products: StripeProduct[] }> => {
   const response = await fetch('/api/products');
@@ -54,7 +69,7 @@ const fetchProducts = async (): Promise<{ products: StripeProduct[] }> => {
 };
 
 // Module 7: User profile data fetching (with Module 8 session expiry handling)
-const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promise<boolean>) => {
+const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promise<boolean>): Promise<UserProfileResponse> => {
   if (!session?.user?.id) {
     throw new Error('No user session provided');
   }
@@ -78,7 +93,12 @@ const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promi
     throw new Error('Failed to fetch user profile');
   }
 
-  return response.json();
+  const profileData = await response.json();
+  
+  // SMU 4.3b: Log the Stripe customer ID from client
+  console.log('🔄 SMU 4.3b: Stripe customer ID loaded:', profileData.stripe_customer_id);
+  
+  return profileData;
 };
 
 // Mutation function for contact info submission
@@ -171,7 +191,8 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   const user = userSession ? {
     id: userSession.user.id,
     email: userSession.user.email || userProfileQuery.data?.email || '',
-    name: userProfileQuery.data?.name || userSession.user.user_metadata?.name || ''
+    name: userProfileQuery.data?.name || userSession.user.user_metadata?.name || '',
+    stripeCustomerId: userProfileQuery.data?.stripe_customer_id || null
   } : null;
 
   const signOut = async () => {

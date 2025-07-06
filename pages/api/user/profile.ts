@@ -1,5 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAnon, supabaseServiceRole } from '../../../lib/supabaseClient';
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+  apiVersion: '2025-05-28.basil',
+});
 
 interface UserProfileResponse {
   id: string;
@@ -12,6 +17,7 @@ interface UserProfileResponse {
   state: string | null;
   postal_code: string | null;
   country: string | null;
+  stripe_customer_id: string | null;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -51,6 +57,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     console.log('✅ Module 7: User profile loaded successfully');
+    
+    // SMU 4.3a: Log the Stripe customer ID
+    console.log('🔄 Module 4.3a: Stripe customer ID:', visitorData.stripe_cust_id);
+
+    // Only use the value from the DB, no backfill
+    const finalStripeCustomerId = visitorData.stripe_cust_id;
 
     // Return user profile data
     const profile: UserProfileResponse = {
@@ -64,6 +76,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       state: visitorData.state,
       postal_code: visitorData.postal_code,
       country: visitorData.country,
+      stripe_customer_id: finalStripeCustomerId,
     };
 
     return res.status(200).json(profile);

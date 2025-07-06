@@ -7,20 +7,96 @@ import Layout from '../components/Layout';
 import Section from '../components/Section';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSupabaseSession, useSupabaseSessionHelpers } from '../lib/queries/sessionQueries';
 import { useOrders, useSubscriptions } from '../lib/queries/stripeQueries';
 import { useCartStore } from '../store/cartStore';
+
+// SMU 4.3c: User profile response interface
+interface UserProfileResponse {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  street: string | null;
+  unit: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  country: string | null;
+  stripe_customer_id: string | null;
+}
+
+// SMU 4.3c: User profile data fetching
+const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promise<boolean>): Promise<UserProfileResponse> => {
+  if (!session?.user?.id) {
+    throw new Error('No user session provided');
+  }
+
+  const response = await fetch('/api/user/profile', {
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+  });
+
+  if (!response.ok) {
+    // Handle session expiry (401/403 errors)
+    if ((response.status === 401 || response.status === 403) && sessionExpiryHandler) {
+      console.log('⏰ User session expired — prompting re-auth');
+      const refreshed = await sessionExpiryHandler();
+      if (refreshed) {
+        // Retry the request with the refreshed session
+        return fetchUserProfile(session, sessionExpiryHandler);
+      }
+    }
+    throw new Error('Failed to fetch user profile');
+  }
+
+  const profileData = await response.json();
+  
+  // SMU 4.3c: Log the Stripe customer ID from client
+  console.log('🔄 SMU 4.3c: Stripe customer ID loaded:', profileData.stripe_customer_id);
+  
+  return profileData;
+};
 
 export default function Dashboard() {
   const [ordersExpanded, setOrdersExpanded] = useState(false);
   const [subsExpanded, setSubsExpanded] = useState(false);
   const router = useRouter();
   const queryClient = useQueryClient();
-  const user = { email: 'mockuser@example.com' };
-  
-  // SMU 4.2: Use TanStack Query hooks for orders and subscriptions
-  const { data: orders = [] } = useOrders();
-  const { data: subs = [] } = useSubscriptions();
+
+  // SMU 4.3c: Session and profile queries
+  const sessionQuery = useSupabaseSession();
+  const { handleExpiredSession } = useSupabaseSessionHelpers();
+  const userSession = sessionQuery.data;
+
+  // SMU 4.3c: User profile query for authenticated users
+  const userProfileQuery = useQuery({
+    queryKey: ['userProfile', userSession?.user?.id],
+    queryFn: () => fetchUserProfile(userSession, handleExpiredSession),
+    enabled: !!userSession?.user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: (failureCount, error: any) => {
+      // Don't retry on auth errors - they're handled by session expiry logic
+      if (error?.message?.includes('401') || error?.message?.includes('403')) {
+        return false;
+      }
+      return failureCount < 3;
+    },
+  });
+
+  // SMU 4.3c: Derive user object from session and profile data
+  const user = userSession ? {
+    id: userSession.user.id,
+    email: userSession.user.email || userProfileQuery.data?.email || '',
+    name: userProfileQuery.data?.name || userSession.user.user_metadata?.name || '',
+    stripeCustomerId: userProfileQuery.data?.stripe_customer_id || null
+  } : { email: 'mockuser@example.com' };
+
+  // SMU 4.3c: Use TanStack Query hooks for orders and subscriptions with customer ID
+  const { data: orders = [] } = useOrders(user.stripeCustomerId || undefined);
+  const { data: subs = [] } = useSubscriptions(user.stripeCustomerId || undefined);
   
   // Get cart clear function
   const clearCart = useCartStore((state) => state.clearCart);

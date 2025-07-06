@@ -30,6 +30,21 @@ interface StripeProduct {
   prices: StripePrice[];
 }
 
+// SMU 4.3b: User profile response interface
+interface UserProfileResponse {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  street: string | null;
+  unit: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  country: string | null;
+  stripe_customer_id: string | null;
+}
+
 interface CustomerInfo {
   email: string;
   firstName: string;
@@ -111,7 +126,7 @@ const saveAddress = async (address: any, token: string) => {
 };
 
 // Module 7: User profile data fetching via secure API endpoint (with Module 8 session expiry handling)
-const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promise<boolean>) => {
+const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promise<boolean>): Promise<UserProfileResponse | null> => {
   if (!session?.user?.id) {
     throw new Error('No user session provided');
   }
@@ -136,7 +151,12 @@ const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promi
     return null;
   }
 
-  return response.json();
+  const profileData = await response.json();
+  
+  // SMU 4.3b: Log the Stripe customer ID from client
+  console.log('🔄 SMU 4.3b: Stripe customer ID loaded:', profileData.stripe_customer_id);
+  
+  return profileData;
 };
 
 export default function Checkout() {

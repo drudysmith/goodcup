@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
 import { addWebhookEvent } from './webhook-events';
+import { supabaseServiceRole } from '../../lib/supabaseClient';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: '2025-05-28.basil',
@@ -67,12 +68,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const stripeCustomerId = session.customer as string;
     const email = session.customer_email || session.customer_details?.email;
     const supabaseUserId = session.metadata?.supabase_user_id || null;
+    const visitorId = session.metadata?.visitor_id || null;
 
     console.log('🔥 Handling checkout.session.completed');
     console.log('🧾 Session ID:', session.id);
     console.log('👤 Stripe customer:', session.customer);
     console.log('📧 Email fallback:', session.customer_email || session.customer_details?.email);
     console.log('🧍 Supabase user ID from metadata:', session.metadata?.supabase_user_id);
+    console.log('👥 Visitor ID from metadata:', session.metadata?.visitor_id);
 
     // Module B: Notify that orders and subscriptions should be refreshed
     await notifyClientQueryInvalidation('checkout.session.completed', {
@@ -81,8 +84,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       supabaseUserId
     });
 
-    // TODO: Add visitor table operations here when ready
-    console.log('💾 Database operations removed - checkout completed successfully');
+    // SMU 4.3a: Update visitor table with stripe_cust_id
+    if (stripeCustomerId) {
+      try {
+        let updateResult;
+        
+        if (supabaseUserId) {
+          // Update visitor record by user_id (authenticated user)
+          updateResult = await supabaseServiceRole
+            .from('visitors')
+            .update({ stripe_cust_id: stripeCustomerId })
+            .eq('user_id', supabaseUserId);
+          
+          console.log('💾 SMU 4.3a: Updated stripe_cust_id for authenticated user:', supabaseUserId);
+        } else if (visitorId) {
+          // Update visitor record by visitor_id (guest user)
+          updateResult = await supabaseServiceRole
+            .from('visitors')
+            .update({ stripe_cust_id: stripeCustomerId })
+            .eq('id', visitorId);
+          
+          console.log('💾 SMU 4.3a: Updated stripe_cust_id for visitor:', visitorId);
+        } else {
+          console.log('⚠️ SMU 4.3a: No user_id or visitor_id in session metadata - cannot update stripe_cust_id');
+        }
+        
+        if (updateResult?.error) {
+          console.error('💾 SMU 4.3a: Error updating stripe_cust_id:', updateResult.error);
+        } else {
+          console.log('✅ SMU 4.3a: Successfully updated stripe_cust_id:', stripeCustomerId);
+        }
+      } catch (error) {
+        console.error('💾 SMU 4.3a: Exception updating stripe_cust_id:', error);
+      }
+    }
   }
 
   // Module B: Handle subscription-related events

@@ -636,6 +636,76 @@ Toggle the “Orders” and “Subscriptions” sections and confirm data comes 
 Watch for stale results or repeated fetches if the user signs out or navigates away and back.
 
 
+SMU 4.3a – Expose Stripe Customer ID
+Summary
+Return each user’s stripe_customer_id from Supabase so the client can request real orders and subscriptions.
+Where to Look
+pages/api/user/profile.ts – server code returning visitor/user details.
+visitors table schema in Supabase (contains the stripe_customer_id column).
+Implementation Notes
+Extend the UserProfileResponse interface with stripe_customer_id: string | null.
+Include stripe_customer_id in the .select() clause when fetching the visitor record.
+Log when the value is loaded, e.g. console.log('🔄 Module 4.3a: Stripe customer ID:', visitorData.stripe_customer_id);.
+Return the field as part of the JSON response.
+Guardrails
+Do not modify existing field names or auth checks.
+If the column value is null, keep it as null—no placeholder string.
+Breakpoint / Testing
+Calling /api/user/profile while authenticated should now include "stripe_customer_id": "<id|null>" in the JSON payload and log the retrieved value.
+
+SMU 4.3b – Provide Stripe Customer ID to React
+Summary
+Expose the new stripe_customer_id on the client by updating the profile-fetch helpers in Layout.tsx and checkout.tsx.
+Where to Look
+components/Layout.tsx – fetchUserProfile helper and userProfileQuery.
+pages/checkout.tsx – identical helper and query.
+Implementation Notes
+Update the TypeScript return type for fetchUserProfile to include stripe_customer_id.
+When deriving the user object from session and profile data, store stripeCustomerId (e.g. user.stripeCustomerId = userProfileQuery.data?.stripe_customer_id || null).
+Console‑log the value once per successful fetch.
+Guardrails
+Keep existing query keys and stale times.
+No UI changes—pages should render exactly as before.
+Breakpoints / Testing
+Open the site while logged in and check the console after fetchUserProfile runs. The log should display the customer ID and the user object should contain stripeCustomerId.
+
+
+was returning stripe cust id as undefined, fixed this, was not numbered but for our purposes in tracking we will name it here
+SMU 4.3b.1
+
+
+SMU 4.3c – Use Customer ID in Dashboard Queries
+Summary
+Pass the logged‑in user’s Stripe customer ID to the SMU 4.1 query hooks so the dashboard shows real orders and subscriptions.
+Where to Look
+pages/dashboard.tsx – currently calls useOrders() and useSubscriptions() without parameters.
+Implementation Notes
+Use useSupabaseSession and the updated fetchUserProfile to obtain user.stripeCustomerId.
+Call useOrders(user?.stripeCustomerId) and useSubscriptions(user?.stripeCustomerId).
+Keep existing expand/collapse UI and placeholder fallback when the customer ID is undefined.
+Guardrails
+Do not alter layout or styling.
+Ensure the queries remain keyed as ['orders', customerId] and ['subscriptions', customerId].
+Breakpoints / Testing
+Log in with a user that has a Stripe customer ID. Opening /dashboard should display the actual orders and subscriptions. Logging out should revert to the placeholder data without errors.
+
+SMU 4.3d – Cache & Invalidation for User-Specific Data
+Summary
+Ensure query caches respond correctly when the current user changes or signs out.
+Where to Look
+lib/queries/stripeQueries.ts – query keys already include customerId.
+pages/dashboard.tsx – location of query hooks and checkout success handling.
+Implementation Notes
+When user?.stripeCustomerId changes (e.g., sign‑in or sign‑out), call queryClient.invalidateQueries(['orders']) and invalidateQueries(['subscriptions']) with exact: false so all keyed entries refresh.
+Keep the existing success/cancellation effect that clears the cart and invalidates queries.
+Maintain the five‑minute staleTime settings.
+Guardrails
+Do not introduce new state stores—reuse useSupabaseSession and existing query clients.
+Avoid extra API calls by allowing TanStack Query to handle deduping.
+Breakpoints / Testing
+Sign in, navigate to /dashboard, then sign out and back in with a different account. Orders and subscriptions should update to match the active customer ID, and no data from the previous user should appear
+
+
 Module D. Customer Portal & Subscription Management – provide an interface to manage subscriptions using the Stripe customer portal
 Title: Module D – Customer Portal & Subscription Management
 Summary
