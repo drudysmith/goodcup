@@ -811,6 +811,69 @@ log whenever the listener updates or invalidates the supabase Session
 log when the cleanup function fires
 
 
+Module Bug 3A – Session Verification on Sign‑up
+Summary
+Ensure a valid session exists immediately after a user signs up. If supabaseAnon.auth.signUp does not return a session, sign in with the same credentials or wait for onAuthStateChange before merging visitor data.
+Breakpoints
+Check Supabase email‑confirmation settings
+Log the result:
+console.log('Bug 3A: signUp result', { requiresConfirmation: ... });
+After signUpMutation succeeds, wait for a session
+Call supabaseAnon.auth.getSession() or rely on onAuthStateChange.
+Log each check:
+console.log('Bug 3A: signUp completed – session?', !!session);
+Trigger visitorMergeMutation only when a session exists
+If no session is found, keep the modal open and display a message.
+When the merge starts, log the visitor and user IDs:
+console.log('Bug 3A: merging visitor after sign‑up', { visitorId, userId });
+
+Module Bug 3B – Reliable Email/Password Sign‑in
+Summary
+Handle password sign‑in failures gracefully and update the cached session when login succeeds.
+Breakpoints
+Display Supabase errors in the modal
+When signInWithPassword fails, keep the modal open and show error.message.
+Log the failure:
+console.log('Bug 3B: signInWithPassword failed', error.message);
+Update cached session after successful sign‑in
+Use setSessionData(session) whenever a session is returned.
+Log the user ID to confirm the cache update:
+console.log('Bug 3B: session cached after sign‑in', { userId: session.user?.id });
+Trigger visitor merge after sign‑in
+Once the session is confirmed, call visitorMergeMutation if the visitor record is not yet linked.
+Log the action:
+console.log('Bug 3B: merging visitor after password sign‑in', { visitorId, userId: session.user?.id });
+
+Module Bug 4A – Merge Trigger & Session Requirement
+Summary
+Guarantee that merging only occurs with an active session and runs on every sign‑in event.
+Breakpoints
+Run merge only when a session exists
+In the sign‑up and sign‑in success handlers, check supabaseAnon.auth.getSession().
+Log the result:
+console.log('Bug 4A: session check before merge', { hasSession: !!session });
+Invoke merge after sign‑in
+If the visitor record is still unlinked, trigger visitorMergeMutation again after the session begins.
+Log each invocation:
+console.log('Bug 4A: merge triggered on sign‑in', { visitorId });
+
+Module Bug 4B – Visitor/User Data Backfill
+Summary
+When /api/visitor/merge attaches a visitor to a user, copy missing email, phone, and name fields from the user record.
+Breakpoints
+Fetch user details in the merge route
+Retrieve user.email and user.user_metadata.
+Log the retrieved values for debugging:
+console.log('Bug 4B: user data fetched for merge', { email: user.email, metadata: user.user_metadata });
+Backfill visitor fields
+Update the visitor row with any missing email, phone, or name.
+Log which fields were updated:
+console.log('Bug 4B: visitor backfilled', { updatedEmail, updatedPhone, updatedName });
+Confirm merge result
+After the merge completes, log a success message showing the visitor ID and user ID:
+console.log('Bug 4B: merge complete', { visitorId, userId });
+
+
 
 Bugs (the first two are not named in the chat, but this is the actual text used)
 Bug 1: Magic Link Redirect - a magic link must direct back to the exact page and view of its origin, right now they are all directing back to the information view of the checkout page
