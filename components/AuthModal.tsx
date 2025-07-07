@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { supabaseAnon } from '../lib/supabaseClient';
 import { useAuthModalState, closeAuthModal, updateCachedCredentials } from '../store/authModalStore';
 import { useVisitor } from '../lib/contexts/VisitorContext';
+import { useSupabaseSessionHelpers } from '../lib/queries/sessionQueries';
 
 // UxAuth 1: Updated interface - onSuccess now optional since it's handled globally
 interface AuthModalProps {
@@ -20,8 +21,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   const [waitingForSession, setWaitingForSession] = useState(false);
   const [sessionVerificationAttempts, setSessionVerificationAttempts] = useState(0);
   
+  // Bug 3A.1: Email confirmation state
+  const [waitingForEmailConfirmation, setWaitingForEmailConfirmation] = useState(false);
+  
   // Get visitor context for visitor-user linking
   const { visitorId } = useVisitor();
+  
+  // Bug 3A.1: Get session helpers to detect auth state changes
+  const { setSessionData } = useSupabaseSessionHelpers();
 
   // UxAuth 1: Prefill email and password from store when modal opens
   useEffect(() => {
@@ -30,6 +37,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
       setPassword(modalState.password || '');
       setMagicLinkSent(false);
       setWaitingForSession(false); // Reset session verification state
+      setWaitingForEmailConfirmation(false); // Bug 3A.1: Reset email confirmation state
       console.log('🔐 UxAuth 1: Modal opened with prefilled data', {
         email: modalState.email ? '***' + modalState.email.slice(-8) : undefined,
         hasPassword: !!modalState.password,
@@ -89,6 +97,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     }
   };
 
+  // Bug 3A.1: Listen for auth state changes to detect email confirmation
+  useEffect(() => {
+    if (!waitingForEmailConfirmation) return;
+
+    console.log('🔄 Bug 3A.1: Listening for auth state change after email confirmation');
+
+    const { data: { subscription } } = supabaseAnon.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session && waitingForEmailConfirmation) {
+        console.log('✅ Bug 3A.1: User confirmed email and signed in - proceeding with visitor merge');
+        setWaitingForEmailConfirmation(false);
+        
+        console.log('Module 3A: merging visitor after sign-up', { 
+          visitorId, 
+          userId: session.user.id 
+        });
+        handleSuccess();
+      }
+    });
+
+    return () => {
+      console.log('🧹 Bug 3A.1: Cleaning up auth state listener');
+      subscription.unsubscribe();
+    };
+  }, [waitingForEmailConfirmation, visitorId, handleSuccess]);
+
   // State Mgmt Update 1: TanStack mutations for auth flows
   const signInWithOtpMutation = useMutation({
     mutationFn: async (email: string) => {
@@ -120,7 +153,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
 
   const signInWithPasswordMutation = useMutation({
     mutationFn: async ({ email, password }: { email: string; password: string }) => {
-      const { error } = await supabaseAnon.auth.signInWithPassword({ 
+      const { data, error } = await supabaseAnon.auth.signInWithPassword({ 
         email: email.trim(), 
         password 
       });
@@ -129,11 +162,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
         throw new Error(error.message);
       }
       
-      return { success: true };
+      return { session: data.session };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       console.log('✅ User sign in successful');
+      
+      // Bug 3B: Update cached session after successful sign-in
+      if (result.session) {
+        setSessionData(result.session);
+        console.log('Bug 3B: session cached after sign-in', { userId: result.session.user?.id });
+      }
+      
+      // Bug 3B: Trigger visitor merge after sign-in
+      console.log('Bug 3B: merging visitor after password sign-in', { visitorId, userId: result.session?.user?.id });
       handleSuccess();
+    },
+    onError: (error) => {
+      // Bug 3B: Log password sign-in failures
+      console.log('Bug 3B: signInWithPassword failed', error.message);
     },
   });
 
@@ -160,10 +206,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     },
     onSuccess: (result) => {
       console.log('✅ User sign up successful');
-      // Module 3A: Start session verification process
-      setWaitingForSession(true);
-      setSessionVerificationAttempts(0);
-      verifySession();
+      
+      // Bug 3A.1: Check if email confirmation is required
+      if (result.requiresConfirmation) {
+        console.log('📧 Bug 3A.1: Email confirmation required - waiting for user to verify email');
+        setWaitingForEmailConfirmation(true);
+        // Do not call verifySession - wait for auth state change
+      } else {
+        // Module 3A: Start session verification process for immediate sessions
+        setWaitingForSession(true);
+        setSessionVerificationAttempts(0);
+        verifySession();
+      }
     },
   });
 
@@ -246,7 +300,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   };
 
   // Computed states from mutations
-  const isLoading = signInWithOtpMutation.isPending || signInWithPasswordMutation.isPending || signUpMutation.isPending || visitorMergeMutation.isPending || waitingForSession;
+  const isLoading = signInWithOtpMutation.isPending || signInWithPasswordMutation.isPending || signUpMutation.isPending || visitorMergeMutation.isPending || waitingForSession || waitingForEmailConfirmation;
   const error = signInWithOtpMutation.error?.message || signInWithPasswordMutation.error?.message || signUpMutation.error?.message || visitorMergeMutation.error?.message;
 
   // UxAuth 1: Don't render if modal is not open
@@ -274,6 +328,37 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
             >
               Got it
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Bug 3A.1: Email confirmation waiting state
+  if (waitingForEmailConfirmation) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 ease-out" onClick={handleClose} />
+        <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 ease-out animate-in zoom-in-95">
+          <div className="px-6 py-8 text-center">
+            <div className="text-orange-500 mb-4">
+              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Check your email to confirm</h3>
+            <p className="text-sm text-gray-500 mb-6">
+              We've sent a confirmation link to <strong>{email}</strong>. Click the link in your email to activate your account and continue.
+            </p>
+            <p className="text-xs text-gray-400 mb-4">
+              This window will automatically continue once you confirm your email.
+            </p>
+            <button
+              onClick={handleClose}
+              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+            >
+              Close for now
             </button>
           </div>
         </div>
@@ -414,7 +499,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                 disabled={isLoading}
               >
                 {isLoading ? 
-                  (waitingForSession ? 'Verifying account...' : 
+                  (waitingForEmailConfirmation ? 'Waiting for email confirmation...' :
+                   waitingForSession ? 'Verifying account...' : 
                    isSignUp ? 'Creating account...' : 'Signing in...') : 
                   (isSignUp ? 'Create account' : 'Sign in')
                 }

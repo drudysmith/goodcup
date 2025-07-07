@@ -827,6 +827,19 @@ If no session is found, keep the modal open and display a message.
 When the merge starts, log the visitor and user IDs:
 console.log('Bug 3A: merging visitor after sign‑up', { visitorId, userId });
 
+
+Bug 3A.1 – Email Confirmation Handling
+Summary
+When Supabase sign‑ups require email verification, the session will not exist until the user confirms their address. Adjust the sign‑up flow so polling stops and the UI instructs the user to verify their email before proceeding.
+Breakpoints
+Detect result.requiresConfirmation in signUpMutation.onSuccess.
+If true, show a “Check your email to confirm” message and do not call verifySession.
+Wait for onAuthStateChange (or a manual sign‑in) to supply a session.
+Once a session is detected, trigger visitorMergeMutation and close the modal.
+Confirm the console logs show a single notice about email confirmation and that session polling no longer loops indefinitely.
+Implementing this small module will prevent the “No active session for merge” error and guide users through the confirmation step, completing Bug 3A’s workflow.
+
+
 Module Bug 3B – Reliable Email/Password Sign‑in
 Summary
 Handle password sign‑in failures gracefully and update the cached session when login succeeds.
