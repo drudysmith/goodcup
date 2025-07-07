@@ -5,13 +5,13 @@
 
 import Layout from '../components/Layout';
 import Section from '../components/Section';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSupabaseSession, useSupabaseSessionHelpers } from '../lib/queries/sessionQueries';
 import { useOrders, useSubscriptions } from '../lib/queries/stripeQueries';
 import { useCartStore } from '../store/cartStore';
-import { openAuthModal } from '../store/authModalStore';
+import { openAuthModal, updateCachedCredentials } from '../store/authModalStore';
 import { useVisitor } from '../lib/contexts/VisitorContext';
 import { supabaseAnon } from '../lib/supabaseClient';
 import { useMutation } from '@tanstack/react-query';
@@ -133,6 +133,27 @@ export default function Dashboard() {
       console.log('🔄 SMU 4.3c: Subscriptions loaded:', subs.length);
     }
   }, [user?.stripeCustomerId, orders, subs]);
+
+  // SMU 4.3d: Cache invalidation when user changes
+  const prevCustomerIdRef = useRef<string | null | undefined>(undefined);
+  
+  useEffect(() => {
+    const currentCustomerId = user?.stripeCustomerId;
+    const prevCustomerId = prevCustomerIdRef.current;
+    
+    // Only invalidate if the customer ID has actually changed (not on initial load)
+    if (prevCustomerId !== undefined && prevCustomerId !== currentCustomerId) {
+      console.log('🔄 SMU 4.3d: User customer ID changed, invalidating caches:', {
+        from: prevCustomerId,
+        to: currentCustomerId
+      });
+      queryClient.invalidateQueries({ queryKey: ['orders'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'], exact: false });
+    }
+    
+    // Update the ref with the current customer ID
+    prevCustomerIdRef.current = currentCustomerId;
+  }, [user?.stripeCustomerId, queryClient]);
   
   // Get cart clear function
   const clearCart = useCartStore((state) => state.clearCart);
@@ -147,6 +168,13 @@ export default function Dashboard() {
     onSuccess: () => {
       console.log('✅ Password updated successfully');
       setPasswordUpdateStatus('success');
+      
+      // Cache the new password for future auto-login prompts
+      if (user?.email) {
+        updateCachedCredentials(user.email, newPassword);
+        console.log('💾 Cached new password for future auto-login');
+      }
+      
       setNewPassword('');
       setConfirmPassword('');
       setTimeout(() => setPasswordUpdateStatus('idle'), 3000);
@@ -155,6 +183,38 @@ export default function Dashboard() {
       console.error('❌ Password update failed:', error);
       setPasswordUpdateStatus('error');
       setTimeout(() => setPasswordUpdateStatus('idle'), 3000);
+    },
+  });
+
+  // Module D: Customer portal session mutation
+  const customerPortalMutation = useMutation({
+    mutationFn: async () => {
+      if (!user?.stripeCustomerId) {
+        throw new Error('No Stripe customer ID available');
+      }
+
+      const response = await fetch('/api/createCustomerPortalSession', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ stripeCustomerId: user.stripeCustomerId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create customer portal session');
+      }
+
+      const data = await response.json();
+      return data;
+    },
+    onSuccess: (data) => {
+      console.log('🛠️ Opening customer portal:', data.url);
+      // Redirect to customer portal
+      window.location.href = data.url;
+    },
+    onError: (error: any) => {
+      console.error('❌ Customer portal creation failed:', error);
     },
   });
 
@@ -177,6 +237,28 @@ export default function Dashboard() {
     }
     
     passwordUpdateMutation.mutate(newPassword);
+  };
+
+  // Sign out functionality
+  const handleSignOut = async () => {
+    try {
+      console.log('🚪 User signing out from dashboard');
+      
+      // Clear all user-specific caches
+      queryClient.clear();
+      
+      // Clear cart
+      clearCart();
+      
+      // Sign out from Supabase
+      await supabaseAnon.auth.signOut();
+      
+      // Redirect to home page
+      router.push('/');
+      
+    } catch (error) {
+      console.error('❌ Sign out failed:', error);
+    }
   };
 
   // Handle success/cancel query parameters
@@ -204,6 +286,16 @@ export default function Dashboard() {
       router.replace('/dashboard', undefined, { shallow: true });
     }
   }, [router.query, clearCart, queryClient, router]);
+
+  // Module D: Handle returning from customer portal
+  useEffect(() => {
+    // Check if we just returned from customer portal (no specific query param needed)
+    // Always invalidate subscription data when dashboard loads to ensure fresh data
+    if (user?.stripeCustomerId && router.isReady) {
+      console.log('🔄 Module D: Dashboard loaded - refreshing subscription data');
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'], exact: false });
+    }
+  }, [router.isReady, user?.stripeCustomerId, queryClient]);
 
   const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', {
     year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -267,9 +359,103 @@ export default function Dashboard() {
             <div className="bg-surface border border-neutral-border rounded-lg p-6 mb-6">
               <div className="flex justify-between items-center mb-4">
                 <h1 className="text-heading-lg font-semibold text-text-primary">Dashboard</h1>
-                <button className="text-text-secondary hover:text-text-primary transition-colors">Sign out</button>
+                <button 
+                  onClick={handleSignOut}
+                  className="text-text-secondary hover:text-text-primary transition-colors"
+                >
+                  Sign out
+                </button>
               </div>
               <p className="text-text-secondary">Welcome back, {user?.email}</p>
+            </div>
+
+            {/* Account Settings Section */}
+            <div className="bg-surface border border-neutral-border rounded-lg p-6 mb-6">
+              <button
+                onClick={() => setSettingsExpanded(!settingsExpanded)}
+                className="w-full flex items-center justify-between py-2 px-0 text-left transition-all duration-200 hover:-translate-y-0.5 rounded border border-neutral-border"
+              >
+                <span className="text-heading-sm font-medium text-text-primary">
+                  Account Settings
+                </span>
+                <svg 
+                  className={`w-5 h-5 transition-transform text-text-secondary ${settingsExpanded ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {settingsExpanded && (
+                <div className="mt-4 p-4 border border-neutral-border rounded">
+                  <div className="max-w-md">
+                    <h3 className="text-sm font-medium text-text-primary mb-4">Set/Update Password</h3>
+                    <p className="text-xs text-text-secondary mb-4">
+                      {user?.email?.includes('@') ? 
+                        "Set a password to use email/password login in addition to magic links." :
+                        "Set a password for your account."
+                      }
+                    </p>
+                    
+                    <form onSubmit={handlePasswordUpdate} className="space-y-3">
+                      <div>
+                        <label htmlFor="new-password" className="block text-sm font-medium text-text-primary mb-1">
+                          New Password
+                        </label>
+                        <input
+                          type="password"
+                          id="new-password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          className="w-full px-3 py-2 border border-neutral-border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="At least 6 characters"
+                          disabled={passwordUpdateMutation.isPending}
+                          autoComplete="new-password"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label htmlFor="confirm-password" className="block text-sm font-medium text-text-primary mb-1">
+                          Confirm Password
+                        </label>
+                        <input
+                          type="password"
+                          id="confirm-password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="w-full px-3 py-2 border border-neutral-border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Confirm new password"
+                          disabled={passwordUpdateMutation.isPending}
+                          autoComplete="new-password"
+                        />
+                      </div>
+
+                      {/* Status Messages */}
+                      {passwordUpdateStatus === 'success' && (
+                        <div className="text-green-600 text-sm bg-green-50 border border-green-200 rounded px-3 py-2">
+                          ✅ Password updated successfully!
+                        </div>
+                      )}
+                      
+                      {passwordUpdateStatus === 'error' && (
+                        <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
+                          ❌ Failed to update password. Please try again.
+                        </div>
+                      )}
+
+                      <button
+                        type="submit"
+                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        disabled={passwordUpdateMutation.isPending || !newPassword.trim() || !confirmPassword.trim()}
+                      >
+                        {passwordUpdateMutation.isPending ? 'Updating...' : 'Update Password'}
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="bg-surface border border-neutral-border rounded-lg p-6 mb-6">
@@ -293,38 +479,54 @@ export default function Dashboard() {
               {subsExpanded && (
                 <div className="mt-2 max-h-80 overflow-y-auto bg-surface border border-neutral-border rounded">
                   <div className="space-y-4 p-4">
+                    {/* Module D: Manage Subscription button - only show if user has Stripe customer ID */}
+                    {user?.stripeCustomerId && (
+                      <div className="border-b border-neutral-border pb-4 mb-4">
+                        <button
+                          onClick={() => customerPortalMutation.mutate()}
+                          disabled={customerPortalMutation.isPending}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {customerPortalMutation.isPending ? 'Opening portal...' : 'Manage Subscription'}
+                        </button>
+                        <p className="text-xs text-text-secondary mt-2">
+                          Manage your subscription, update billing info, and view invoices
+                        </p>
+                      </div>
+                    )}
+                    
                     {subs.length === 0 ? (
                       <div className="text-center py-8 text-text-secondary">
                         <p>No subscription history found.</p>
                       </div>
                     ) : (
                       subs.map((sub) => {
-                        const statusInfo = formatSubscriptionStatus(sub);
-                        return (
-                          <div 
-                            key={sub.id} 
-                            className="border border-neutral-border rounded-lg p-3 mb-2 relative"
-                          >
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <div className="text-text-primary font-medium">
-                                  Subscription {sub.stripe_subscription_id?.slice(-8)}
-                                </div>
-                                <div className="text-sm text-text-secondary space-y-1">
-                                  <div>Amount: {formatCurrency(sub.amount)}</div>
-                                  <div>Started: {formatDate(sub.created_at)}</div>
-                                  {sub.current_period_end && <div>Next billing: {formatDate(sub.current_period_end)}</div>}
-                                  {sub.canceled_at && <div>Canceled: {formatDate(sub.canceled_at)}</div>}
-                                  <div className="flex items-center gap-2">
-                                    <span className={`px-2 py-1 rounded text-xs ${statusInfo.bg} ${statusInfo.text}`}>
-                                      {statusInfo.label}
-                                    </span>
-                                  </div>
+                      const statusInfo = formatSubscriptionStatus(sub);
+                      return (
+                        <div 
+                          key={sub.id} 
+                          className="border border-neutral-border rounded-lg p-3 mb-2 relative"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="text-text-primary font-medium">
+                                Subscription {sub.stripe_subscription_id?.slice(-8)}
+                              </div>
+                              <div className="text-sm text-text-secondary space-y-1">
+                                <div>Amount: {formatCurrency(sub.amount)}</div>
+                                <div>Started: {formatDate(sub.created_at)}</div>
+                                {sub.current_period_end && <div>Next billing: {formatDate(sub.current_period_end)}</div>}
+                                {sub.canceled_at && <div>Canceled: {formatDate(sub.canceled_at)}</div>}
+                                <div className="flex items-center gap-2">
+                                  <span className={`px-2 py-1 rounded text-xs ${statusInfo.bg} ${statusInfo.text}`}>
+                                    {statusInfo.label}
+                                  </span>
                                 </div>
                               </div>
                             </div>
                           </div>
-                        );
+                        </div>
+                      );
                       })
                     )}
                   </div>
@@ -359,12 +561,12 @@ export default function Dashboard() {
                       </div>
                     ) : (
                       orders.map((order) => (
-                        <div key={order.id} className="border border-neutral-border rounded-lg p-3">
-                          <div className="text-text-primary font-medium">Order #{order.stripe_payment_intent_id?.slice(-8)}</div>
-                          <div className="text-xs text-text-tertiary mt-1">
-                            {formatDate(order.created_at)} • {formatCurrency(order.amount)}
-                          </div>
+                      <div key={order.id} className="border border-neutral-border rounded-lg p-3">
+                        <div className="text-text-primary font-medium">Order #{order.stripe_payment_intent_id?.slice(-8)}</div>
+                        <div className="text-xs text-text-tertiary mt-1">
+                          {formatDate(order.created_at)} • {formatCurrency(order.amount)}
                         </div>
+                      </div>
                       ))
                     )}
                   </div>

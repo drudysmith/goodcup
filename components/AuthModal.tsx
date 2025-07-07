@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { supabaseAnon } from '../lib/supabaseClient';
 import { useAuthModalState, closeAuthModal, updateCachedCredentials } from '../store/authModalStore';
+import { useVisitor } from '../lib/contexts/VisitorContext';
 
 // UxAuth 1: Updated interface - onSuccess now optional since it's handled globally
 interface AuthModalProps {
@@ -14,6 +15,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+  
+  // Get visitor context for visitor-user linking
+  const { visitorId } = useVisitor();
 
   // UxAuth 1: Prefill email and password from store when modal opens
   useEffect(() => {
@@ -33,27 +37,48 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     closeAuthModal();
   };
 
-  // UxAuth 1: Handle success with caching
-  const handleSuccess = () => {
-    // Update cached credentials
+  // Handle successful sign-in (existing users) - just complete login
+  const handleSignInSuccess = () => {
+    console.log('✅ Sign-in successful - completing login');
     updateCachedCredentials(email, password);
-    
-    // Close modal
     closeAuthModal();
-    
-    // Call optional success callback
     if (onSuccess) {
       onSuccess();
+    }
+  };
+
+  // Handle successful sign-up (new users) - merge visitor data
+  const handleSignUpSuccess = () => {
+    console.log('🔄 Sign-up success - triggering visitor merge for visitor:', visitorId);
+    
+    // Trigger visitor merge to link visitor record to new user account
+    if (visitorId) {
+      visitorMergeMutation.mutate();
+    } else {
+      // No visitor ID - just close modal and update credentials
+      console.log('⚠️ No visitor ID available - skipping merge');
+      updateCachedCredentials(email, password);
+      closeAuthModal();
+      if (onSuccess) {
+        onSuccess();
+      }
     }
   };
 
   // State Mgmt Update 1: TanStack mutations for auth flows
   const signInWithOtpMutation = useMutation({
     mutationFn: async (email: string) => {
+      // Dynamic redirect - return to current page where modal was opened
+      const currentPath = window.location.pathname;
+      const currentSearch = window.location.search;
+      const redirectUrl = `${window.location.origin}${currentPath}${currentSearch}`;
+      
+      console.log('🔄 Magic link will redirect to:', redirectUrl);
+      
       const { error } = await supabaseAnon.auth.signInWithOtp({
         email: email.trim(),
         options: {
-          emailRedirectTo: `${window.location.origin}/checkout?mode=user`
+          emailRedirectTo: redirectUrl
         }
       });
 
@@ -84,7 +109,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     },
     onSuccess: () => {
       console.log('✅ User sign in successful');
-      handleSuccess();
+      handleSignInSuccess();
     },
   });
 
@@ -103,7 +128,58 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     },
     onSuccess: () => {
       console.log('✅ User sign up successful');
-      handleSuccess();
+      handleSignUpSuccess();
+    },
+  });
+
+  // Visitor merge mutation to link visitor record to user account
+  const visitorMergeMutation = useMutation({
+    mutationFn: async () => {
+      if (!visitorId) {
+        throw new Error('No visitor ID available for merge');
+      }
+
+      const { data: { session } } = await supabaseAnon.auth.getSession();
+      if (!session) {
+        throw new Error('No active session for merge');
+      }
+
+      const response = await fetch('/api/visitor/merge', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ visitor_id: visitorId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to merge visitor with user account');
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      console.log('✅ Visitor-user merge successful:', data);
+      // Update cached credentials
+      updateCachedCredentials(email, password);
+      
+      // Close modal
+      closeAuthModal();
+      
+      // Call optional success callback
+      if (onSuccess) {
+        onSuccess();
+      }
+    },
+    onError: (error) => {
+      console.error('❌ Visitor-user merge failed:', error);
+      // Still close modal and update credentials even if merge fails
+      updateCachedCredentials(email, password);
+      closeAuthModal();
+      if (onSuccess) {
+        onSuccess();
+      }
     },
   });
 
@@ -135,8 +211,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   };
 
   // Computed states from mutations
-  const isLoading = signInWithOtpMutation.isPending || signInWithPasswordMutation.isPending || signUpMutation.isPending;
-  const error = signInWithOtpMutation.error?.message || signInWithPasswordMutation.error?.message || signUpMutation.error?.message;
+  const isLoading = signInWithOtpMutation.isPending || signInWithPasswordMutation.isPending || signUpMutation.isPending || visitorMergeMutation.isPending;
+  const error = signInWithOtpMutation.error?.message || signInWithPasswordMutation.error?.message || signUpMutation.error?.message || visitorMergeMutation.error?.message;
 
   // UxAuth 1: Don't render if modal is not open
   if (!modalState.isOpen) {
@@ -156,7 +232,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Check your email</h3>
             <p className="text-sm text-gray-500 mb-6">
-              We've sent a magic link to <strong>{modalState.email || email}</strong>. Click the link to sign in and complete your checkout.
+              We've sent a magic link to <strong>{modalState.email || email}</strong>. Click the link to sign in and continue.
             </p>
             <button
               onClick={handleClose}
@@ -210,7 +286,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                 placeholder="your@email.com"
                 required
                 disabled={isLoading}
-                readOnly={!!modalState.email}
               />
             </div>
             
@@ -245,7 +320,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                 placeholder="your@email.com"
                 required
                 disabled={isLoading}
-                readOnly={!!modalState.email}
               />
             </div>
 

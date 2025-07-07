@@ -7,6 +7,7 @@
 // - Uses local customer info state to simulate user identity
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSupabaseSession, useSupabaseSessionHelpers, useSessionExpiryMutation } from '../lib/queries/sessionQueries';
 import { useCartStore, CartItem } from '../store/cartStore';
@@ -160,6 +161,7 @@ const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promi
 };
 
 export default function Checkout() {
+  const router = useRouter();
   const items = useCartStore((s) => s.items);
   const clearCart = useCartStore((s) => s.clearCart);
   const queryClient = useQueryClient();
@@ -628,10 +630,22 @@ export default function Checkout() {
                         try {
                           // Use original prefilled email if available, otherwise use current input
                           const emailToUse = (visitorData?.email || customerInfo.email) || loginEmail;
+                          
+                          // Preserve current checkout state in redirect URL
+                          const redirectParams = new URLSearchParams({
+                            mode: 'user',
+                            stage: currentStage,
+                            ...(router.query.success && { success: router.query.success as string }),
+                            ...(router.query.canceled && { canceled: router.query.canceled as string })
+                          });
+                          const redirectUrl = `${window.location.origin}/checkout?${redirectParams.toString()}`;
+                          
+                          console.log('🔄 Checkout magic link will redirect to:', redirectUrl);
+                          
                           const { error } = await supabaseAnon.auth.signInWithOtp({
                             email: emailToUse.trim(),
                             options: {
-                              emailRedirectTo: `${window.location.origin}/checkout?mode=user`
+                              emailRedirectTo: redirectUrl
                             }
                           });
 

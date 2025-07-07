@@ -770,6 +770,11 @@ Breakpoints / Testing
 Sign in, navigate to /dashboard, then sign out and back in with a different account. Orders and subscriptions should update to match the active customer ID, and no data from the previous user should appear
 
 
+these two were bugs we corrected at this point of the workflow, they were never defined as modules, this is the actual text used as prompt
+1) the universal auth modal is creating user auth accounts in supabase correctly, this needs to be acknowledged a success
+2) in the process of doing so, however, we are not adding the user auth id to the row that was created for the visitor (if new) the universal auth modal is creating user auth accounts in supabase correctly, this needs to be acknowledged a success in the process of doing so, however, we are not adding the user auth id to the row that was created for the visitor (if new)
+
+
 Module D. Customer Portal & Subscription Management – provide an interface to manage subscriptions using the Stripe customer portal
 Title: Module D – Customer Portal & Subscription Management
 Summary
@@ -788,3 +793,11 @@ Keep the dashboard placeholders until State Mgmt Update 4 wires real data
 Breakpoints / Testing
 Click Manage Subscription and confirm the console log with the portal URL
 Returning from the portal should reload dashboard data using the TanStack queries
+
+bugs we corrected at this point of the workflow, they were never defined as modules, this is the actual text used as prompt
+1) a magic link must direct back to the exact page and view of its origin, right now they are all directing back to the information view of the checkout page
+we have two places that magic links are displayed, they must each return the user back to that place in the flow
+2) the auth modal must allow for editing the email field, it does not, correct this, keep it super clean and tight and narrowly scoped to this particular need
+3) email and password are not working to log back in, it works to create the account initially, but for now only magic key is working for login, when user tries to log in with email and pawword on submission the auth modal disappears and the (dashboard login) page looks like it did before the attempt, no user session init is logged in the console
+this must be fixed
+4) somehow we have a user in the db who has been authed, the visitor table record is linked to the user auth table, the user auth table has email in it, but the visitor table does not, when we do the linking or at some other point when we merge, we need to be sure that if we have name/email/phone  in one table but not the other that we fill across

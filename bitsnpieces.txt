@@ -13,6 +13,8 @@ pressing
 
 10. with the auth modal its a catch all, with toggle at bottom, we are not smart about knowing which customers have only used magic key and which have a password, we could use a has_pwd boolean on the visitors table if we want to make it smoother for visitors
 
+11. the dashboard icon hover tooltip needs to offer sign in/out depending on state (whether user is signed out or in), this needs to stay very small, elegant, add only text to the ui inside the tooltip, replacing the word "Dashboard"
+
 not pressing
 A. what does module state mgmt update 3 give us in options for ui/ux (was it even implemented?)
 B. capture email and phone on entry witout submission
