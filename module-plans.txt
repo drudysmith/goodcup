@@ -821,6 +821,7 @@ Refactor components/AuthModal.tsx
 Implementation Notes:
 Provide methods: signUp, signInWithPassword, signInWithOtp.
 Return minimal state (isLoading, error, requiresConfirmation).
+Use TanStack useMutation for each method and call the matching supabaseAnon.auth function. The hook should expose the returned session value but leave any post-auth handling to the consumer. Do not store credentials or merge visitors inside this hook.
 Log: ✅ Bug 6A: Auth action success – { action: 'signUp' | 'signInWithPassword' }
 Guardrails:
 Hook should not perform visitor merges or global auth listens directly.
@@ -837,6 +838,7 @@ lib/hooks/useVisitorMerge.ts
 Implementation Notes:
 Method triggerMerge() invoked after verifying active session.
 Depends only on global session (supabaseSession) state.
+Fetch visitorId from useVisitor and post to /api/visitor/merge using the session's access token. On success call updateVisitorIdentity with the returned visitor_id and jwt, then remove visitor tokens from localStorage and invalidate the visitor query.
 Log: 🧩 Bug 6B: Visitor merge triggered by session
 Guardrails:
 Hook should not handle authentication logic directly.
@@ -853,6 +855,7 @@ components/AuthModal.tsx
 Implementation Notes:
 Use states/actions from useAuthActions and useVisitorMerge.
 Separate conditional UI (magic-link sent, waiting-for-email) into smaller subcomponents.
+Remove the existing signIn and signUp mutations from this component. All Supabase calls should flow through the new hooks. The modal only manages form fields and displays hook state such as loading or errors.
 Log: 🎯 Bug 7: AuthModal refactored – UI only
 Guardrails:
 No direct Supabase calls or auth logic inside this component.
@@ -871,6 +874,7 @@ components/AuthModal.tsx
 Implementation Notes:
 On sign-up success, wait for Supabase session (SIGNED_IN) via global listener before triggering merge.
 Show clear prompt when email verification required.
+useAuthActions should set requiresConfirmation when signUp returns a user but no session. The global listener in _app.tsx will update the session query; trigger merge only after that session is available.
 Log: 📧 Bug 8A: Email confirmation required – merge paused
 Guardrails:
 Avoid continuous polling when session is not available due to email confirmation requirement.
@@ -888,6 +892,7 @@ lib/hooks/useVisitorMerge.ts
 Implementation Notes:
 After password sign-in, update global session (setSessionData) immediately.
 Invoke visitor merge hook (useVisitorMerge) upon successful session update.
+Retrieve the returned session from supabaseAnon.auth.signInWithPassword and pass it to setSessionData from useSupabaseSessionHelpers. After setSessionData, call triggerMerge() so the visitor record is linked without waiting for the auth listener.
 Log: ✅ Bug 8B: Password sign-in success – session confirmed
 Guardrails:
 Keep UI open and responsive if login fails; display errors clearly.
@@ -904,6 +909,7 @@ pages/_app.tsx
 Implementation Notes:
 Leverage existing global listener.
 On SIGNED_IN, check visitor status; trigger merge via useVisitorMerge.
+Extend GlobalAuthListener in pages/_app.tsx. When the listener receives SIGNED_IN, call triggerMerge() if useVisitor() reports a visitorId. Ensure triggerMerge is only invoked once per event by tracking an internal flag or unsubscribing after merge.
 Log: 🔄 Bug 8C: Global listener invoked visitor merge
 Guardrails:
 No merge should happen unless a visitor record exists.
@@ -919,6 +925,7 @@ Where to Look:
 pages/api/visitor/merge.ts
 Implementation Notes:
 Explicitly fill email, phone, and name fields from authenticated user when absent in visitor.
+When assigning a visitor to a new user (no existing visitor for that user), copy user.email, user.phone and user_metadata.name into the visitor row if those columns are null. Preserve existing visitor values when present.
 Log: 🧩 Bug 9: Visitor record backfilled with user data
 Guardrails:
 Ensure this logic runs correctly even when merging for the first time.
@@ -938,6 +945,7 @@ pages/api/visitor/*.ts
 Implementation Notes:
 Retain only purposeful, consistent, emoji-tagged log entries.
 Remove repetitive or debug-only logs.
+Examples to remove include `>> initializing visitor context` in VisitorContext.tsx and any console logs without an emoji prefix. Ensure final logs follow the `emoji Module:` pattern for easy filtering.
 Log: 🧼 Bug 10: Auth log cleanup complete
 Guardrails:
 Don’t remove critical logs necessary for troubleshooting.
