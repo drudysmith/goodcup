@@ -794,6 +794,43 @@ Breakpoints / Testing
 Click Manage Subscription and confirm the console log with the portal URL
 Returning from the portal should reload dashboard data using the TanStack queries
 
+
+Bug 5 – Global Auth State Listener
+Summary
+Only the checkout page listens for Supabase auth state changes, leaving other pages unaware when a user signs in or out.
+Breakpoints
+Attach listener in _app.tsx
+On mount, register supabaseAnon.auth.onAuthStateChange and call setSessionData(session) whenever the event fires.
+Invalidate or update session query
+When the listener detects SIGNED_IN or SIGNED_OUT, update or invalidate the 'supabaseSession' query so every page sees the new state.
+Clean up on unmount
+Return a cleanup function that unsubscribes from the listener to avoid memory leaks.
+Console
+log whenever setSessionData fires, include relevant data
+log whenever the listener updates or invalidates the supabase Session
+log when the cleanup function fires
+
+
+Bug 3 – Email & Password Login Reliability
+Summary
+Users can create accounts but cannot reliably sign back in with email and password. Sessions exist in Supabase but the application doesn’t recognize them, and merges can run without an active session.
+Breakpoints
+Confirm Supabase auth settings
+Check whether email confirmation is required. If so, present a clear “Verify your email” message when signInWithPassword returns an error.
+Defer merge until a session exists
+After a successful signUp or signInWithPassword, wait for onAuthStateChange or re-fetch supabaseAnon.auth.getSession() before calling visitorMergeMutation.
+Update cached session after sign-in
+Use setSessionData from sessionQueries.ts to write the session returned by Supabase directly to the 'supabaseSession' query.
+Surface login errors
+Keep the auth modal open when signInWithPassword fails and display error.message in the form.
+Console
+log when the ckeck whether email confirmation is required completes, include a bit of relevant data
+log when signup happens with password (if not already logged)
+log when merge happens, include data used in the merge (if not already done)
+log when setSessionData is run, include the sesison data
+
+
+
 Bugs (the first two are not named in the chat, but this is the actual text used)
 Bug 1: Magic Link Redirect - a magic link must direct back to the exact page and view of its origin, right now they are all directing back to the information view of the checkout page
 we have two places that magic links are displayed, they must each return the user back to that place in the flow
@@ -802,15 +839,21 @@ Bug 2: Auth Modal Email Fields - the auth modal must allow for editing the email
 
 Bug 3: Email and OTP Auth - email and password are not working to log back in, it works to create the account initially, but for now only magic key is working for login, when user tries to log in with email and pawword on submission the auth modal disappears and the (dashboard login) page looks like it did before the attempt, no user session init is logged in the console
 this must be fixed
-Verify Supabase email confirmation settings.
-If sign‑ups require email verification, password login will fail until the address is confirmed. Decide whether to auto-confirm or instruct users to verify before allowing password login.
+Breakpoints
+- Verify Supabase email confirmation settings.
+- If sign‑ups require email verification, password login will fail until the address is confirmed. Decide whether to auto-confirm or instruct users to verify before allowing password login.
 
 Bug 4: Full Merge on Session Start/Account Creation - somehow we have a user in the db who has been authed, the visitor table record is linked to the user auth table, the user auth table has email in it, but the visitor table does not, when we do the linking or at some other point when we merge, we need to be sure that if we have name/email/phone  in one table but not the other that we fill across
-Ensure a session exists before merging.
-After signUpMutation succeeds, perform a sign‑in with the supplied credentials (or wait for onAuthStateChange) before calling visitorMergeMutation.
-Propagate session changes globally.
-Move the onAuthStateChange listener to a shared location such as _app.tsx, and call setSessionData or invalidateQueries(['supabaseSession']) when events fire. This keeps all pages aware of new sessions.
-Run the merge on sign‑in as well.
-Modify handleSignInSuccess to check visitorId and trigger visitorMergeMutation if the visitor is not yet linked. That guarantees visitor and user data synchronize even when the initial merge failed.
+Breakpoints
+- Ensure a session exists before merging.
+- After signUpMutation succeeds, perform a sign‑in with the supplied credentials (or wait for onAuthStateChange) before calling visitorMergeMutation.
+- Propagate session changes globally.
+- Run the merge on sign‑in as well.
+- Modify handleSignInSuccess to check visitorId and trigger visitorMergeMutation if the visitor is not yet linked. That guarantees visitor and user data synchronize even when the initial merge failed.
+
+Bug 5: Global Auth State Listener
+Breakpoints
+- Move the onAuthStateChange listener to a shared location such as _app.tsx, and call setSessionData or invalidateQueries(['supabaseSession']) when events fire. This keeps all pages aware of new sessions.
+
 
 
