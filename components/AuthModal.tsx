@@ -37,21 +37,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     closeAuthModal();
   };
 
-  // Handle successful sign-in (existing users) - just complete login
-  const handleSignInSuccess = () => {
-    console.log('✅ Sign-in successful - completing login');
-    updateCachedCredentials(email, password);
-    closeAuthModal();
-    if (onSuccess) {
-      onSuccess();
-    }
-  };
-
-  // Handle successful sign-up (new users) - merge visitor data
-  const handleSignUpSuccess = () => {
-    console.log('🔄 Sign-up success - triggering visitor merge for visitor:', visitorId);
+  // UxAuth 1: Handle success with visitor merge
+  const handleSuccess = () => {
+    console.log('🔄 Auth success - triggering visitor merge for visitor:', visitorId);
     
-    // Trigger visitor merge to link visitor record to new user account
+    // Trigger visitor merge to link visitor record to user account
     if (visitorId) {
       visitorMergeMutation.mutate();
     } else {
@@ -109,7 +99,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     },
     onSuccess: () => {
       console.log('✅ User sign in successful');
-      handleSignInSuccess();
+      handleSuccess();
     },
   });
 
@@ -128,7 +118,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     },
     onSuccess: () => {
       console.log('✅ User sign up successful');
-      handleSignUpSuccess();
+      handleSuccess();
     },
   });
 

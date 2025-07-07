@@ -794,23 +794,23 @@ Breakpoints / Testing
 Click Manage Subscription and confirm the console log with the portal URL
 Returning from the portal should reload dashboard data using the TanStack queries
 
-bugs we addressed at this point of the workflow, they were never defined as modules, this is the actual text used as prompt
-1) a magic link must direct back to the exact page and view of its origin, right now they are all directing back to the information view of the checkout page
+Bugs (the first two are not named in the chat, but this is the actual text used)
+Bug 1: Magic Link Redirect - a magic link must direct back to the exact page and view of its origin, right now they are all directing back to the information view of the checkout page
 we have two places that magic links are displayed, they must each return the user back to that place in the flow
-2) the auth modal must allow for editing the email field, it does not, correct this, keep it super clean and tight and narrowly scoped to this particular need
-3) email and password are not working to log back in, it works to create the account initially, but for now only magic key is working for login, when user tries to log in with email and pawword on submission the auth modal disappears and the (dashboard login) page looks like it did before the attempt, no user session init is logged in the console
-this must be fixed
-4) somehow we have a user in the db who has been authed, the visitor table record is linked to the user auth table, the user auth table has email in it, but the visitor table does not, when we do the linking or at some other point when we merge, we need to be sure that if we have name/email/phone  in one table but not the other that we fill across
 
-and this followed
+Bug 2: Auth Modal Email Fields - the auth modal must allow for editing the email field, it does not, correct this, keep it super clean and tight and narrowly scoped to this particular need
+
+Bug 3: Email and OTP Auth - email and password are not working to log back in, it works to create the account initially, but for now only magic key is working for login, when user tries to log in with email and pawword on submission the auth modal disappears and the (dashboard login) page looks like it did before the attempt, no user session init is logged in the console
+this must be fixed
+Verify Supabase email confirmation settings.
+If sign‑ups require email verification, password login will fail until the address is confirmed. Decide whether to auto-confirm or instruct users to verify before allowing password login.
+
+Bug 4: Full Merge on Session Start/Account Creation - somehow we have a user in the db who has been authed, the visitor table record is linked to the user auth table, the user auth table has email in it, but the visitor table does not, when we do the linking or at some other point when we merge, we need to be sure that if we have name/email/phone  in one table but not the other that we fill across
 Ensure a session exists before merging.
 After signUpMutation succeeds, perform a sign‑in with the supplied credentials (or wait for onAuthStateChange) before calling visitorMergeMutation.
 Propagate session changes globally.
 Move the onAuthStateChange listener to a shared location such as _app.tsx, and call setSessionData or invalidateQueries(['supabaseSession']) when events fire. This keeps all pages aware of new sessions.
 Run the merge on sign‑in as well.
 Modify handleSignInSuccess to check visitorId and trigger visitorMergeMutation if the visitor is not yet linked. That guarantees visitor and user data synchronize even when the initial merge failed.
-Verify Supabase email confirmation settings.
-If sign‑ups require email verification, password login will fail until the address is confirmed. Decide whether to auto-confirm or instruct users to verify before allowing password login.
 
-as far as i can tell items 3-4 do not work, we have a problem being able to handle both email and otp/magiclink, and we also have the issue of not merging table info once a session is initiated (it appears), so we need to look into both and fix them methodically
-what is the actual behavior that we see, is it what is stated in 3-4 above?
+

@@ -82,20 +82,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         return acc;
       }, []);
 
-      // Update existing user visitor with merged data including auth fallbacks
-      const mergedData = {
-        // Use visitor data first, then existing visitor data, then auth data as fallback
-        email: visitorData.email || existingUserVisitor.email || user.email,
-        phone: visitorData.phone || existingUserVisitor.phone,
-        name: visitorData.name || existingUserVisitor.name || user.user_metadata?.name || user.user_metadata?.full_name,
-        cart: mergedCart
-      };
-
-      console.log(`🔄 Merging data with auth fallbacks: email=${mergedData.email}, name=${mergedData.name}`);
-
+      // Update existing user visitor with merged data
       const { error: updateError } = await supabaseServiceRole
         .from('visitors')
-        .update(mergedData)
+        .update({
+          email: visitorData.email || existingUserVisitor.email,
+          phone: visitorData.phone || existingUserVisitor.phone,
+          name: visitorData.name || existingUserVisitor.name,
+          cart: mergedCart
+        })
         .eq('id', existingUserVisitor.id);
 
       if (updateError) {
@@ -117,25 +112,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       mergedVisitorId = existingUserVisitor.id;
       merged = true;
     } else {
-      // No existing visitor for this user - assign user_id and sync auth data to visitor
-      console.log(`📝 Assigning visitor ${visitor_id} to user ${user.id} and syncing auth data`);
-      
-      // Prepare update data with user_id and auth data fallbacks
-      const updateData: any = {
-        user_id: user.id,
-        // Copy email from auth if visitor doesn't have it
-        email: visitorData.email || user.email,
-        // Copy name from auth metadata if visitor doesn't have it
-        name: visitorData.name || user.user_metadata?.name || user.user_metadata?.full_name,
-        // Keep existing phone or any other fields as-is
-        phone: visitorData.phone
-      };
-
-      console.log(`🔄 Syncing auth data to visitor: email=${updateData.email}, name=${updateData.name}`);
+      // No existing visitor for this user - just assign user_id to current visitor
+      console.log(`📝 Assigning visitor ${visitor_id} to user ${user.id}`);
       
       const { error: updateError } = await supabaseServiceRole
         .from('visitors')
-        .update(updateData)
+        .update({ user_id: user.id })
         .eq('id', visitor_id);
 
       if (updateError) {
