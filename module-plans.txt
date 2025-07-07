@@ -795,7 +795,7 @@ Click Manage Subscription and confirm the console log with the portal URL
 Returning from the portal should reload dashboard data using the TanStack queries
 
 
-Bug 5 – Global Auth State Listener
+Bug Module 5 – Global Auth State Listener
 Summary
 Only the checkout page listens for Supabase auth state changes, leaving other pages unaware when a user signs in or out.
 Breakpoints
@@ -811,106 +811,135 @@ log whenever the listener updates or invalidates the supabase Session
 log when the cleanup function fires
 
 
-Module Bug 3A – Session Verification on Sign‑up
-Summary
-Ensure a valid session exists immediately after a user signs up. If supabaseAnon.auth.signUp does not return a session, sign in with the same credentials or wait for onAuthStateChange before merging visitor data.
-Breakpoints
-Check Supabase email‑confirmation settings
-Log the result:
-console.log('Bug 3A: signUp result', { requiresConfirmation: ... });
-After signUpMutation succeeds, wait for a session
-Call supabaseAnon.auth.getSession() or rely on onAuthStateChange.
-Log each check:
-console.log('Bug 3A: signUp completed – session?', !!session);
-Trigger visitorMergeMutation only when a session exists
-If no session is found, keep the modal open and display a message.
-When the merge starts, log the visitor and user IDs:
-console.log('Bug 3A: merging visitor after sign‑up', { visitorId, userId });
+Bug Module 6A – useAuthActions Hook
+Title: Module 6A – useAuthActions Hook
+Summary:
+Extract Supabase sign-up/sign-in logic out of the AuthModal component into a dedicated hook, useAuthActions, to isolate authentication logic clearly and avoid UI coupling.
+Where to Look:
+lib/hooks/useAuthActions.ts
+Refactor components/AuthModal.tsx
+Implementation Notes:
+Provide methods: signUp, signInWithPassword, signInWithOtp.
+Return minimal state (isLoading, error, requiresConfirmation).
+Log: ✅ Bug 6A: Auth action success – { action: 'signUp' | 'signInWithPassword' }
+Guardrails:
+Hook should not perform visitor merges or global auth listens directly.
+Breakpoints / Testing:
+Confirm sign-up/sign-in returns expected Supabase results.
+Check hook state updates (loading/error) correctly in UI.
+
+Bug Module 6B – useVisitorMerge Hook
+Title: Module 6B – useVisitorMerge Hook
+Summary:
+Create useVisitorMerge hook to centralize visitor merge logic, ensuring merges are triggered only when an active Supabase session exists.
+Where to Look:
+lib/hooks/useVisitorMerge.ts
+Implementation Notes:
+Method triggerMerge() invoked after verifying active session.
+Depends only on global session (supabaseSession) state.
+Log: 🧩 Bug 6B: Visitor merge triggered by session
+Guardrails:
+Hook should not handle authentication logic directly.
+Breakpoints / Testing:
+Verify merge triggers only after valid Supabase session is established.
 
 
-Bug 3A.1 – Email Confirmation Handling
-Summary
-When Supabase sign‑ups require email verification, the session will not exist until the user confirms their address. Adjust the sign‑up flow so polling stops and the UI instructs the user to verify their email before proceeding.
-Breakpoints
-Detect result.requiresConfirmation in signUpMutation.onSuccess.
-If true, show a “Check your email to confirm” message and do not call verifySession.
-Wait for onAuthStateChange (or a manual sign‑in) to supply a session.
-Once a session is detected, trigger visitorMergeMutation and close the modal.
-Confirm the console logs show a single notice about email confirmation and that session polling no longer loops indefinitely.
-Implementing this small module will prevent the “No active session for merge” error and guide users through the confirmation step, completing Bug 3A’s workflow.
+Module 7 – Slim Auth Modal UI
+Title: Module 7 – Slim Auth Modal UI
+Summary:
+Refactor AuthModal.tsx to remove all embedded auth logic, keeping it purely as a UI component consuming hooks for state and auth actions.
+Where to Look:
+components/AuthModal.tsx
+Implementation Notes:
+Use states/actions from useAuthActions and useVisitorMerge.
+Separate conditional UI (magic-link sent, waiting-for-email) into smaller subcomponents.
+Log: 🎯 Bug 7: AuthModal refactored – UI only
+Guardrails:
+No direct Supabase calls or auth logic inside this component.
+Breakpoints / Testing:
+Verify modal interacts correctly with provided hooks.
+Ensure no logic remains embedded; UI updates based solely on hook state.
 
 
-Module Bug 3B – Reliable Email/Password Sign‑in
-Summary
-Handle password sign‑in failures gracefully and update the cached session when login succeeds.
-Breakpoints
-Display Supabase errors in the modal
-When signInWithPassword fails, keep the modal open and show error.message.
-Log the failure:
-console.log('Bug 3B: signInWithPassword failed', error.message);
-Update cached session after successful sign‑in
-Use setSessionData(session) whenever a session is returned.
-Log the user ID to confirm the cache update:
-console.log('Bug 3B: session cached after sign‑in', { userId: session.user?.id });
-Trigger visitor merge after sign‑in
-Once the session is confirmed, call visitorMergeMutation if the visitor record is not yet linked.
-Log the action:
-console.log('Bug 3B: merging visitor after password sign‑in', { visitorId, userId: session.user?.id });
+Bug Module 8A – Sign-up Session Verification
+Title: Module 8A – Sign-up Session Verification
+Summary:
+Ensure user merges after sign-up occur only when a valid Supabase session exists and properly handle email confirmation scenarios.
+Where to Look:
+lib/hooks/useAuthActions.ts
+components/AuthModal.tsx
+Implementation Notes:
+On sign-up success, wait for Supabase session (SIGNED_IN) via global listener before triggering merge.
+Show clear prompt when email verification required.
+Log: 📧 Bug 8A: Email confirmation required – merge paused
+Guardrails:
+Avoid continuous polling when session is not available due to email confirmation requirement.
+Breakpoints / Testing:
+Test sign-up flow both with immediate and delayed email confirmation.
+Validate UI shows proper waiting states clearly.
 
-Module Bug 4A – Merge Trigger & Session Requirement
-Summary
-Guarantee that merging only occurs with an active session and runs on every sign‑in event.
-Breakpoints
-Run merge only when a session exists
-In the sign‑up and sign‑in success handlers, check supabaseAnon.auth.getSession().
-Log the result:
-console.log('Bug 4A: session check before merge', { hasSession: !!session });
-Invoke merge after sign‑in
-If the visitor record is still unlinked, trigger visitorMergeMutation again after the session begins.
-Log each invocation:
-console.log('Bug 4A: merge triggered on sign‑in', { visitorId });
+Bug Module 8B – Sign-in Session & Merge
+Title: Module 8B – Sign-in Session & Merge
+Summary:
+Ensure password logins properly update global session and immediately trigger visitor merges when appropriate.
+Where to Look:
+lib/hooks/useAuthActions.ts
+lib/hooks/useVisitorMerge.ts
+Implementation Notes:
+After password sign-in, update global session (setSessionData) immediately.
+Invoke visitor merge hook (useVisitorMerge) upon successful session update.
+Log: ✅ Bug 8B: Password sign-in success – session confirmed
+Guardrails:
+Keep UI open and responsive if login fails; display errors clearly.
+Breakpoints / Testing:
+Validate merges occur after successful login.
+Confirm errors displayed correctly if authentication fails.
 
-Module Bug 4B – Visitor/User Data Backfill
-Summary
-When /api/visitor/merge attaches a visitor to a user, copy missing email, phone, and name fields from the user record.
-Breakpoints
-Fetch user details in the merge route
-Retrieve user.email and user.user_metadata.
-Log the retrieved values for debugging:
-console.log('Bug 4B: user data fetched for merge', { email: user.email, metadata: user.user_metadata });
-Backfill visitor fields
-Update the visitor row with any missing email, phone, or name.
-Log which fields were updated:
-console.log('Bug 4B: visitor backfilled', { updatedEmail, updatedPhone, updatedName });
-Confirm merge result
-After the merge completes, log a success message showing the visitor ID and user ID:
-console.log('Bug 4B: merge complete', { visitorId, userId });
-
-
-
-Bugs (the first two are not named in the chat, but this is the actual text used)
-Bug 1: Magic Link Redirect - a magic link must direct back to the exact page and view of its origin, right now they are all directing back to the information view of the checkout page
-we have two places that magic links are displayed, they must each return the user back to that place in the flow
-
-Bug 2: Auth Modal Email Fields - the auth modal must allow for editing the email field, it does not, correct this, keep it super clean and tight and narrowly scoped to this particular need
-
-Bug 3: Email and OTP Auth - email and password are not working to log back in, it works to create the account initially, but for now only magic key is working for login, when user tries to log in with email and pawword on submission the auth modal disappears and the (dashboard login) page looks like it did before the attempt, no user session init is logged in the console
-this must be fixed
-Breakpoints
-- Verify Supabase email confirmation settings.
-- If sign‑ups require email verification, password login will fail until the address is confirmed. Decide whether to auto-confirm or instruct users to verify before allowing password login.
-
-Bug 4: Full Merge on Session Start/Account Creation - somehow we have a user in the db who has been authed, the visitor table record is linked to the user auth table, the user auth table has email in it, but the visitor table does not, when we do the linking or at some other point when we merge, we need to be sure that if we have name/email/phone  in one table but not the other that we fill across
-Breakpoints
-- Ensure a session exists before merging.
-- After signUpMutation succeeds, perform a sign‑in with the supplied credentials (or wait for onAuthStateChange) before calling visitorMergeMutation.
-- Propagate session changes globally.
-- Run the merge on sign‑in as well.
-- Modify handleSignInSuccess to check visitorId and trigger visitorMergeMutation if the visitor is not yet linked. That guarantees visitor and user data synchronize even when the initial merge failed.
-
-Bug 5: Global Auth State Listener
-Breakpoints
-- Move the onAuthStateChange listener to a shared location such as _app.tsx, and call setSessionData or invalidateQueries(['supabaseSession']) when events fire. This keeps all pages aware of new sessions.
+Bug Module 8C – Global Merge on SIGNED_IN
+Title: Module 8C – Global Merge on SIGNED_IN
+Summary:
+Use the global auth listener to automatically trigger visitor merges whenever Supabase emits a SIGNED_IN event and a visitor record is present.
+Where to Look:
+pages/_app.tsx
+Implementation Notes:
+Leverage existing global listener.
+On SIGNED_IN, check visitor status; trigger merge via useVisitorMerge.
+Log: 🔄 Bug 8C: Global listener invoked visitor merge
+Guardrails:
+No merge should happen unless a visitor record exists.
+Breakpoints / Testing:
+Ensure merges run exactly once per SIGNED_IN event.
 
 
+Bug Module 9 – Visitor/User Data Backfill
+Title: Module 9 – Visitor/User Data Backfill
+Summary:
+Update the visitor merge logic in API to always copy missing user details (email, phone, name) when linking new user records.
+Where to Look:
+pages/api/visitor/merge.ts
+Implementation Notes:
+Explicitly fill email, phone, and name fields from authenticated user when absent in visitor.
+Log: 🧩 Bug 9: Visitor record backfilled with user data
+Guardrails:
+Ensure this logic runs correctly even when merging for the first time.
+Breakpoints / Testing:
+Verify database consistency after merge.
 
+
+Bug Module 10 – Auth Logging Cleanup
+Title: Module 10 – Auth Logging Cleanup
+Summary:
+Clean up console logs across auth-related files, reducing noise and enforcing consistent logging conventions.
+Where to Look:
+components/AuthModal.tsx
+lib/hooks/*
+pages/_app.tsx
+pages/api/visitor/*.ts
+Implementation Notes:
+Retain only purposeful, consistent, emoji-tagged log entries.
+Remove repetitive or debug-only logs.
+Log: 🧼 Bug 10: Auth log cleanup complete
+Guardrails:
+Don’t remove critical logs necessary for troubleshooting.
+Breakpoints / Testing:
+Audit logs to ensure clarity, consistency, and usefulness remain high post-cleanup.

@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { supabaseAnon } from '../lib/supabaseClient';
 import { useAuthModalState, closeAuthModal, updateCachedCredentials } from '../store/authModalStore';
 import { useVisitor } from '../lib/contexts/VisitorContext';
-import { useSupabaseSessionHelpers } from '../lib/queries/sessionQueries';
 
 // UxAuth 1: Updated interface - onSuccess now optional since it's handled globally
 interface AuthModalProps {
@@ -17,18 +16,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   
-  // Module 3A: Session verification state
-  const [waitingForSession, setWaitingForSession] = useState(false);
-  const [sessionVerificationAttempts, setSessionVerificationAttempts] = useState(0);
-  
-  // Bug 3A.1: Email confirmation state
-  const [waitingForEmailConfirmation, setWaitingForEmailConfirmation] = useState(false);
-  
   // Get visitor context for visitor-user linking
   const { visitorId } = useVisitor();
-  
-  // Bug 3A.1: Get session helpers to detect auth state changes
-  const { setSessionData } = useSupabaseSessionHelpers();
 
   // UxAuth 1: Prefill email and password from store when modal opens
   useEffect(() => {
@@ -36,43 +25,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
       setEmail(modalState.email || '');
       setPassword(modalState.password || '');
       setMagicLinkSent(false);
-      setWaitingForSession(false); // Reset session verification state
-      setWaitingForEmailConfirmation(false); // Bug 3A.1: Reset email confirmation state
       console.log('🔐 UxAuth 1: Modal opened with prefilled data', {
         email: modalState.email ? '***' + modalState.email.slice(-8) : undefined,
         hasPassword: !!modalState.password,
       });
     }
   }, [modalState.isOpen, modalState.email, modalState.password]);
-
-  // Module 3A: Session verification function
-  const verifySession = async () => {
-    const maxAttempts = 10; // Maximum attempts to wait for session
-    const attempt = sessionVerificationAttempts + 1;
-    
-    console.log(`Module 3A: Checking for session (attempt ${attempt}/${maxAttempts})`);
-    
-    const { data: { session } } = await supabaseAnon.auth.getSession();
-    console.log('Module 3A: signUp completed – session?', !!session);
-    
-    if (session) {
-      // Session found - proceed with merge
-      setWaitingForSession(false);
-      console.log('Module 3A: merging visitor after sign-up', { 
-        visitorId, 
-        userId: session.user.id 
-      });
-      handleSuccess();
-    } else if (attempt < maxAttempts) {
-      // No session yet - try again after delay
-      setSessionVerificationAttempts(attempt);
-      setTimeout(verifySession, 1000); // Wait 1 second before retry
-    } else {
-      // Max attempts reached - stop waiting
-      setWaitingForSession(false);
-      console.log('⚠️ Module 3A: Session verification timeout - manual refresh may be needed');
-    }
-  };
 
   // UxAuth 1: Handle modal close
   const handleClose = () => {
@@ -96,31 +54,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
       }
     }
   };
-
-  // Bug 3A.1: Listen for auth state changes to detect email confirmation
-  useEffect(() => {
-    if (!waitingForEmailConfirmation) return;
-
-    console.log('🔄 Bug 3A.1: Listening for auth state change after email confirmation');
-
-    const { data: { subscription } } = supabaseAnon.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session && waitingForEmailConfirmation) {
-        console.log('✅ Bug 3A.1: User confirmed email and signed in - proceeding with visitor merge');
-        setWaitingForEmailConfirmation(false);
-        
-        console.log('Module 3A: merging visitor after sign-up', { 
-          visitorId, 
-          userId: session.user.id 
-        });
-        handleSuccess();
-      }
-    });
-
-    return () => {
-      console.log('🧹 Bug 3A.1: Cleaning up auth state listener');
-      subscription.unsubscribe();
-    };
-  }, [waitingForEmailConfirmation, visitorId, handleSuccess]);
 
   // State Mgmt Update 1: TanStack mutations for auth flows
   const signInWithOtpMutation = useMutation({
@@ -153,7 +86,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
 
   const signInWithPasswordMutation = useMutation({
     mutationFn: async ({ email, password }: { email: string; password: string }) => {
-      const { data, error } = await supabaseAnon.auth.signInWithPassword({ 
+      const { error } = await supabaseAnon.auth.signInWithPassword({ 
         email: email.trim(), 
         password 
       });
@@ -162,30 +95,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
         throw new Error(error.message);
       }
       
-      return { session: data.session };
+      return { success: true };
     },
-    onSuccess: (result) => {
+    onSuccess: () => {
       console.log('✅ User sign in successful');
-      
-      // Bug 3B: Update cached session after successful sign-in
-      if (result.session) {
-        setSessionData(result.session);
-        console.log('Bug 3B: session cached after sign-in', { userId: result.session.user?.id });
-      }
-      
-      // Bug 3B: Trigger visitor merge after sign-in
-      console.log('Bug 3B: merging visitor after password sign-in', { visitorId, userId: result.session?.user?.id });
       handleSuccess();
-    },
-    onError: (error) => {
-      // Bug 3B: Log password sign-in failures
-      console.log('Bug 3B: signInWithPassword failed', error.message);
     },
   });
 
   const signUpMutation = useMutation({
     mutationFn: async ({ email, password }: { email: string; password: string }) => {
-      const { data, error } = await supabaseAnon.auth.signUp({ 
+      const { error } = await supabaseAnon.auth.signUp({ 
         email: email.trim(), 
         password 
       });
@@ -194,30 +114,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
         throw new Error(error.message);
       }
       
-      // Module 3A: Log sign-up result and check for email confirmation requirement
-      const requiresConfirmation = !data.session && data.user && !data.user.email_confirmed_at;
-      console.log('Module 3A: signUp result', { 
-        requiresConfirmation,
-        hasSession: !!data.session,
-        userId: data.user?.id 
-      });
-      
-      return { data, requiresConfirmation };
+      return { success: true };
     },
-    onSuccess: (result) => {
+    onSuccess: () => {
       console.log('✅ User sign up successful');
-      
-      // Bug 3A.1: Check if email confirmation is required
-      if (result.requiresConfirmation) {
-        console.log('📧 Bug 3A.1: Email confirmation required - waiting for user to verify email');
-        setWaitingForEmailConfirmation(true);
-        // Do not call verifySession - wait for auth state change
-      } else {
-        // Module 3A: Start session verification process for immediate sessions
-        setWaitingForSession(true);
-        setSessionVerificationAttempts(0);
-        verifySession();
-      }
+      handleSuccess();
     },
   });
 
@@ -300,7 +201,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   };
 
   // Computed states from mutations
-  const isLoading = signInWithOtpMutation.isPending || signInWithPasswordMutation.isPending || signUpMutation.isPending || visitorMergeMutation.isPending || waitingForSession || waitingForEmailConfirmation;
+  const isLoading = signInWithOtpMutation.isPending || signInWithPasswordMutation.isPending || signUpMutation.isPending || visitorMergeMutation.isPending;
   const error = signInWithOtpMutation.error?.message || signInWithPasswordMutation.error?.message || signUpMutation.error?.message || visitorMergeMutation.error?.message;
 
   // UxAuth 1: Don't render if modal is not open
@@ -329,62 +230,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
             >
               Got it
             </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Bug 3A.1: Email confirmation waiting state
-  if (waitingForEmailConfirmation) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 ease-out" onClick={handleClose} />
-        <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 ease-out animate-in zoom-in-95">
-          <div className="px-6 py-8 text-center">
-            <div className="text-orange-500 mb-4">
-              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Check your email to confirm</h3>
-            <p className="text-sm text-gray-500 mb-6">
-              We've sent a confirmation link to <strong>{email}</strong>. Click the link in your email to activate your account and continue.
-            </p>
-            <p className="text-xs text-gray-400 mb-4">
-              This window will automatically continue once you confirm your email.
-            </p>
-            <button
-              onClick={handleClose}
-              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
-            >
-              Close for now
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Module 3A: Session verification waiting state
-  if (waitingForSession) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 ease-out" />
-        <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 ease-out animate-in zoom-in-95">
-          <div className="px-6 py-8 text-center">
-            <div className="text-blue-500 mb-4">
-              <svg className="w-12 h-12 mx-auto animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Setting up your account</h3>
-            <p className="text-sm text-gray-500 mb-6">
-              Please wait while we verify your account and set up your profile...
-            </p>
-            <p className="text-xs text-gray-400">
-              Verification attempt {sessionVerificationAttempts + 1}/10
-            </p>
           </div>
         </div>
       </div>
@@ -498,12 +343,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                 className="w-full px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 disabled={isLoading}
               >
-                {isLoading ? 
-                  (waitingForEmailConfirmation ? 'Waiting for email confirmation...' :
-                   waitingForSession ? 'Verifying account...' : 
-                   isSignUp ? 'Creating account...' : 'Signing in...') : 
-                  (isSignUp ? 'Create account' : 'Sign in')
-                }
+                {isLoading ? (isSignUp ? 'Creating account...' : 'Signing in...') : (isSignUp ? 'Create account' : 'Sign in')}
               </button>
 
               <button
