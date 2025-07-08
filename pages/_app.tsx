@@ -1,9 +1,10 @@
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { VisitorProvider } from '../lib/contexts/VisitorContext';
+import { VisitorProvider, useVisitor } from '../lib/contexts/VisitorContext';
 import { useSupabaseSessionHelpers } from '../lib/queries/sessionQueries';
+import { useVisitorMerge } from '../lib/hooks/useVisitorMerge';
 import { supabaseAnon } from '../lib/supabaseClient';
 
 // Create QueryClient with optimized defaults for the application
@@ -42,6 +43,12 @@ const queryClient = new QueryClient({
 // Bug 5: Global Auth State Listener Component
 function GlobalAuthListener() {
   const { setSessionData } = useSupabaseSessionHelpers();
+  // Bug Module 8C: Get visitor context and merge hook
+  const { visitorId } = useVisitor();
+  const visitorMerge = useVisitorMerge();
+  
+  // Bug Module 8C: Track processed sign-in events to prevent duplicate merges
+  const lastProcessedSignInRef = useRef<string | null>(null);
 
   useEffect(() => {
     console.log('🔄 Bug 5: Setting up global auth state listener');
@@ -53,6 +60,27 @@ function GlobalAuthListener() {
       // Bug 5: Update session data in query cache
       setSessionData(session);
       console.log('✅ Bug 5: Updated supabaseSession query with new auth state');
+
+      // Bug Module 8C: Handle SIGNED_IN event for visitor merge
+      if (event === 'SIGNED_IN' && session?.user?.id && visitorId) {
+        const signInEventId = `${session.user.id}-${Date.now()}`;
+        
+        // Bug Module 8C: Prevent duplicate merge for same sign-in
+        if (lastProcessedSignInRef.current !== signInEventId) {
+          console.log('🔄 Bug 8C: Global listener invoked visitor merge', { 
+            userId: session.user.id, 
+            visitorId 
+          });
+          
+          // Bug Module 8C: Trigger visitor merge
+          visitorMerge.triggerMerge();
+          
+          // Bug Module 8C: Track this sign-in to prevent duplicates
+          lastProcessedSignInRef.current = signInEventId;
+        } else {
+          console.log('🔄 Bug 8C: Skipping duplicate merge for same sign-in event');
+        }
+      }
     });
 
     // Bug 5: Cleanup function to unsubscribe
@@ -60,7 +88,7 @@ function GlobalAuthListener() {
       console.log('🧹 Bug 5: Cleaning up global auth state listener');
       subscription.unsubscribe();
     };
-  }, [setSessionData]);
+  }, [setSessionData, visitorId, visitorMerge]);
 
   return null; // This component only handles side effects
 }

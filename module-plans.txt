@@ -860,8 +860,6 @@ Add another flag (e.g., mergeAttempted) that is set in handleSuccess right befor
 Update the visitor-merge effect to check mergeAttempted before closing the modal, and remove email and password from its dependency array. This prevents the effect from firing until an actual merge attempt completes.
 
 
-implement this module, stay scoped tight to this description, do not drift ouside of it, the next modules continue this work so do no more than what is specified here, keep the implementation super clean as well, do not contaminate, let me know when you are finished, do not run the dev server, do not build or compile (you may build or compile if it is absolutely necessary) (ensure Tanstack and not React is used for state managmeent)
-
 Module 7 – Slim Auth Modal UI
 Title: Module 7 – Slim Auth Modal UI
 Summary:
@@ -878,6 +876,11 @@ No direct Supabase calls or auth logic inside this component.
 Breakpoints / Testing:
 Verify modal interacts correctly with provided hooks.
 Ensure no logic remains embedded; UI updates based solely on hook state.
+
+Bug Module 7A Auth Redirect
+when account is created by email/pwd the emailed link sends the user back to the home page, change this
+first option - send the user back to the same dashboard tab/url that originated the request
+fallback option - send the user back to the dashboard page
 
 
 Bug Module 8A – Sign-up Session Verification
@@ -915,6 +918,8 @@ Keep UI open and responsive if login fails; display errors clearly.
 Breakpoints / Testing:
 Validate merges occur after successful login.
 Confirm errors displayed correctly if authentication fails.
+
+implement this module, stay scoped tight to this description, do not drift ouside of it, the next modules continue this work so do no more than what is specified here, keep the implementation super clean as well, do not contaminate, let me know when you are finished, do not run the dev server, do not build or compile (you may build or compile if it is absolutely necessary) (ensure Tanstack and not React is used for state managmeent)
 
 Bug Module 8C – Global Merge on SIGNED_IN
 Title: Module 8C – Global Merge on SIGNED_IN

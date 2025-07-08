@@ -1,5 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { supabaseAnon } from '../supabaseClient';
+import { useSupabaseSessionHelpers } from '../queries/sessionQueries';
+import { useVisitorMerge } from './useVisitorMerge';
 
 interface AuthActionsState {
   isLoading: boolean;
@@ -8,7 +10,7 @@ interface AuthActionsState {
 }
 
 interface AuthActionsReturn extends AuthActionsState {
-  signUp: (email: string, password: string) => void;
+  signUp: (email: string, password: string, redirectUrl?: string) => void;
   signInWithPassword: (email: string, password: string) => void;
   signInWithOtp: (email: string, redirectUrl?: string) => void;
 }
@@ -16,12 +18,19 @@ interface AuthActionsReturn extends AuthActionsState {
 // Bug Module 6A: useAuthActions Hook
 export const useAuthActions = (): AuthActionsReturn => {
   
+  // Bug Module 8B: Get session helpers and visitor merge
+  const { setSessionData } = useSupabaseSessionHelpers();
+  const visitorMerge = useVisitorMerge();
+
   // Sign up mutation
   const signUpMutation = useMutation({
-    mutationFn: async ({ email, password }: { email: string; password: string }) => {
+    mutationFn: async ({ email, password, redirectUrl }: { email: string; password: string; redirectUrl?: string }) => {
       const { data, error } = await supabaseAnon.auth.signUp({ 
         email: email.trim(), 
-        password 
+        password,
+        options: redirectUrl ? {
+          emailRedirectTo: redirectUrl
+        } : undefined
       });
       
       if (error) {
@@ -51,7 +60,18 @@ export const useAuthActions = (): AuthActionsReturn => {
       return data;
     },
     onSuccess: (data) => {
-      console.log('✅ Bug 6A: Auth action success – { action: "signInWithPassword" }');
+      console.log('✅ Bug 8B: Password sign-in success – session confirmed');
+      
+      // Bug Module 8B: Immediately update global session
+      if (data.session) {
+        setSessionData(data.session);
+        console.log('✅ Bug 8B: Global session updated immediately');
+        
+        // Bug Module 8B: Trigger visitor merge without waiting for auth listener
+        visitorMerge.triggerMerge();
+        console.log('✅ Bug 8B: Visitor merge triggered after session update');
+      }
+      
       return data;
     },
   });
@@ -89,7 +109,7 @@ export const useAuthActions = (): AuthActionsReturn => {
     isLoading,
     error,
     requiresConfirmation,
-    signUp: (email: string, password: string) => signUpMutation.mutate({ email, password }),
+    signUp: (email: string, password: string, redirectUrl?: string) => signUpMutation.mutate({ email, password, redirectUrl }),
     signInWithPassword: (email: string, password: string) => signInWithPasswordMutation.mutate({ email, password }),
     signInWithOtp: (email: string, redirectUrl?: string) => signInWithOtpMutation.mutate({ email, redirectUrl }),
   };
