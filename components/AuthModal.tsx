@@ -17,6 +17,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   // Bug Module 6B.1: Add state flag to track password auth attempts
   const [passwordAuthAttempted, setPasswordAuthAttempted] = useState(false);
+  // Bug Module 6B.2: Add state flag to track merge attempts
+  const [mergeAttempted, setMergeAttempted] = useState(false);
   
   // Get visitor context for visitor-user linking
   const { visitorId } = useVisitor();
@@ -35,6 +37,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
       setMagicLinkSent(false);
       // Bug Module 6B.1: Reset password auth attempt flag when modal opens
       setPasswordAuthAttempted(false);
+      // Bug Module 6B.2: Reset merge attempt flag when modal opens
+      setMergeAttempted(false);
       console.log('🔐 UxAuth 1: Modal opened with prefilled data', {
         email: modalState.email ? '***' + modalState.email.slice(-8) : undefined,
         hasPassword: !!modalState.password,
@@ -53,6 +57,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     
     // Bug Module 6B: Use visitor merge hook
     if (visitorId) {
+      // Bug Module 6B.2: Set flag before attempting merge
+      setMergeAttempted(true);
+      console.log('🔗 Bug Module 6B.2: Merge attempt initiated');
       visitorMerge.triggerMerge();
     } else {
       // No visitor ID - just close modal and update credentials
@@ -85,8 +92,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
 
   // Bug Module 6B: Handle visitor merge completion
   useEffect(() => {
-    // Handle visitor merge success or error
-    if (!visitorMerge.isLoading && (visitorMerge.error || (!visitorMerge.error && visitorId))) {
+    // Bug Module 6B.2: Only run if merge was actually attempted
+    if (mergeAttempted && !visitorMerge.isLoading && (visitorMerge.error || (!visitorMerge.error && visitorId))) {
       // Merge completed (success or error) - close modal and update credentials
       updateCachedCredentials(email, password);
       closeAuthModal();
@@ -94,7 +101,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
         onSuccess();
       }
     }
-  }, [visitorMerge.isLoading, visitorMerge.error, visitorId, email, password, onSuccess]);
+  }, [mergeAttempted, visitorMerge.isLoading, visitorMerge.error, visitorId, onSuccess]);
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
