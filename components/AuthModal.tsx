@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { supabaseAnon } from '../lib/supabaseClient';
 import { useAuthModalState, closeAuthModal, updateCachedCredentials } from '../store/authModalStore';
 import { useVisitor } from '../lib/contexts/VisitorContext';
+import { useAuthActions } from '../lib/hooks/useAuthActions';
+import { useVisitorMerge } from '../lib/hooks/useVisitorMerge';
 
 // UxAuth 1: Updated interface - onSuccess now optional since it's handled globally
 interface AuthModalProps {
@@ -18,6 +18,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   
   // Get visitor context for visitor-user linking
   const { visitorId } = useVisitor();
+
+  // Bug Module 6A: Use auth actions hook
+  const authActions = useAuthActions();
+
+  // Bug Module 6B: Use visitor merge hook
+  const visitorMerge = useVisitorMerge();
 
   // UxAuth 1: Prefill email and password from store when modal opens
   useEffect(() => {
@@ -41,9 +47,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   const handleSuccess = () => {
     console.log('🔄 Auth success - triggering visitor merge for visitor:', visitorId);
     
-    // Trigger visitor merge to link visitor record to user account
+    // Bug Module 6B: Use visitor merge hook
     if (visitorId) {
-      visitorMergeMutation.mutate();
+      visitorMerge.triggerMerge();
     } else {
       // No visitor ID - just close modal and update credentials
       console.log('⚠️ No visitor ID available - skipping merge');
@@ -55,123 +61,36 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     }
   };
 
-  // State Mgmt Update 1: TanStack mutations for auth flows
-  const signInWithOtpMutation = useMutation({
-    mutationFn: async (email: string) => {
-      // Dynamic redirect - return to current page where modal was opened
-      const currentPath = window.location.pathname;
-      const currentSearch = window.location.search;
-      const redirectUrl = `${window.location.origin}${currentPath}${currentSearch}`;
-      
-      console.log('🔄 Magic link will redirect to:', redirectUrl);
-      
-      const { error } = await supabaseAnon.auth.signInWithOtp({
-        email: email.trim(),
-        options: {
-          emailRedirectTo: redirectUrl
-        }
-      });
+  // Bug Module 6A: Handle auth success from hook
+  useEffect(() => {
+    // Handle magic link sent state
+    if (authActions.requiresConfirmation) {
+      setMagicLinkSent(true);
+      console.log('📧 Magic link sent to:', email);
+    }
+  }, [authActions.requiresConfirmation, email]);
 
-      if (error) {
-        throw new Error(error.message);
-      }
-      
-      return { success: true };
-    },
-    onSuccess: () => {
-        setMagicLinkSent(true);
-        console.log('📧 Magic link sent to:', email);
-    },
-  });
-
-  const signInWithPasswordMutation = useMutation({
-    mutationFn: async ({ email, password }: { email: string; password: string }) => {
-      const { error } = await supabaseAnon.auth.signInWithPassword({ 
-        email: email.trim(), 
-        password 
-      });
-      
-      if (error) {
-        throw new Error(error.message);
-      }
-      
-      return { success: true };
-    },
-    onSuccess: () => {
-      console.log('✅ User sign in successful');
+  // Bug Module 6A: Handle successful auth actions (password-based auth)
+  useEffect(() => {
+    // Check if we just completed a password-based auth (not OTP)
+    if (!authActions.isLoading && !authActions.error && !authActions.requiresConfirmation && !magicLinkSent) {
+      // This indicates successful password auth - trigger success flow
       handleSuccess();
-    },
-  });
+    }
+  }, [authActions.isLoading, authActions.error, authActions.requiresConfirmation, magicLinkSent]);
 
-  const signUpMutation = useMutation({
-    mutationFn: async ({ email, password }: { email: string; password: string }) => {
-      const { error } = await supabaseAnon.auth.signUp({ 
-        email: email.trim(), 
-        password 
-      });
-      
-      if (error) {
-        throw new Error(error.message);
-      }
-      
-      return { success: true };
-    },
-    onSuccess: () => {
-      console.log('✅ User sign up successful');
-      handleSuccess();
-    },
-  });
-
-  // Visitor merge mutation to link visitor record to user account
-  const visitorMergeMutation = useMutation({
-    mutationFn: async () => {
-      if (!visitorId) {
-        throw new Error('No visitor ID available for merge');
-      }
-
-      const { data: { session } } = await supabaseAnon.auth.getSession();
-      if (!session) {
-        throw new Error('No active session for merge');
-      }
-
-      const response = await fetch('/api/visitor/merge', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ visitor_id: visitorId }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to merge visitor with user account');
-      }
-
-      return response.json();
-    },
-    onSuccess: (data) => {
-      console.log('✅ Visitor-user merge successful:', data);
-      // Update cached credentials
-      updateCachedCredentials(email, password);
-      
-      // Close modal
-      closeAuthModal();
-      
-      // Call optional success callback
-      if (onSuccess) {
-        onSuccess();
-      }
-    },
-    onError: (error) => {
-      console.error('❌ Visitor-user merge failed:', error);
-      // Still close modal and update credentials even if merge fails
+  // Bug Module 6B: Handle visitor merge completion
+  useEffect(() => {
+    // Handle visitor merge success or error
+    if (!visitorMerge.isLoading && (visitorMerge.error || (!visitorMerge.error && visitorId))) {
+      // Merge completed (success or error) - close modal and update credentials
       updateCachedCredentials(email, password);
       closeAuthModal();
       if (onSuccess) {
         onSuccess();
       }
-    },
-  });
+    }
+  }, [visitorMerge.isLoading, visitorMerge.error, visitorId, email, password, onSuccess]);
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,7 +102,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
       return;
     }
 
-    signInWithOtpMutation.mutate(emailToUse);
+    // Bug Module 6A: Use auth actions hook for OTP
+    // Dynamic redirect - return to current page where modal was opened
+    const currentPath = window.location.pathname;
+    const currentSearch = window.location.search;
+    const redirectUrl = `${window.location.origin}${currentPath}${currentSearch}`;
+    
+    console.log('🔄 Magic link will redirect to:', redirectUrl);
+    authActions.signInWithOtp(emailToUse, redirectUrl);
   };
 
   const handleEmailPassword = async (e: React.FormEvent) => {
@@ -196,13 +122,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
       return;
     }
 
-    const mutation = isSignUp ? signUpMutation : signInWithPasswordMutation;
-    mutation.mutate({ email: emailToUse, password });
+    // Bug Module 6A: Use auth actions hook for password auth
+    if (isSignUp) {
+      authActions.signUp(emailToUse, password);
+    } else {
+      authActions.signInWithPassword(emailToUse, password);
+    }
   };
 
-  // Computed states from mutations
-  const isLoading = signInWithOtpMutation.isPending || signInWithPasswordMutation.isPending || signUpMutation.isPending || visitorMergeMutation.isPending;
-  const error = signInWithOtpMutation.error?.message || signInWithPasswordMutation.error?.message || signUpMutation.error?.message || visitorMergeMutation.error?.message;
+  // Bug Module 6A & 6B: Computed states from auth actions hook and visitor merge hook
+  const isLoading = authActions.isLoading || visitorMerge.isLoading;
+  const error = authActions.error || visitorMerge.error;
 
   // UxAuth 1: Don't render if modal is not open
   if (!modalState.isOpen) {

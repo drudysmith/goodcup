@@ -1,0 +1,955 @@
+Current Modules 1‑8 + A-D (simplified)
+Module 1 – Visitor ID Lifecycle
+Module 2 – Visitor Record & JWT Retrieval
+Module 3 – Returning Visitor Validation
+Module 3.5 – Contact Info Popup UI
+Module 4 – Triggered Contact Info Merge
+Module 4.1 – Cart Persistence – adds /api/visitor/updateCart and client sync
+(see VisitorContext.tsx lines approximately lines 52‑79 and 208‑221)
+Module 4.5 – Checkout Mode Toggle (approximately lines 280‑287)
+✅ Module 4.7 (a–c) – Replace Zustand with TanStack (COMPLETE)
+Module 5 – User Auth Trigger (approximately lines 314‑318)
+Module 6 – Auth Completion & Visitor Merge (approximately lines 320‑327)
+6a, 6b1, 6b2
+Blocks 1-4 (move completely to tanstack for state management)
+6b3, 6c, 6d
+Module 7 – Supabase User Session Handling (approximately lines 329‑334)
+Module 8 – Session Expiry Handling (approximately lines 336‑339)
+Module A. Checkout Session Creation
+Module B. Webhook & Order Persistence
+Module C. Success/Cancellation Handling
+Module D. Customer Portal & Subscription Management
+
+
+MODULES FULL TEXT
+
+✅ Module 1: Visitor ID Lifecycle
+Goal: Generate or retrieve a visitor_id from localStorage. No backend or JWT yet.
+Check localStorage
+If visitor_id exists: store it in memory
+Log: ✅ Found visitor_id in localStorage: <id>
+If not found:
+giving you context is all for now
+Generate a UUID
+Store it in memory (do not write to localStorage yet)
+Log: 🆕 No visitor_id found in storage — generated new one: <id>
+
+
+✅ Module 2: Visitor Record + JWT Retrieval
+Goal: Send visitor_id to backend, insert anonymous visitor record, return JWT, and store both.
+Send visitor_id to backend
+Log: 📡 Sending visitor_id to backend for registration: <id>
+Backend inserts new visitor record
+Returns a JWT linked to the visitor_id
+Store values
+Save visitor_id + JWT in localStorage
+Update in-memory state
+Log:
+✅ Visitor record created — JWT received
+💾 Stored visitor_id and JWT in localStorage
+
+
+Module 3: Returning Visitor Validation
+Goal: On page load, verify JWT and hydrate app for returning visitor.
+Check for existing localStorage values
+If both visitor_id and jwt exist → proceed
+Log: 🔁 Found visitor_id + JWT in localStorage — verifying with backend
+Use JWT to fetch visitor record via Supabase
+Do not use setSession
+Pass JWT in Authorization: Bearer <jwt> header
+RLS-secured fetch << Supabase
+If valid
+  Hydrate app with contact info, cart, etc.
+  Log: ✅ Valid JWT — visitor authed
+If invalid (401/403)
+  Clear visitor_id and jwt from localStorage, restart auth
+  Log: ⚠️ Invalid JWT — clearing localStorage, restarting auth
+
+
+Module 3.5 (Popup Module, formerly the "first" Module 4): Build Contact Info Popup UI
+Goal: Create a triggerable UI to collect contact info.
+Trigger
+When user clicks cart or tries to start checkout
+Log: 🛒 User triggered contact info collection
+Popup shows input fields
+Email (required)
+Phone (optional)
+Name (optional)
+User clicks submit → pass info + visitor_id to Module 4
+Log: 📨 Contact info submitted from popup
+
+
+✅ Module 4: Triggered Contact Info Merge
+Goal: Merge visitor into existing user identity, or enrich their visitor record.
+POST to /api/visitor/identify
+Payload: visitor_id, email, phone, name
+<< supabase (via API route)
+Server checks DB
+If contact info matches an existing record:
+Merge current visitor into that record
+Return updated visitor_id + new JWT
+Else:
+Update current visitor record with submitted info
+Return same visitor_id and new JWT (optional)
+Frontend replaces local values
+Update visitor_id + JWT in localStorage and memory
+Log:
+🔁 Merge result: updated visitor_id <id> and JWT
+💾 Updated localStorage with resolved identity
+
+
+Module 4.1: Cart Persistence
+Below are suggested steps to implement automatic cart persistence for visitors, keeping the rest of the module plan intact.
+1. Create an API route to update a visitor’s cart
+Add a new handler at pages/api/visitor/updateCart.ts.
+It should:
+Require POST.
+Read the JWT from the Authorization: Bearer header (same as in validate.ts).
+Verify the token using process.env.SUPABASE_JWT_SECRET.
+Extract visitor_id from the token.
+Update the cart column of the visitors table for that visitor_id.
+Return success or an error.
+init.ts already inserts a visitor with cart: null on first registration.
+validate.ts returns the cart when validating the JWT, so the new endpoint should mirror this pattern.
+2. Sync the cart on the client
+Within a React effect that has access to both the JWT and the cart items:
+Import useCartStore and select items.
+Debounce or throttle to avoid rapid requests.
+Whenever items changes and the visitor is authenticated, POST the cart JSON to /api/visitor/updateCart with the
+Handle errors gracefully (logging, possibly retrying).
+The VisitorContext already hydrates visitorData with the cart on validation, so an additional effect in this context (or a hook used globally) can watch for cart changes.
+3. Keep module flow unchanged
+No structural changes are needed for modules 5‑8. They already assume the visitors table holds the latest cart so that module 6 can merge it into a user profile. Adding the update endpoint and client sync simply ensures the cart field remains current.
+4. Development tips
+Reuse the service‑role Supabase client from lib/supabaseClient.ts.
+Reuse JWT verification logic from validate.ts to keep security consistent.
+Document the new endpoint and any new environment variables.
+Write a small test or console log to confirm that cart updates appear in the visitors table.
+By isolating the cart synchronization to a dedicated API route and a lightweight client effect, you can add persistent cart storage without altering the existing module plan. This keeps the upcoming modules (5‑8) focused on user authentication and session management while ensuring visitor carts are always saved and ready to merge when a visitor becomes a full user.
+
+
+✅ Module 4.5: Checkout Mode Toggle UI
+Goal: Let user choose between guest (visitor) or full user checkout.
+UI Placement:
+Inline toggle next to/above checkout button
+Default State:
+Toggle defaults to “Check out as user”
+Options:
+“Check out as user” (triggers Module 5 on click)
+“Continue as guest” (bypasses Module 5, proceeds to Stripe with visitor context)
+Log on interaction:
+🧭 Checkout mode selected: <user | guest>
+Downstream control:
+On checkout button click → branch to Module 5 (user) or Stripe flow using visitor_id + JWT (guest)
+
+
+✅ Module 4.7a: Introduce TanStack Cart Store (COMPLETE)
+Goal: Replace Zustand cart store with a TanStack store implementation, preserving current cart behavior and localStorage sync.
+Install @tanstack/store and @tanstack/react-store
+Create cartStore.ts using TanStack with same exposed API (useCartStore)
+Define store shape:
+export type CartItem = { productId: string; priceId: string; quantity: number };
+Initialize store with empty items array
+Implement core methods: addItem, removeItem, updateQuantity, clearCart
+Persistence:
+Read from localStorage on load
+Subscribe to store changes and write updates back
+Testing:
+Add items, refresh, confirm persistence
+Watch VisitorContext logs — ensure cart sync still triggers /api/visitor/updateCart
+Log:
+🆕 Initialized TanStack cart store
+💾 Cart store persists to localStorage
+📡 Cart updates still syncing via VisitorContext
+
+
+✅ Module 4.7b: Replace Imports + Remove Zustand (COMPLETE)
+Goal: Swap all cart state usage to the new TanStack store and fully remove Zustand.
+Update imports in:
+Layout.tsx
+CartPanel.tsx
+checkout.tsx
+mandust.tsx
+VisitorContext.tsx
+Keep selector usage consistent:
+useCartStore(state => state.items), etc.
+Cleanup:
+Remove zustand from package.json
+Run npm install to refresh lockfile
+Testing:
+Use cart normally in UI: add/remove/clear/update
+Confirm DB sync still triggers via network logs or DB entries
+Run Module 4 (contact merge) and validate cart contents persist through merge
+Log:
+♻️ Swapped all cart imports to TanStack store
+🗑️ Zustand fully removed
+✅ Cart behavior consistent across UI and merge
+
+
+✅ Module 4.7c: Finalize Migration + Verify Integrity (COMPLETE)
+Goal: Ensure migration is complete and cart logic is fully stabilized before continuing to Modules 5–8.
+Commit changes and update module-plans.txt to reflect store migration
+Run a project-wide search to confirm no lingering zustand imports
+Manually test full checkout toggle flow, including:
+Page reload persistence
+Visitor contact merge
+Cart handoff to user flow
+Log:
+🧼 Zustand usage removed across project
+📄 Cart store migration documented
+🚀 Ready to proceed with full auth modules (5–8)
+
+
+✅ Module 5: User Auth Trigger
+Goal: Allow visitor to choose full user auth (sign in/up) before checkout.
+Trigger:
+User selects “Check out as user” option
+If already signed in (has session):
+Log: ✅ User already authed — skipping sign-in flow
+If not signed in:
+Show auth UI (magic link, email/pass, etc.)
+Log: 🔐 User opted for full auth — showing auth modal
+
+
+Module 6 Overview
+Module 6 bridges visitor checkout into authenticated user checkout. It starts immediately after Module 5 (when the user opts to “Check out as user”) and concludes once Stripe’s checkout session is created. Modules 7–8 then manage Supabase session persistence, while Modules A–D handle the Stripe flow.
+Module 6 Boundaries with Other Modules
+Modules 7–8: Begin only after 6b or 6d completes. They rely on the Supabase session created or confirmed during Module 6 to handle ongoing session management and expiry.
+Modules A–D: Assume the Stripe checkout session has been created in 6d. They process payment, handle webhooks, and manage post‑checkout steps.
+
+6a. Session Short‑Circuit
+Trigger: User chooses “Check out as user.”
+Action: If a Supabase session already exists, skip the auth modal and create the Stripe checkout session using the session’s user ID.
+Breakpoint: Confirm the call to /api/createCheckoutSession redirects directly to Stripe.
+
+6b.1 – Merge Endpoint Setup
+Trigger: A user finishes signing in or signing up via AuthModal.
+Action:
+Send a POST request to a new /api/user/merge route with the current visitor_id.
+On the server, confirm the Supabase session and set user_id on the corresponding visitor row, merging cart and contact data.
+Return a success response so the client can proceed.
+Breakpoint: Verify that the endpoint correctly attaches the visitor row to the authenticated user_id and that the merged data is available.
+
+6b.2 – Post‑Merge Cleanup and Checkout
+Trigger: The merge endpoint responds successfully.
+Action:
+Clear visitor_id and the visitor JWT from localStorage.
+Use the active Supabase session as the sole auth token.
+Immediately call /api/createCheckoutSession with supabaseUserId to create the Stripe session.
+Redirect the browser to the returned Stripe URL.
+Breakpoint: Confirm visitor tokens are gone, the checkout session is created with the user’s ID, and Stripe redirection occurs without additional prompts.
+
+
+Blocks 1-4 Summary
+Migrating these remaining pieces to TanStack Query and Mutation hooks will harmonize state management across modules without disturbing the UI/UX or animation layers. Guardrails and bugwatch notes help ensure the transition does not introduce regressions.
+
+Block 1: Convert Visitor Context to TanStack Query
+Summary
+The existing VisitorProvider keeps visitor ID, JWT, and visitor data in local useState variables. Initialization and cart synchronization rely on fetch calls. Converting this logic to TanStack Query ensures consistent caching and easier invalidation.
+Where to Look
+lib/contexts/VisitorContext.tsx — state initialization begins around lines 28‑31 and cart hydration around line 41. Fetch calls to /api/visitor/init and /api/visitor/validate appear near lines 140‑176, while cart syncing logic sits around lines 226‑251
+Implementation Notes
+Introduce a useQuery hook to fetch visitor data keyed by [ 'visitor', visitorId ].
+Wrap cart updates in a useMutation so cart changes automatically invalidate visitor queries.
+Maintain the context API (updateVisitorIdentity, syncCartToDatabase) so components do not need refactoring.
+Guardrails
+Keep the hook names and return shapes unchanged; components should receive the same values.
+Do not alter the CSS classes controlling the popup or cart animations.
+Bugwatch
+After moving to queries, ensure window.location.reload() inside the invalid-JWT branch does not trigger infinite reloads if the query retries fail.
+
+Block 2: Replace Ad‑hoc Fetch Calls with TanStack Queries and Mutations
+Summary
+Pages such as the checkout flow and layout still fetch products and trigger API endpoints with plain fetch calls. Replacing these with useQuery/useMutation ensures unified error handling and cache control.
+Where to Look
+pages/checkout.tsx fetches /api/products at lines 75‑81 and later calls /api/visitor/merge and /api/createCheckoutSession around lines 103‑129
+components/Layout.tsx fetches products in an effect around lines 125‑133
+Implementation Notes
+Convert data retrievals (product lists, session checks) to queries with meaningful keys (e.g., [ 'products' ]).
+Wrap POST operations (checkout session creation, visitor merge) in mutations that invalidate related queries upon success.
+Keep query functions lightweight to avoid blocking UI transitions.
+Guardrails
+Preserve all modal behavior and page transitions exactly—loading indicators and success banners must still fire in response to the same events.
+Keep local useState for UI toggles and simple form fields.
+Bugwatch
+When switching to queries, verify that dependency arrays or query keys do not create unwanted loops, especially around the checkout session creation logic.
+
+Block 3: Confirm Central Query Cache Management
+Summary
+A QueryClientProvider already wraps the component tree in _app.tsx lines 11‑15, instantiating a QueryClient once at import time. This block simply confirms that configuration and scope remain correct.
+Where to Look
+pages/_app.tsx for the existing provider setup.
+Implementation Notes
+Ensure only one QueryClient instance exists and is provided at the root.
+Optionally specify global query defaults (e.g., staleTime) if different modules require them.
+Guardrails
+Leave surrounding layout classes untouched; the provider should not affect page positioning or animation triggers.
+Bugwatch
+If default options are added, double‑check that suspense or refetch behavior doesn’t break page navigation or cause unexpected spinner flashes.
+
+Block 4: Remove Leftover Zustand and Manual Fetch Utilities
+Summary
+The cart store is already implemented with @tanstack/store (store/cartStore.ts), and no files currently import zustand. This step verifies that no stray fetch helpers or stale dependencies remain once queries are in place.
+Where to Look
+Run a repository search for the string “zustand” (returns none in code) and check package.json to confirm removal.
+Identify any utility functions solely supporting the old fetch pattern.
+Implementation Notes
+Clean up unused helpers after the queries and mutations are confirmed to work.
+Validate that cart syncing and visitor flows operate normally.
+Guardrails
+User experience—especially the cart panel, header animations, and contact info popup—must remain identical.
+Bugwatch
+Removing fetch utilities might inadvertently drop logging or error-handling behavior. Mirror the established console‑log conventions when shifting to TanStack Query callbacks.
+
+
+6b.3.1 – Inline Login UI & Prefill
+Summary
+Transform the checkout page so that when “user” mode is selected and no session exists, a mini login section appears directly under the “Continue to sign in” button. This replaces the modal trigger.
+Where to Look
+pages/checkout.tsx
+handleCheckout starting at line 252 (the setShowAuthModal(true) call at line 276).
+The JSX for the “Continue to sign in” button around line 372–390.
+lib/contexts/VisitorContext.tsx if an email address should be prefilled from stored visitor data.
+Implementation Notes
+Introduce state variables such as showInlineLogin, loginEmail, and loginLinkSent.
+When the user chooses “user” mode and no userSession exists, toggle showInlineLogin rather than showing AuthModal.
+Render an email input with layout classes matching the existing form elements so the page remains consistent on both mobile and desktop.
+Default loginEmail should come from customerInfo.email or visitorData.email if available. Update the state as the user types.
+Breakpoints / Testing
+After selecting “user” mode, verify that the inline form appears instead of the modal.
+Ensure the email field is prepopulated when data exists.
+
+6b.3.2 – Magic Link Submission
+Summary
+The inline form submits a magic‑link request using Supabase’s OTP method. After sending the link, the page shows a confirmation message similar to the AuthModal’s success state.
+Where to Look
+components/AuthModal.tsx lines 28‑42 for the existing signInWithOtp logic and lines 78‑102 for the success message layout.
+pages/checkout.tsx to wire the submission handler within the checkout component.
+Implementation Notes
+Add a form submit handler that calls supabaseAnon.auth.signInWithOtp using loginEmail.
+Set emailRedirectTo to ${window.location.origin}/checkout?mode=user.
+On successful send, log 📧 Magic link sent to: <email> and set loginLinkSent to true so the form is replaced by a short “Check your email” message styled like the modal.
+Disable resubmission until the user refreshes or the flow completes.
+Breakpoints / Testing
+When clicking “Send magic link,” watch the console for 📧 Magic link sent to: and check that the confirmation message appears.
+Verify that the email input is disabled or hidden after submission.
+
+6b.3.3 – Auth Return & Merge Flow
+Summary
+Once the user clicks the magic link and returns to /checkout?mode=user, the existing auth listener should detect the session, merge visitor data, and create the Stripe checkout session without any extra prompts.
+Where to Look
+pages/checkout.tsx lines 168‑208 contain the onAuthStateChange listener handling merge and checkout session creation.
+handleCheckout in the same file ensures the merge doesn’t run twice.
+Implementation Notes
+Ensure the listener remains unchanged so that it fires once supabaseAnon.auth.onAuthStateChange detects SIGNED_IN.
+When loginLinkSent is true and the session exists, the inline form should remain hidden while the checkout automatically proceeds.
+Console logs should still display:
+🔄 Module 6b.2: Merging visitor with authenticated user
+🔄 Module 6b.2: Creating Stripe checkout session with user ID: ...
+✅ Redirecting to Stripe checkout session
+Breakpoints / Testing
+After returning via the magic link, confirm that the above logs appear in order.
+The browser should redirect to Stripe without showing the login form or modal again.
+
+
+6c. Guest Flow Reconciliation
+Trigger: Checkout mode is “guest.”
+Action: If the visitor has saved contact info, show a brief confirmation dialog offering to create an account.
+If accepted, run the 6b merge flow and proceed to Stripe as a user.
+If declined, continue as guest but pass contact info to Stripe so the order is recorded.
+Breakpoint: Ensure both paths (accepting or declining) lead to the appropriate checkout session.
+
+6d. Checkout Session Finalization
+Trigger: Any prior step results in either a user session or confirmed guest checkout.
+Action: Call /api/createCheckoutSession with either the Supabase user_id (for users) or the visitor’s contact info (for guests). Redirect to the Stripe URL returned from that endpoint.
+Breakpoint: Successful redirection to Stripe marks the end of Module 6.
+
+
+
+6e.p – Address Endpoint Preparation
+Before implementing modules 6e and 6f, set up the shared address infrastructure so both guest and authenticated paths can store shipping information.
+Summary
+The visitors table has been expanded with address columns (street, unit, city, state, postal_code, country). Introduce a unified API route. The new endpoint verifies either the visitor JWT or the Supabase session token, then writes to the appropriate record. The route simply logs payloads for now.
+Where to Look
+Supabase schema for the single visitors table.
+pages/api/visitor/ for existing JWT‑based endpoints.
+pages/api/ for the upcoming unified route.
+Implementation Notes
+Note that street, unit, city, state, postal_code, and country columns are already added to the visitors table in supabase. Dummy info has been manually inserted into these table fields already for dev and testing purposes.
+Create /api/saveAddress that handles both authentication paths.
+If a Supabase session is found, update the corresponding user record.
+If no session is present, validate the visitor JWT and update the visitor record.
+Keep TanStack as the state manager for any future calls to this route.
+Breakpoints / Testing
+Manually hitting /api/saveAddress with either auth method should log the address payload without errors.
+Decision on Endpoints
+A single endpoint keeps the client simple while letting the server decide which record to update. This accommodates merged users whose visitor tokens were cleared, yet still accepts JWTs from guests.
+
+6e – Checkout Data Prefill
+Ensure the checkout “Information” and “Shipping” stages populate with real data instead of placeholders.
+Where to Look
+pages/checkout.tsx – customerInfo initialization and TanStack state hooks.
+lib/contexts/VisitorContext.tsx – retrieval of visitorData and JWT.
+Supabase profile queries when a user session is active.
+Implementation Notes
+Initialize customerInfo through TanStack, prefilling from visitorData or the signed‑in user’s profile.
+When a Supabase session exists, fetch saved address details and log
+🔄 Prefilling checkout fields from user profile.
+If only visitorData is available, prefill email (and name if present) and log
+🔄 Prefilling checkout fields from visitor data.
+Keep fields editable so users can modify them. Any updates remain in TanStack state.
+Pass the updated customerInfo to the merge logic or checkout session steps.
+Breakpoints / Testing
+Visitors with saved contact info should see those fields filled automatically.
+After proceeding to Shipping, verify the values persist and appear in subsequent API requests.
+TanStack must remain the sole state manager for checkout data.
+
+6e.1 Extend Visitor Validation
+File: pages/api/visitor/validate.ts
+The validation route currently selects only id, name, email, phone, and cart from the visitors table.
+Update its select clause so the response includes all address columns (street, city, unit, state, postal_code, and country).
+Returning these fields lets the client store and display existing address data alongside contact info. TanStack Query consumers can then cache the full visitor record.
+
+6e.2 Update Visitor Context
+File: lib/contexts/VisitorContext.tsx
+The VisitorData interface and context value need to match what validate.ts returns. Add the new address fields to this type definition.
+When VisitorContext fetches visitor data and writes it to TanStack Query’s cache, include those address properties so components receive them automatically.
+This makes the address available across the app via the same query key, without extra state.
+
+6e.3 Prefill Checkout Fields
+File: pages/checkout.tsx
+The checkout page already prefills name and email from visitor data when a user session isn’t present. Expand that logic so the effect also populates street, city, state, postal code, and country from visitorData.
+Keep the unified /api/saveAddress endpoint in mind: regardless of visitor or signed‑in user, any later mutations to update the address will go through this single route.
+All prefilled values remain editable, with changes persisted in the TanStack-managed customerInfo state.
+
+
+Module 6f – Address Persistence at Checkout
+Capture and store the shipping address provided on the checkout page, ensuring it survives the checkout process and merges correctly.
+Where to Look
+pages/checkout.tsx – TanStack state around the “Continue to shipping” handler.
+/api/saveAddress – unified endpoint from 6e.p.
+pages/api/createCheckoutSession.ts – final step before redirecting to Stripe.
+Narrative Steps
+Detect Address Submission – When the user completes the Information stage, gather the address fields from TanStack-managed customerInfo.
+Persist via Unified Endpoint – Call /api/saveAddress. The server checks for a Supabase session; if one exists, it updates the user record. Otherwise it verifies the visitor JWT and updates the visitor record.
+Maintain Merge Continuity – When a visitor later authenticates (Module 6b.2), the stored address remains with them by virtue of the unified storage.
+Use in Checkout Session – /api/createCheckoutSession can now read the address directly from the database or accept it from TanStack state, ensuring shipping details accompany the order.
+Breakpoints / Testing
+After clicking “Continue to shipping,” confirm the address is saved by inspecting /api/visitor/validate or the user’s profile.
+Reloading the checkout page with a session should prefill the saved address.
+TanStack query invalidation must keep local data consistent with the backend.
+Bugwatch
+Avoid duplicate address entries during merges; the server should update existing records rather than insert new ones.
+Ensure stale cache issues are resolved with TanStack’s invalidation patterns.
+
+
+State Mgmt Update 1 – Auth Flow Mutations
+Summary
+Refactor the sign‑in, sign‑up, and magic‑link logic in AuthModal.tsx to use TanStack Mutations. Mutations should expose loading and error states so the modal can react without extra useState flags.
+Where to Look
+components/AuthModal.tsx — existing handlers handleMagicLink and handleEmailPassword.
+Implementation Notes
+Create three mutations: signInWithOtp, signInWithPassword, and signUp.
+Use mutationFn callbacks that call the corresponding supabaseAnon.auth methods.
+Replace manual isLoading and error logic with mutation state (mutation.isLoading, mutation.error).
+Keep animation and basic input state in useState.
+Breakpoint / Bugwatch
+After migrating, confirm the modal’s loading and error indicators respond to mutation state without extra useState flags.
+Watch for “magic link email slippage” (from issues-to-check.txt)—the mutation should still force the known email address and not accept unrecognized ones.
+Earliest Placement
+Add this update after completing Module 6d (Checkout Session Finalization) and before starting Module 7. At that stage the auth flow is working and you can safely refactor the network calls.
+
+
+
+added this in between:
+"this works it seems with the exception that the magilink is accepting emails other than the one we have stored for the user, the magilink prefills with the correct email, but user is able to change to any email send the magiclink
+the mutation should still force the known email address and not accept unrecognized ones.
+analyze to determine the minimal update required to fix this, then cleanly make the change, staying scoped to the minimal update you identify, keep it tight"
+
+
+
+... give the dev team heads up for module 7, then do Update 2
+State Mgmt Update 2 – Supabase Session Queries
+Summary
+Centralize Supabase session retrieval by turning the manual session check in checkout.tsx into a TanStack Query. Use a key like ['supabaseSession'] with supabaseAnon.auth.getSession() as the queryFn. When onAuthStateChange fires, invalidate or update this query so all components reference a single cached session.
+Where to Look
+pages/checkout.tsx — the effect that currently calls getSession() and sets userSession.
+Implementation Notes
+Declare the query at a shared scope (e.g., a custom hook or context) so other pages can call useQuery(['supabaseSession']).
+In the existing onAuthStateChange listener, call queryClient.setQueryData or invalidateQueries(['supabaseSession']).
+Remove the local state variable that held the session.
+Breakpoint / Bugwatch
+Verify that session data updates correctly when users sign in or sign out.
+Ensure query invalidation does not cause infinite refetching—watch the console for repeated session logs.
+Earliest Placement
+Begin this refactor at the outset of Module 7 (Supabase User Session Handling). Module 7 focuses on session persistence, so introducing a shared query here keeps the new logic contained.
+
+✅ Module 7: Supabase User Session Handling
+Goal: Maintain user session using Supabase client methods.
+On page load:
+Check for active Supabase session
+If exists: hydrate user data
+Log: 🔄 User session detected — loading user state
+If not: fallback to Module 3 (soft visitor auth)
+Log: 🚪 No user session — falling back to visitor auth
+
+
+State Mgmt Update 3 – Global Banner & UI Toggles
+Summary
+Introduce a lightweight TanStack Store or Query that controls site‑wide banners and layout toggles. Persist dismissal timestamps to localStorage inside store update functions so banner state remains consistent across page navigation.
+Where to Look
+Any existing banner or toggle state in layout components (components/Layout.tsx, etc.).
+Implementation Notes
+Define a store (e.g., bannerStore.ts) with properties like bannerVisible and dismissedAt.
+Use store.subscribe to write updates to localStorage.
+Replace scattered useState flags in components with selectors from this store.
+Breakpoint / Bugwatch
+Check that banner visibility stays consistent when navigating between pages.
+Confirm dismissal timestamps persist in localStorage and that clearing storage resets the banner state correctly.
+Earliest Placement
+Apply this update after Module 7 (once session queries are in place) but before starting Module 8. Doing so ensures all pages share the same cached session and banner state moving forward.
+
+
+Module 7.5 – Session Status Popup
+Position in roadmap: After Module 7 and before Module 8.
+Goal: Provide immediate feedback about the user’s session state by displaying a small popup directly above the dashboard icon.
+Behavior:
+When useSupabaseSession (created in Module 7) confirms a valid session—either on page load or after sign‑in—show a brief popup near the icon stating “You’re logged in.”
+If the session query later yields null or a 401/403 error triggers Module 8’s expiry handling, display “Session expired — please log in again.”
+The popup fades out automatically after a short delay or can be dismissed. It does not interfere with any other aspect of the ui.
+Implementation notes:
+Render the popup inside Layout.tsx, using absolute positioning above the account icon so it stays anchored to the header.
+Control visibility through local state or the small store introduced in State Mgmt Update 3.
+Keep z‑index above the header (similar to the sign‑out tooltip’s z-40).
+Console logs should follow existing patterns, e.g.
+console.log('✅ Session status popup: user logged in');
+Why module 7.5?
+Module 7 establishes centralized session detection. Module 8 deals with session expiry. The popup relies on those mechanisms, so inserting it as Module 7.5 keeps the flow consistent—UI feedback comes immediately after the session query is in place but before implementing expiry prompts.
+
+
+✅ Module 8: Session Expiry Handling
+Goal: Handle expired or invalid user sessions gracefully.
+On 401/403 from Supabase with user session active:
+Attempt silent refresh or prompt login again
+Log: ⏰ User session expired — prompting re-auth
+
+Module 8.5: Fix No Session Detection
+1. In `lib/contexts/VisitorContext.tsx`, before creating a visitor ID, call `supabaseAnon.auth.getSession()` and detect an active session.
+2. If a session is found, set a `skipVisitor` flag and avoid generating a new visitor ID or JWT.
+3. Guard all visitor-related effects (queries, cart sync, etc.) behind `!skipVisitor`.
+4. Expose `isReady: true` with null visitor data when `skipVisitor` is set so components know the context is initialized.
+5. Document this logic in comments near the new session check.
+6. include one console log to the effect that skip visitor is set true, and one more to the effect that skipvisitor has been set false (as applies)
+
+
+Module A. Checkout Session Creation – send cart and visitor/user info to Stripe (/api/createCheckoutSession.ts handles the details)
+Title: Module A – Checkout Session Creation
+Summary
+Create a Stripe checkout session using the TanStack cart store. The endpoint accepts optional customerEmail and supabaseUserId so guest and authenticated flows both work. After payment, order and subscription details will be fetched from Stripe and cached in TanStack state (per SMU 4), not stored in Supabase.
+Where to Look
+pages/api/createCheckoutSession.ts for the server logic
+pages/checkout.tsx handleCheckout() around lines 250‑300
+Implementation Notes
+Gather items from useCartStore along with visitor or user data
+POST to /api/createCheckoutSession and redirect to the returned session URL
+Log ✅ “Redirecting to Stripe checkout session” before window.location.assign
+Guardrails
+Keep existing button styling and the loading spinner
+Ensure guest flows include visitor_id plus JWT in the payload
+Breakpoints / Testing
+Trigger checkout and watch the console for the redirect log
+Stripe test mode should open with the correct line items
+
+Module B. Webhook & State Sync – process Stripe events via stripeWebhook.ts
+Title: Module B – Webhook & State Sync
+Summary
+Listen for Stripe events and update TanStack state so orders and subscriptions reflect the latest Stripe data. No order or subscription records are stored in Supabase.
+Where to Look
+pages/api/stripeWebhook.ts
+fetchOrders and fetchSubscriptions helpers introduced in SMU 4.1
+Implementation Notes
+Parse checkout.session.completed and subscription events
+Invalidate or refresh the relevant TanStack queries
+Log 📦 “Stripe webhook received: <event.type>” for each event
+Guardrails
+Respond 200 to Stripe quickly to avoid retries
+Keep the JSON payload parsing exactly as Stripe expects
+Breakpoints / Testing
+Use the Stripe CLI to send test events
+Confirm logs show the event type and that TanStack queries refresh
+
+Module C – Success/Cancellation Handling
+Summary
+After completing or canceling a Stripe checkout, the user is redirected to /dashboard with query parameters specifying success or cancellation. The dashboard page reads these parameters to clear the cart, refresh orders and subscriptions via the SMU 4 helpers, and log the result. Visitor initialization through VisitorProvider continues to occur on this page.
+Where to Look
+pages/dashboard.tsx – top‑level useEffect handling success=1 or canceled=1
+pages/api/createCheckoutSession.ts – success_url and cancel_url
+Implementation Notes
+In createCheckoutSession.ts, set the redirect URLs to:
+success_url: `${req.headers.origin}/dashboard?success=1`,
+cancel_url:  `${req.headers.origin}/dashboard?canceled=1`,
+In dashboard.tsx:
+When success=1 is present:
+Clear the cart.
+Invalidate or refetch the orders and subscriptions queries (['orders'] and ['subscriptions']).
+Log 🏁 Checkout result: success.
+When canceled=1 is present:
+Log 🏁 Checkout result: canceled.
+Guardrails
+No banner should be shown. The dashboard should return to its normal layout after processing the query parameters.
+Breakpoints / Testing
+Complete a Stripe checkout in test mode. You should return to /dashboard?success=1. Orders and subscriptions refresh, the cart clears, and the success log appears.
+Cancel a checkout. You should return to /dashboard?canceled=1 with the cancel log.
+Ensure new visitor records continue to be created in Supabase after either redirect
+
+
+note, give a heads up to dev team that module D is coming, then do Update 4...
+SMU 4.1 – Stripe Data Helpers
+Summary
+Introduce helpers that retrieve orders and subscription details directly from Stripe.
+These helpers can call the existing endpoints (createCustomerPortalSession.ts and getSubscriptionDetails.ts) or similar API routes.
+No data will be written to or read from Supabase.
+Where to Look
+pages/api/createCustomerPortalSession.ts and pages/api/getSubscriptionDetails.ts – both already interact with Stripe.
+Implementation Notes
+Create lightweight fetchOrders() and fetchSubscriptions() functions that call the Stripe endpoints.
+Return arrays formatted like the current dashboard placeholders (id, amount, status, etc.).
+If no real Stripe data is required yet, simply export the placeholder arrays from these helpers.
+Breakpoint / Bugwatch
+Verify that calling these helpers (either from the console or a test component) returns data in the expected shape.
+Ensure the helpers never hit Supabase—only Stripe or the placeholders.
+
+SMU 4.2 – Dashboard Query Integration
+Summary
+Replace the hard-coded orders and subs arrays in dashboard.tsx with TanStack Query hooks.
+The queries should invoke the fetchOrders() and fetchSubscriptions() helpers from SMU 4.1 or use the placeholder arrays if Stripe data isn’t needed yet.
+Caching via useQuery prevents redundant calls when toggling between “Orders” and “Subscriptions.”
+Where to Look
+pages/dashboard.tsx — currently contains the static orders and subs arrays.
+Implementation Notes
+Import fetchOrders and fetchSubscriptions.
+Define const { data: orders } = useQuery(['orders'], fetchOrders) and similarly for subscriptions.
+Keep the expand/collapse UI intact—just map over the queried data instead of the hard-coded arrays.
+Do not store any order or subscription information in Supabase.
+Breakpoint / Bugwatch
+Toggle the “Orders” and “Subscriptions” sections and confirm data comes from the query cache rather than refetching.
+Watch for stale results or repeated fetches if the user signs out or navigates away and back.
+
+
+SMU 4.3a – Expose Stripe Customer ID
+Summary
+Return each user’s stripe_customer_id from Supabase so the client can request real orders and subscriptions.
+Where to Look
+pages/api/user/profile.ts – server code returning visitor/user details.
+visitors table schema in Supabase (contains the stripe_customer_id column).
+Implementation Notes
+Extend the UserProfileResponse interface with stripe_customer_id: string | null.
+Include stripe_customer_id in the .select() clause when fetching the visitor record.
+Log when the value is loaded, e.g. console.log('🔄 Module 4.3a: Stripe customer ID:', visitorData.stripe_customer_id);.
+Return the field as part of the JSON response.
+Guardrails
+Do not modify existing field names or auth checks.
+If the column value is null, keep it as null—no placeholder string.
+Breakpoint / Testing
+Calling /api/user/profile while authenticated should now include "stripe_customer_id": "<id|null>" in the JSON payload and log the retrieved value.
+
+SMU 4.3b – Provide Stripe Customer ID to React
+Summary
+Expose the new stripe_customer_id on the client by updating the profile-fetch helpers in Layout.tsx and checkout.tsx.
+Where to Look
+components/Layout.tsx – fetchUserProfile helper and userProfileQuery.
+pages/checkout.tsx – identical helper and query.
+Implementation Notes
+Update the TypeScript return type for fetchUserProfile to include stripe_customer_id.
+When deriving the user object from session and profile data, store stripeCustomerId (e.g. user.stripeCustomerId = userProfileQuery.data?.stripe_customer_id || null).
+Console‑log the value once per successful fetch.
+Guardrails
+Keep existing query keys and stale times.
+No UI changes—pages should render exactly as before.
+Breakpoints / Testing
+Open the site while logged in and check the console after fetchUserProfile runs. The log should display the customer ID and the user object should contain stripeCustomerId.
+
+
+was returning stripe cust id as undefined, fixed this, was not numbered but for our purposes in tracking we will name it here
+SMU 4.3b.1
+
+
+SMU 4.3c – Use Customer ID in Dashboard Queries
+Summary
+Pass the logged‑in user’s Stripe customer ID to the SMU 4.1 query hooks so the dashboard shows real orders and subscriptions.
+Where to Look,
+pages/dashboard.tsx – currently calls useOrders() and useSubscriptions() without parameters.
+Implementation Notes
+Use useSupabaseSession and the updated fetchUserProfile to obtain user.stripeCustomerId.
+Call useOrders(user?.stripeCustomerId) and useSubscriptions(user?.stripeCustomerId).
+Keep existing expand/collapse UI and placeholder fallback when the customer ID is undefined.
+Guardrails
+Do not alter layout or styling.
+Ensure the queries remain keyed as ['orders', customerId] and ['subscriptions', customerId].
+rather than placeholder data, we should have a simple notice that tells the user that they have no history, there is no point in displaying dummy data in subscription and order history, and if the customer is in 'visitor mode' not logged in they should see a view of the dashboard page that invites to log in or to create an account, they should not see the dashboard that authorized users see
+Breakpoints / Testing
+we need simple console log to track what is happening in SMU 4.3c, especially we must see in the console how and when we are identifying the user as a user/authed, finding them in stripe, and loading into state their histories (subscription and order)
+Log in with a user that has a Stripe customer ID. Opening /dashboard should display the actual orders and subscriptions. Logging out should revert to the placeholder data without errors.
+
+
+UxAuth 1 – Universal Auth Modal Trigger
+Summary
+Create a global mechanism to show AuthModal from anywhere in the app.
+The modal should prefill email/password when known and fall back to empty fields. Users may authenticate via password or magic link.
+Where to Look
+components/AuthModal.tsx – existing modal logic with TanStack mutations
+components/Layout.tsx – renders overlays and global effects
+pages/checkout.tsx – current modal trigger
+Implementation Notes
+Build a small store (store/authModalStore.ts) with @tanstack/store or React context:
+State: { isOpen: boolean, email?: string, password?: string }.
+Methods: openAuthModal(email?, password?), closeAuthModal().
+Subscribe in Layout.tsx so <AuthModal> renders when isOpen is true.
+Replace local useState usage in checkout (and any other page) with calls to openAuthModal().
+Ensure AuthModal accepts optional email and password props to prepopulate its fields.
+Read cached login info from localStorage when available and pass it to openAuthModal.
+Keep existing Supabase mutations and UI styling intact.
+Guardrails
+* either use our current auth modal and modify it to meet the needs of this module def, or delete and replace it entirely
+* DO NOT IMPORT THIS MODAL DIRECTLY.
+* This is the *universal auth modal*—one instance only. Controlled via openAuthModal()/closeAuthModal().
+* Renders globally in Layout.tsx. No other place should mount it.
+* Need to show it? Call: import { openAuthModal } from "@/store/authModalStore"; Avoid modal soup.
+Overlay placement and animations must match the current checkout modal.
+Do not introduce breaking changes to the checkout flow.
+Console logs should continue to show sign‑in/up events as before.
+Breakpoints / Bugwatch / Testing
+Manually invoke openAuthModal() from the console on various pages; confirm the modal appears with correct prefilled data.
+Verify that dismissing the modal via closeAuthModal() removes it without side effects.
+Watch for stale data: changing stored credentials should update the modal on the next open.
+
+
+UxAuth 2 – Returning Visitor Auto‑Login Prompt
+Summary
+When the app recognizes a returning visitor who already has an account, automatically offer to log them in by opening the auth modal with their known email prefilled. This should occur once per visit when no Supabase session is active.
+Where to Look
+pages/api/visitor/identify.ts – visitor lookup and merge logic
+lib/contexts/VisitorContext.tsx – stores visitor data and session flags
+components/Layout.tsx – ideal place for a global effect that triggers the modal
+Implementation Notes
+Extend /api/visitor/identify to return a has_account boolean when the resolved visitor row includes a user_id.
+Store this flag in VisitorContext alongside existing visitor data.
+On initial load in Layout.tsx, check:
+visitorData.has_account === true
+no Supabase user session
+a sessionStorage flag (loginOffered) is not set
+If all conditions pass, call openAuthModal(visitorData.email) and set loginOffered=true in sessionStorage.
+Prefill password when available from localStorage, but allow blank.
+Avoid repeated prompts by reading the loginOffered flag and resetting it after sign‑in or when the user closes the modal.
+Guardrails
+Do not show the prompt if a user session already exists.
+Ensure the modal only appears once per visit unless sessionStorage is cleared.
+Keep fallback flows (guest checkout, contact popup) unaffected.
+Breakpoints / Bugwatch / Testing
+Return as a known visitor without an active session. The modal should open automatically with the email field prefilled.
+Close the modal and confirm it does not reopen during the same visit.
+Sign in through the modal; confirm that subsequent page loads do not trigger it.
+Check console logs for the identify response and modal trigger to verify logic.
+
+
+
+SMU 4.3d – Cache & Invalidation for User-Specific Data
+Summary
+Ensure query caches respond correctly when the current user changes or signs out.
+Where to Look
+lib/queries/stripeQueries.ts – query keys already include customerId.
+pages/dashboard.tsx – location of query hooks and checkout success handling.
+Implementation Notes
+When user?.stripeCustomerId changes (e.g., sign‑in or sign‑out), call queryClient.invalidateQueries(['orders']) and invalidateQueries(['subscriptions']) with exact: false so all keyed entries refresh.
+Keep the existing success/cancellation effect that clears the cart and invalidates queries.
+Maintain the five‑minute staleTime settings.
+Guardrails
+Do not introduce new state stores—reuse useSupabaseSession and existing query clients.
+Avoid extra API calls by allowing TanStack Query to handle deduping.
+Breakpoints / Testing
+Sign in, navigate to /dashboard, then sign out and back in with a different account. Orders and subscriptions should update to match the active customer ID, and no data from the previous user should appear
+
+
+these two were bugs we corrected at this point of the workflow, they were never defined as modules, this is the actual text used as prompt
+1) the universal auth modal is creating user auth accounts in supabase correctly, this needs to be acknowledged a success
+2) in the process of doing so, however, we are not adding the user auth id to the row that was created for the visitor (if new) the universal auth modal is creating user auth accounts in supabase correctly, this needs to be acknowledged a success in the process of doing so, however, we are not adding the user auth id to the row that was created for the visitor (if new)
+
+
+Module D. Customer Portal & Subscription Management – provide an interface to manage subscriptions using the Stripe customer portal
+Title: Module D – Customer Portal & Subscription Management
+Summary
+Allow authenticated users to manage subscriptions via Stripe’s customer portal. Subscription details shown on the dashboard come from the TanStack queries (fetchSubscriptions) rather than Supabase tables.
+Where to Look
+pages/dashboard.tsx for the Manage Subscription button and data display
+pages/api/createCustomerPortalSession.ts for the portal session logic
+Implementation Notes
+When the button is clicked, POST to the API to create the portal session
+Redirect to the returned URL
+After returning, invalidate or refetch subscription data
+Log 🛠️ “Opening customer portal: <url>” before redirect
+Guardrails
+Only show the button when a Supabase user session exists
+Keep the dashboard placeholders until State Mgmt Update 4 wires real data
+Breakpoints / Testing
+Click Manage Subscription and confirm the console log with the portal URL
+Returning from the portal should reload dashboard data using the TanStack queries
+
+
+Bug Module 5 – Global Auth State Listener
+Summary
+Only the checkout page listens for Supabase auth state changes, leaving other pages unaware when a user signs in or out.
+Breakpoints
+Attach listener in _app.tsx
+On mount, register supabaseAnon.auth.onAuthStateChange and call setSessionData(session) whenever the event fires.
+Invalidate or update session query
+When the listener detects SIGNED_IN or SIGNED_OUT, update or invalidate the 'supabaseSession' query so every page sees the new state.
+Clean up on unmount
+Return a cleanup function that unsubscribes from the listener to avoid memory leaks.
+Console
+log whenever setSessionData fires, include relevant data
+log whenever the listener updates or invalidates the supabase Session
+log when the cleanup function fires
+
+
+
+Bug Module 6A – useAuthActions Hook
+Title: Module 6A – useAuthActions Hook
+Summary:
+Extract Supabase sign-up/sign-in logic out of the AuthModal component into a dedicated hook, useAuthActions, to isolate authentication logic clearly and avoid UI coupling.
+Where to Look:
+lib/hooks/useAuthActions.ts
+Refactor components/AuthModal.tsx
+Implementation Notes:
+Provide methods: signUp, signInWithPassword, signInWithOtp.
+Return minimal state (isLoading, error, requiresConfirmation).
+Use TanStack useMutation for each method and call the matching supabaseAnon.auth function. The hook should expose the returned session value but leave any post-auth handling to the consumer. Do not store credentials or merge visitors inside this hook.
+Log: ✅ Bug 6A: Auth action success – { action: 'signUp' | 'signInWithPassword' }
+Guardrails:
+Hook should not perform visitor merges or global auth listens directly.
+Breakpoints / Testing:
+Confirm sign-up/sign-in returns expected Supabase results.
+Check hook state updates (loading/error) correctly in UI.
+
+implement this module, stay scoped tight to this description, do not drift ouside of it, the next modules continue this work so do no more than what is specified here, keep the implementation super clean as well, do not contaminate, let me know when you are finished, do not run the dev server, do not build or compile (you may build or compile if it is absolutely necessary)
+Bug Module 6B – useVisitorMerge Hook
+Title: Module 6B – useVisitorMerge Hook
+Summary:
+Create useVisitorMerge hook to centralize visitor merge logic, ensuring merges are triggered only when an active Supabase session exists.
+Where to Look:
+lib/hooks/useVisitorMerge.ts
+Implementation Notes:
+Method triggerMerge() invoked after verifying active session.
+Depends only on global session (supabaseSession) state.
+Fetch visitorId from useVisitor and post to /api/visitor/merge using the session's access token. On success call updateVisitorIdentity with the returned visitor_id and jwt, then remove visitor tokens from localStorage and invalidate the visitor query.
+Log: 🧩 Bug 6B: Visitor merge triggered by session
+Guardrails:
+Hook should not handle authentication logic directly.
+Breakpoints / Testing:
+Verify merge triggers only after valid Supabase session is established.
+
+
+Module 7 – Slim Auth Modal UI
+Title: Module 7 – Slim Auth Modal UI
+Summary:
+Refactor AuthModal.tsx to remove all embedded auth logic, keeping it purely as a UI component consuming hooks for state and auth actions.
+Where to Look:
+components/AuthModal.tsx
+Implementation Notes:
+Use states/actions from useAuthActions and useVisitorMerge.
+Separate conditional UI (magic-link sent, waiting-for-email) into smaller subcomponents.
+Remove the existing signIn and signUp mutations from this component. All Supabase calls should flow through the new hooks. The modal only manages form fields and displays hook state such as loading or errors.
+Log: 🎯 Bug 7: AuthModal refactored – UI only
+Guardrails:
+No direct Supabase calls or auth logic inside this component.
+Breakpoints / Testing:
+Verify modal interacts correctly with provided hooks.
+Ensure no logic remains embedded; UI updates based solely on hook state.
+
+
+Bug Module 8A – Sign-up Session Verification
+Title: Module 8A – Sign-up Session Verification
+Summary:
+Ensure user merges after sign-up occur only when a valid Supabase session exists and properly handle email confirmation scenarios.
+Where to Look:
+lib/hooks/useAuthActions.ts
+components/AuthModal.tsx
+Implementation Notes:
+On sign-up success, wait for Supabase session (SIGNED_IN) via global listener before triggering merge.
+Show clear prompt when email verification required.
+useAuthActions should set requiresConfirmation when signUp returns a user but no session. The global listener in _app.tsx will update the session query; trigger merge only after that session is available.
+Log: 📧 Bug 8A: Email confirmation required – merge paused
+Guardrails:
+Avoid continuous polling when session is not available due to email confirmation requirement.
+Breakpoints / Testing:
+Test sign-up flow both with immediate and delayed email confirmation.
+Validate UI shows proper waiting states clearly.
+
+Bug Module 8B – Sign-in Session & Merge
+Title: Module 8B – Sign-in Session & Merge
+Summary:
+Ensure password logins properly update global session and immediately trigger visitor merges when appropriate.
+Where to Look:
+lib/hooks/useAuthActions.ts
+lib/hooks/useVisitorMerge.ts
+Implementation Notes:
+After password sign-in, update global session (setSessionData) immediately.
+Invoke visitor merge hook (useVisitorMerge) upon successful session update.
+Retrieve the returned session from supabaseAnon.auth.signInWithPassword and pass it to setSessionData from useSupabaseSessionHelpers. After setSessionData, call triggerMerge() so the visitor record is linked without waiting for the auth listener.
+Log: ✅ Bug 8B: Password sign-in success – session confirmed
+Guardrails:
+Keep UI open and responsive if login fails; display errors clearly.
+Breakpoints / Testing:
+Validate merges occur after successful login.
+Confirm errors displayed correctly if authentication fails.
+
+Bug Module 8C – Global Merge on SIGNED_IN
+Title: Module 8C – Global Merge on SIGNED_IN
+Summary:
+Use the global auth listener to automatically trigger visitor merges whenever Supabase emits a SIGNED_IN event and a visitor record is present.
+Where to Look:
+pages/_app.tsx
+Implementation Notes:
+Leverage existing global listener.
+On SIGNED_IN, check visitor status; trigger merge via useVisitorMerge.
+Extend GlobalAuthListener in pages/_app.tsx. When the listener receives SIGNED_IN, call triggerMerge() if useVisitor() reports a visitorId. Ensure triggerMerge is only invoked once per event by tracking an internal flag or unsubscribing after merge.
+Log: 🔄 Bug 8C: Global listener invoked visitor merge
+Guardrails:
+No merge should happen unless a visitor record exists.
+Breakpoints / Testing:
+Ensure merges run exactly once per SIGNED_IN event.
+
+
+Bug Module 9 – Visitor/User Data Backfill
+Title: Module 9 – Visitor/User Data Backfill
+Summary:
+Update the visitor merge logic in API to always copy missing user details (email, phone, name) when linking new user records.
+Where to Look:
+pages/api/visitor/merge.ts
+Implementation Notes:
+Explicitly fill email, phone, and name fields from authenticated user when absent in visitor.
+When assigning a visitor to a new user (no existing visitor for that user), copy user.email, user.phone and user_metadata.name into the visitor row if those columns are null. Preserve existing visitor values when present.
+Log: 🧩 Bug 9: Visitor record backfilled with user data
+Guardrails:
+Ensure this logic runs correctly even when merging for the first time.
+Breakpoints / Testing:
+Verify database consistency after merge.
+
+
+Bug Module 10 – Auth Logging Cleanup
+Title: Module 10 – Auth Logging Cleanup
+Summary:
+Clean up console logs across auth-related files, reducing noise and enforcing consistent logging conventions.
+Where to Look:
+components/AuthModal.tsx
+lib/hooks/*
+pages/_app.tsx
+pages/api/visitor/*.ts
+Implementation Notes:
+Retain only purposeful, consistent, emoji-tagged log entries.
+Remove repetitive or debug-only logs.
+Examples to remove include `>> initializing visitor context` in VisitorContext.tsx and any console logs without an emoji prefix. Ensure final logs follow the `emoji Module:` pattern for easy filtering.
+Log: 🧼 Bug 10: Auth log cleanup complete
+Guardrails:
+Don’t remove critical logs necessary for troubleshooting.
+Breakpoints / Testing:
+Audit logs to ensure clarity, consistency, and usefulness remain high post-cleanup.
