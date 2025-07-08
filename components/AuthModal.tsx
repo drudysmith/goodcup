@@ -15,6 +15,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+  // Bug Module 6B.1: Add state flag to track password auth attempts
+  const [passwordAuthAttempted, setPasswordAuthAttempted] = useState(false);
   
   // Get visitor context for visitor-user linking
   const { visitorId } = useVisitor();
@@ -31,6 +33,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
       setEmail(modalState.email || '');
       setPassword(modalState.password || '');
       setMagicLinkSent(false);
+      // Bug Module 6B.1: Reset password auth attempt flag when modal opens
+      setPasswordAuthAttempted(false);
       console.log('🔐 UxAuth 1: Modal opened with prefilled data', {
         email: modalState.email ? '***' + modalState.email.slice(-8) : undefined,
         hasPassword: !!modalState.password,
@@ -72,12 +76,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
 
   // Bug Module 6A: Handle successful auth actions (password-based auth)
   useEffect(() => {
-    // Check if we just completed a password-based auth (not OTP)
-    if (!authActions.isLoading && !authActions.error && !authActions.requiresConfirmation && !magicLinkSent) {
+    // Bug Module 6B.1: Only run if password auth was actually attempted
+    if (passwordAuthAttempted && !authActions.isLoading && !authActions.error && !authActions.requiresConfirmation && !magicLinkSent) {
       // This indicates successful password auth - trigger success flow
       handleSuccess();
     }
-  }, [authActions.isLoading, authActions.error, authActions.requiresConfirmation, magicLinkSent]);
+  }, [passwordAuthAttempted, authActions.isLoading, authActions.error, authActions.requiresConfirmation, magicLinkSent]);
 
   // Bug Module 6B: Handle visitor merge completion
   useEffect(() => {
@@ -121,6 +125,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     if (!emailToUse.trim() || !password.trim()) {
       return;
     }
+
+    // Bug Module 6B.1: Set flag before attempting password auth
+    setPasswordAuthAttempted(true);
+    console.log('🔐 Bug Module 6B.1: Password auth attempted');
 
     // Bug Module 6A: Use auth actions hook for password auth
     if (isSignUp) {

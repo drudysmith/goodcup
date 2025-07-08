@@ -811,6 +811,7 @@ log whenever the listener updates or invalidates the supabase Session
 log when the cleanup function fires
 
 
+
 Bug Module 6A – useAuthActions Hook
 Title: Module 6A – useAuthActions Hook
 Summary:
@@ -829,6 +830,7 @@ Breakpoints / Testing:
 Confirm sign-up/sign-in returns expected Supabase results.
 Check hook state updates (loading/error) correctly in UI.
 
+implement this module, stay scoped tight to this description, do not drift ouside of it, the next modules continue this work so do no more than what is specified here, keep the implementation super clean as well, do not contaminate, let me know when you are finished, do not run the dev server, do not build or compile (you may build or compile if it is absolutely necessary)
 Bug Module 6B – useVisitorMerge Hook
 Title: Module 6B – useVisitorMerge Hook
 Summary:
@@ -845,6 +847,14 @@ Hook should not handle authentication logic directly.
 Breakpoints / Testing:
 Verify merge triggers only after valid Supabase session is established.
 
+
+Bug Module 6B.1 Auth Modal Closure
+Cause
+The AuthModal component closes immediately after opening because the effect meant to handle a successful login runs on the first render, before any authentication attempt. The effect checks for absence of loading or errors and then calls handleSuccess(), which closes the modal. Since all state flags are initially false/null, this condition is met as soon as the modal appears.
+Fix
+Add a state flag that records when a password-based authentication attempt actually occurs. Set this flag inside handleEmailPassword before invoking authActions.signUp or authActions.signInWithPassword. Then update the effect so it only runs when that flag is true. This ensures the modal only closes after an explicit sign-in/up attempt succeeds.
+
+Once implemented, the password field will remain open while users type, and the modal will only close after a successful authentication flow.
 
 Module 7 – Slim Auth Modal UI
 Title: Module 7 – Slim Auth Modal UI
