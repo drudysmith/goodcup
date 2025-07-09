@@ -56,6 +56,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     
     // Module B: Required logging
     console.log(`📦 Stripe webhook received: ${event.type}`);
+    // Bug 8D.3: Enhanced webhook delivery verification
+    console.log(`📦 Bug 8D.3: Webhook event verified and constructed successfully - ${event.type}`);
   } catch (err: any) {
     console.error('Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -76,6 +78,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log('📧 Email fallback:', session.customer_email || session.customer_details?.email);
     console.log('🧍 Supabase user ID from metadata:', session.metadata?.supabase_user_id);
     console.log('👥 Visitor ID from metadata:', session.metadata?.visitor_id);
+
+    // Bug 8D.3: Verify webhook payload contains necessary metadata
+    if (!stripeCustomerId || (!supabaseUserId && !visitorId)) {
+      console.log('⚠️ Bug 8D.3: Webhook payload missing necessary metadata', {
+        hasCustomerId: !!stripeCustomerId,
+        hasUserId: !!supabaseUserId,
+        hasVisitorId: !!visitorId
+      });
+    } else {
+      console.log('✅ Bug 8D.3: Webhook payload contains required metadata for processing');
+    }
 
     // Module B: Notify that orders and subscriptions should be refreshed
     await notifyClientQueryInvalidation('checkout.session.completed', {
@@ -113,10 +126,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           console.error('💾 SMU 4.3a: Error updating stripe_cust_id:', updateResult.error);
         } else {
           console.log('✅ SMU 4.3a: Successfully updated stripe_cust_id:', stripeCustomerId);
+          // Bug 8D.3: Confirm successful webhook processing with customer ID write
+          console.log('📦 Bug 8D.3: Stripe webhook verified on successful processing');
         }
       } catch (error) {
         console.error('💾 SMU 4.3a: Exception updating stripe_cust_id:', error);
       }
+    } else {
+      console.log('⚠️ Bug 8D.3: Webhook received but no stripe_cust_id to process');
     }
   }
 
@@ -172,4 +189,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // Module B: Respond quickly to Stripe to avoid retries
   res.status(200).json({ received: true, type: event.type });
+  
+  // Bug 8D.3: Final verification that webhook processing completed
+  console.log(`📦 Bug 8D.3: Webhook processing completed, responding with 200 - ${event.type}`);
 } 

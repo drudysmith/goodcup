@@ -120,15 +120,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     } else {
       // No existing visitor for this user - just assign user_id to current visitor
       console.log(`📝 Assigning visitor ${visitor_id} to user ${user.id}`);
-      
+
+      // Bug 9: Backfill missing fields from user if absent in visitor
+      const backfillUpdate: Record<string, any> = { user_id: user.id };
+      let didBackfill = false;
+      if (!visitorData.email && user.email) {
+        backfillUpdate.email = user.email;
+        didBackfill = true;
+      }
+      if (!visitorData.phone && user.phone) {
+        backfillUpdate.phone = user.phone;
+        didBackfill = true;
+      }
+      if (!visitorData.name && user.user_metadata?.name) {
+        backfillUpdate.name = user.user_metadata.name;
+        didBackfill = true;
+      }
+
       const { error: updateError } = await supabaseServiceRole
         .from('visitors')
-        .update({ user_id: user.id })
+        .update(backfillUpdate)
         .eq('id', visitor_id);
 
       if (updateError) {
         console.error('Error assigning visitor to user:', updateError);
         return res.status(500).json({ error: 'Failed to assign visitor to user' });
+      }
+      if (didBackfill) {
+        console.log('🧩 Bug 9: Visitor record backfilled with user data');
       }
     }
 

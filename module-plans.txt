@@ -1039,7 +1039,6 @@ Breakpoints / Testing
 Create an account after checking out as a guest. The merged visitor record should retain the previously assigned stripe_cust_id.
 Verify the console logs confirm the ID is preserved.
 
-implement this module, stay scoped tight to this description, do not drift ouside of it, the next modules continue this work so do no more than what is specified here, keep the implementation super clean as well, do not contaminate, let me know when you are finished, do not run the dev server, do not build or compile (you may build or compile if it is absolutely necessary) (ensure Tanstack and not React is used for state managmeent)
 
 Bug Module 8D.2 – Backfill Stripe ID on Profile Fetch
 Summary
@@ -1076,6 +1075,8 @@ Breakpoints / Testing
 Use the Stripe CLI to send a checkout.session.completed event and confirm the log shows the verification message and stripe_cust_id updates in Supabase.
 
 
+
+implement this module, stay scoped tight to this description, do not drift ouside of it, the next modules continue this work so do no more than what is specified here, keep the implementation super clean as well, do not contaminate, let me know when you are finished, do not run the dev server, do not build or compile (you may build or compile if it is absolutely necessary) (ensure Tanstack and not React is used for state managmeent)
 
 Bug Module 9 – Visitor/User Data Backfill
 Title: Module 9 – Visitor/User Data Backfill
