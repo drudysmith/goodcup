@@ -919,8 +919,6 @@ Breakpoints / Testing:
 Validate merges occur after successful login.
 Confirm errors displayed correctly if authentication fails.
 
-implement this module, stay scoped tight to this description, do not drift ouside of it, the next modules continue this work so do no more than what is specified here, keep the implementation super clean as well, do not contaminate, let me know when you are finished, do not run the dev server, do not build or compile (you may build or compile if it is absolutely necessary) (ensure Tanstack and not React is used for state managmeent)
-
 Bug Module 8C – Global Merge on SIGNED_IN
 Title: Module 8C – Global Merge on SIGNED_IN
 Summary:
@@ -936,6 +934,41 @@ Guardrails:
 No merge should happen unless a visitor record exists.
 Breakpoints / Testing:
 Ensure merges run exactly once per SIGNED_IN event.
+
+
+implement this module, stay scoped tight to this description, do not drift ouside of it, the next modules continue this work so do no more than what is specified here, keep the implementation super clean as well, do not contaminate, let me know when you are finished, do not run the dev server, do not build or compile (you may build or compile if it is absolutely necessary) (ensure Tanstack and not React is used for state managmeent)
+
+Bug Module 8C.1 – Stable Global Listener
+Summary
+Repeated “Cleaning up global auth state listener” logs occur because the effect in GlobalAuthListener depends on plain functions that are recreated every render. React tears down and re‑registers the listener on each render, causing noise and wasted work. Memoizing these functions prevents unnecessary re‑subscription.
+Where to Look
+lib/queries/sessionQueries.ts – useSupabaseSessionHelpers
+lib/hooks/useVisitorMerge.ts
+pages/_app.tsx – GlobalAuthListener effect
+Implementation Notes
+Memoize session helper methods
+Wrap setSessionData, invalidateSession, and handleExpiredSession in useCallback so their references remain stable across renders.
+Return them from useSupabaseSessionHelpers without recreating new functions each call.
+Memoize merge trigger
+Inside useVisitorMerge, wrap triggerMerge in useCallback (and return the hook result via useMemo) so the object returned from the hook doesn’t change unless its dependencies do.
+Update the global listener
+Once setSessionData and triggerMerge are stable, pass them into the useEffect dependency array or use an empty array if they no longer change.
+The listener will now mount once and remain active until the component unmounts.
+Cleanup remains unchanged
+Keep the cleanup function (subscription.unsubscribe()) intact to avoid leaks.
+Log
+🔄 Bug 8C.1: Global listener memoized, preventing duplicate setup
+Guardrails
+Ensure triggerMerge still runs only when a valid session and visitor ID exist.
+Do not alter the visitor merge logic or the auth listener’s event handling.
+Breakpoints / Testing
+After implementing, open the app and observe the console:
+“Setting up global auth state listener” should appear once when the component mounts.
+“Cleaning up…” should only appear on unmount or hard refresh.
+Verify that signing in still triggers a visitor merge exactly once per SIGNED_IN event.
+This memoization keeps the global listener stable and eliminates redundant setup logs without altering existing functionality.
+
+
 
 
 Bug Module 9 – Visitor/User Data Backfill

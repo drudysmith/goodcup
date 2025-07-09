@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useMemo } from 'react';
 import { useSupabaseSession } from '../queries/sessionQueries';
 import { useVisitor } from '../contexts/VisitorContext';
 
@@ -77,18 +78,18 @@ export const useVisitorMerge = (): VisitorMergeState => {
     },
   });
 
-  const triggerMerge = () => {
+  const triggerMerge = useCallback(() => {
     // Only trigger merge if there's an active session
     if (sessionQuery.data && visitorId) {
       visitorMergeMutation.mutate();
     } else {
       console.warn('⚠️ Bug 6B: Cannot trigger merge - no active session or visitor ID');
     }
-  };
+  }, [sessionQuery.data, visitorId, visitorMergeMutation]);
 
-  return {
+  return useMemo(() => ({
     isLoading: visitorMergeMutation.isPending,
     error: visitorMergeMutation.error?.message || null,
     triggerMerge,
-  };
+  }), [visitorMergeMutation.isPending, visitorMergeMutation.error?.message, triggerMerge]);
 }; 

@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabaseAnon } from '../supabaseClient';
 
@@ -80,18 +81,18 @@ export const useSupabaseSession = () => {
 export const useSupabaseSessionHelpers = () => {
   const queryClient = useQueryClient();
 
-  const setSessionData = (session: Session | null) => {
+  const setSessionData = useCallback((session: Session | null) => {
     queryClient.setQueryData(['supabaseSession'], session);
-  };
+  }, [queryClient]);
 
-  const invalidateSession = () => {
+  const invalidateSession = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['supabaseSession'] });
-  };
+  }, [queryClient]);
 
   // Module 8: Session expiry handler
-  const handleExpiredSession = async (): Promise<boolean> => {
+  const handleExpiredSession = useCallback(async (): Promise<boolean> => {
     return await handleSessionExpiry(queryClient);
-  };
+  }, [queryClient]);
 
   return { setSessionData, invalidateSession, handleExpiredSession };
 };
