@@ -130,7 +130,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
       // Close modal and call success handler
       closeAuthModal();
       if (onSuccess) {
-        onSuccess();
+      onSuccess();
       }
       
       // Reset state
