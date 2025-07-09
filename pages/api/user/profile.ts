@@ -61,8 +61,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // SMU 4.3a: Log the Stripe customer ID
     console.log('🔄 Module 4.3a: Stripe customer ID:', visitorData.stripe_cust_id);
 
-    // Only use the value from the DB, no backfill
-    const finalStripeCustomerId = visitorData.stripe_cust_id;
+    // Bug 8D.2: Backfill Stripe customer ID if missing
+    let finalStripeCustomerId = visitorData.stripe_cust_id;
+    
+    if (!finalStripeCustomerId && user.email) {
+      try {
+        // Search for existing Stripe customer by email
+        const customers = await stripe.customers.list({
+          email: user.email,
+          limit: 1,
+        });
+
+        if (customers.data.length > 0) {
+          const stripeCustomer = customers.data[0];
+          finalStripeCustomerId = stripeCustomer.id;
+
+          // Update visitor record with discovered Stripe customer ID
+          const { error: updateError } = await supabaseServiceRole
+            .from('visitors')
+            .update({ stripe_cust_id: stripeCustomer.id })
+            .eq('id', visitorData.id);
+
+          if (!updateError) {
+            console.log('🔄 Bug 8D.2: Backfilled stripe_cust_id from Stripe');
+          } else {
+            console.error('Bug 8D.2: Failed to update visitor with backfilled Stripe ID:', updateError);
+          }
+        }
+      } catch (stripeError) {
+        // Skip backfill if Stripe is unreachable - keep API fast
+        console.warn('Bug 8D.2: Stripe backfill skipped due to error:', stripeError);
+      }
+    }
 
     // Return user profile data
     const profile: UserProfileResponse = {

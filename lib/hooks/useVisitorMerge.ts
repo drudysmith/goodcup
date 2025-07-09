@@ -87,6 +87,9 @@ export const useVisitorMerge = (): VisitorMergeState => {
     }
   }, [sessionQuery.data, visitorId, visitorMergeMutation]);
 
+  // Bug 8C.1.2: Log that visitor merge hook is stabilized
+  console.log('🔄 Bug 8C.1.2: Visitor merge hook stabilized');
+
   return useMemo(() => ({
     isLoading: visitorMergeMutation.isPending,
     error: visitorMergeMutation.error?.message || null,

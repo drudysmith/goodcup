@@ -967,8 +967,6 @@ Verify that signing in still triggers a visitor merge exactly once per SIGNED_IN
 This memoization keeps the global listener stable and eliminates redundant setup logs without altering existing functionality.
 
 
-
-implement this module, stay scoped tight to this description, do not drift ouside of it, the next modules continue this work so do no more than what is specified here, keep the implementation super clean as well, do not contaminate, let me know when you are finished, do not run the dev server, do not build or compile (you may build or compile if it is absolutely necessary) (ensure Tanstack and not React is used for state managmeent)
 Bug Module 8C.1.1 – Memoize Session Helper Methods
 Summary
 The global auth listener in _app.tsx keeps tearing down and re‑registering because useSupabaseSessionHelpers returns new function references every render. Memoizing these helpers prevents the listener from interpreting them as changed dependencies.
@@ -1023,6 +1021,59 @@ Refresh the app: “Setting up global auth state listener” should print only o
 Navigate or re-render without signing in: no additional setup/cleanup logs should appear.
 Sign in: verify the merge triggers exactly once and the listener remains active.
 These submodules collectively stabilize the global listener while preserving its existing functionality.
+
+
+Bug Module 8D.1 – Preserve Stripe Customer ID on Visitor Merge
+Summary
+When a guest user checks out, the webhook stores their stripe_cust_id on the visitor record. If that visitor later registers or signs in, pages/api/visitor/merge.ts links the visitor to the new user but does not copy over stripe_cust_id. This module ensures the ID carries forward during the merge so returning users keep their Stripe history.
+Where to Look
+pages/api/visitor/merge.ts – visitor merging logic
+Implementation Notes
+On merging a temporary visitor into an existing user visitor, include stripe_cust_id in the update object.
+Use visitorData.stripe_cust_id when existingUserVisitor.stripe_cust_id is null. Preserve any existing ID on the user record.
+Log: 💾 Bug 8D.1: Stripe customer ID preserved during merge
+Guardrails
+Do not overwrite a non-null existingUserVisitor.stripe_cust_id.
+The rest of the merge logic (cart merging, field updates) must remain unchanged.
+Breakpoints / Testing
+Create an account after checking out as a guest. The merged visitor record should retain the previously assigned stripe_cust_id.
+Verify the console logs confirm the ID is preserved.
+
+implement this module, stay scoped tight to this description, do not drift ouside of it, the next modules continue this work so do no more than what is specified here, keep the implementation super clean as well, do not contaminate, let me know when you are finished, do not run the dev server, do not build or compile (you may build or compile if it is absolutely necessary) (ensure Tanstack and not React is used for state managmeent)
+
+Bug Module 8D.2 – Backfill Stripe ID on Profile Fetch
+Summary
+Some users may create accounts without completing checkout again, leaving their visitor record without a Stripe customer ID. When /api/user/profile detects a missing stripe_cust_id, it should attempt to locate the customer in Stripe via the user’s email and update Supabase on the fly.
+Where to Look
+pages/api/user/profile.ts
+Stripe helper utilities
+Implementation Notes
+After loading the visitor record, check if visitorData.stripe_cust_id is null.
+If null, query Stripe’s customer API using user.email.
+When a customer exists, update the visitor record with the discovered ID and return it in the profile response.
+Log: 🔄 Bug 8D.2: Backfilled stripe_cust_id from Stripe
+If no customer is found, keep the value null and proceed normally.
+Guardrails
+API must remain fast; skip the backfill if Stripe is unreachable.
+Do not modify other profile fields.
+Breakpoints / Testing
+Create a user account that previously purchased as a guest. Upon first profile fetch, the API should log the backfill and return a populated stripe_cust_id.
+
+Bug Module 8D.3 – Confirm Stripe Webhook Delivery
+Summary
+The checkout webhook (pages/api/stripeWebhook.ts) populates stripe_cust_id. If the webhook fails or isn’t configured, customer IDs remain null. This module sets up verification to ensure webhook events arrive and logs any failures.
+Where to Look
+pages/api/stripeWebhook.ts
+Deployment configuration or README instructions
+Implementation Notes
+Add a startup check or environment note to verify Stripe CLI (or live webhooks) forwards checkout.session.completed events to the stripeWebhook route.
+Enhance logging within the webhook to clearly indicate when customer IDs are written or when the event payload is missing necessary metadata.
+Log: 📦 Bug 8D.3: Stripe webhook verified on successful processing.
+Guardrails
+Webhook must respond with 200 quickly to avoid retries.
+Do not expose secret keys or sensitive payload data in logs.
+Breakpoints / Testing
+Use the Stripe CLI to send a checkout.session.completed event and confirm the log shows the verification message and stripe_cust_id updates in Supabase.
 
 
 

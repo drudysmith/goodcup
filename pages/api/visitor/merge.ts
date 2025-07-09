@@ -89,13 +89,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
           email: visitorData.email || existingUserVisitor.email,
           phone: visitorData.phone || existingUserVisitor.phone,
           name: visitorData.name || existingUserVisitor.name,
-          cart: mergedCart
+          cart: mergedCart,
+          stripe_cust_id: visitorData.stripe_cust_id || existingUserVisitor.stripe_cust_id
         })
         .eq('id', existingUserVisitor.id);
 
       if (updateError) {
         console.error('Error updating existing user visitor:', updateError);
         return res.status(500).json({ error: 'Failed to merge visitor data' });
+      }
+
+      // Bug 8D.1: Log Stripe customer ID preservation
+      if (visitorData.stripe_cust_id && !existingUserVisitor.stripe_cust_id) {
+        console.log('💾 Bug 8D.1: Stripe customer ID preserved during merge');
       }
 
       // Delete the temporary visitor record

@@ -53,6 +53,7 @@ function GlobalAuthListener() {
   useEffect(() => {
     console.log('🔄 Bug 5: Setting up global auth state listener');
     console.log('🔄 Bug 8C.1: Global listener memoized, preventing duplicate setup');
+    console.log('🔄 Bug 8C.1.3: Stable global listener with memoized dependencies');
 
     // Bug 5: Register auth state change listener
     const { data: { subscription } } = supabaseAnon.auth.onAuthStateChange((event, session) => {
