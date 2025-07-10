@@ -967,61 +967,7 @@ Verify that signing in still triggers a visitor merge exactly once per SIGNED_IN
 This memoization keeps the global listener stable and eliminates redundant setup logs without altering existing functionality.
 
 
-Bug Module 8C.1.1 – Memoize Session Helper Methods
-Summary
-The global auth listener in _app.tsx keeps tearing down and re‑registering because useSupabaseSessionHelpers returns new function references every render. Memoizing these helpers prevents the listener from interpreting them as changed dependencies.
-Where to Look
-lib/queries/sessionQueries.ts (useSupabaseSessionHelpers)
-Implementation Notes
-Wrap setSessionData, invalidateSession, and handleExpiredSession in useCallback so their identities remain stable.
-Export the memoized functions directly from the hook.
-No other logic changes—just memoization.
-Log
-🔄 Bug 8C.1.1: Session helpers memoized
-Guardrails
-All helper behavior must remain unchanged.
-Do not alter query keys or Supabase interactions.
-Breakpoints / Testing
-After memoizing, open the app and verify that “Cleaning up global auth state listener” no longer prints repeatedly due to these helpers.
-
-Bug Module 8C.1.2 – Memoize Visitor Merge Hook
-Summary
-useVisitorMerge currently recreates its triggerMerge function on each render, causing the global listener to treat the hook object as new. Memoizing this hook keeps its reference stable and prevents unnecessary listener resets.
-Where to Look
-lib/hooks/useVisitorMerge.ts
-Implementation Notes
-Wrap triggerMerge in useCallback.
-Return the entire hook result via useMemo so consumers receive a stable object.
-Ensure dependencies include only what’s needed (e.g., visitor ID and session data).
-Log
-🔄 Bug 8C.1.2: Visitor merge hook stabilized
-Guardrails
-Merging behavior must not change—trigger only when a valid session and visitor ID exist.
-Do not move merge logic out of this hook.
-Breakpoints / Testing
-Observe the console while navigating; the global listener should no longer re-subscribe due to changes in useVisitorMerge.
-
-Bug Module 8C.1.3 – Stable Global Listener
-Summary
-With memoized helpers and merge trigger in place, update the GlobalAuthListener effect to rely on these stable dependencies and ensure it mounts once. Track processed SIGNED_IN events to avoid duplicate merges.
-Where to Look
-pages/_app.tsx (GlobalAuthListener component)
-Implementation Notes
-Keep an internal lastProcessedSignInRef (already present) to gate merge calls.
-Use the memoized setSessionData and triggerMerge from the previous modules in the effect’s dependency array (or use an empty array if they no longer change).
-Maintain the existing cleanup (subscription.unsubscribe()).
-Log once on setup and cleanup:
-🔄 Bug 5: Setting up global auth state listener
-🧹 Bug 5: Cleaning up global auth state listener
-Guardrails
-Listener must continue to handle all auth state events correctly.
-Ensure merges run once per SIGNED_IN event and only when a visitor ID exists.
-Breakpoints / Testing
-Refresh the app: “Setting up global auth state listener” should print only once.
-Navigate or re-render without signing in: no additional setup/cleanup logs should appear.
-Sign in: verify the merge triggers exactly once and the listener remains active.
-These submodules collectively stabilize the global listener while preserving its existing functionality.
-
+implement this module, stay scoped tight to this description, do not drift ouside of it, the next modules continue this work so do no more than what is specified here, keep the implementation super clean as well, do not contaminate, let me know when you are finished, do not run the dev server, do not build or compile (you may build or compile if it is absolutely necessary) (ensure Tanstack and not React is used for state managmeent)
 
 Bug Module 8D.1 – Preserve Stripe Customer ID on Visitor Merge
 Summary
@@ -1076,7 +1022,7 @@ Use the Stripe CLI to send a checkout.session.completed event and confirm the lo
 
 
 
-implement this module, stay scoped tight to this description, do not drift ouside of it, the next modules continue this work so do no more than what is specified here, keep the implementation super clean as well, do not contaminate, let me know when you are finished, do not run the dev server, do not build or compile (you may build or compile if it is absolutely necessary) (ensure Tanstack and not React is used for state managmeent)
+
 
 Revised “Bug Module 9 – Visitor/User Data Backfill”
 Objective

@@ -42,11 +42,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     console.log(`🔄 Module 6b.1: Merging visitor ${visitor_id} with user ${user.id}`);
 
-    // Bug Module 9: Extract user details for backfill
-    const userEmail = user.email || null;
-    const userPhone = user.phone || null;
-    const userName = user.user_metadata?.name || null;
-
     // Check if visitor exists
     const { data: visitorData, error: fetchError } = await supabaseServiceRole
       .from('visitors')
@@ -87,20 +82,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         return acc;
       }, []);
 
-      // Bug Module 9: Compute final values preserving existing data, then visitor data, then user data
-      const finalEmail = existingUserVisitor.email ?? visitorData.email ?? userEmail;
-      const finalPhone = existingUserVisitor.phone ?? visitorData.phone ?? userPhone;
-      const finalName = existingUserVisitor.name ?? visitorData.name ?? userName;
-
       // Update existing user visitor with merged data
       const { error: updateError } = await supabaseServiceRole
         .from('visitors')
         .update({
-          email: finalEmail,
-          phone: finalPhone,
-          name: finalName,
-          cart: mergedCart,
-          stripe_cust_id: visitorData.stripe_cust_id || existingUserVisitor.stripe_cust_id
+          email: visitorData.email || existingUserVisitor.email,
+          phone: visitorData.phone || existingUserVisitor.phone,
+          name: visitorData.name || existingUserVisitor.name,
+          cart: mergedCart
         })
         .eq('id', existingUserVisitor.id);
 
@@ -108,14 +97,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         console.error('Error updating existing user visitor:', updateError);
         return res.status(500).json({ error: 'Failed to merge visitor data' });
       }
-
-      // Bug 8D.1: Log Stripe customer ID preservation
-      if (visitorData.stripe_cust_id && !existingUserVisitor.stripe_cust_id) {
-        console.log('💾 Bug 8D.1: Stripe customer ID preserved during merge');
-      }
-
-      // Bug Module 9: Log user data backfill
-      console.log('🧩 Bug 9: Visitor record backfilled with user data');
 
       // Delete the temporary visitor record
       const { error: deleteError } = await supabaseServiceRole
@@ -134,24 +115,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       // No existing visitor for this user - just assign user_id to current visitor
       console.log(`📝 Assigning visitor ${visitor_id} to user ${user.id}`);
       
-      // Bug Module 9: Build update payload with user data backfill for missing fields
-      const updatePayload: any = { user_id: user.id };
-      if (!visitorData.email && userEmail) updatePayload.email = userEmail;
-      if (!visitorData.phone && userPhone) updatePayload.phone = userPhone;
-      if (!visitorData.name && userName) updatePayload.name = userName;
-      
       const { error: updateError } = await supabaseServiceRole
         .from('visitors')
-        .update(updatePayload)
+        .update({ user_id: user.id })
         .eq('id', visitor_id);
 
       if (updateError) {
         console.error('Error assigning visitor to user:', updateError);
         return res.status(500).json({ error: 'Failed to assign visitor to user' });
       }
-
-      // Bug Module 9: Log user data backfill
-      console.log('🧩 Bug 9: Visitor record backfilled with user data');
     }
 
     console.log(`✅ Module 6b.1: Visitor merge completed - visitor_id: ${mergedVisitorId}, user_id: ${user.id}, merged: ${merged}`);

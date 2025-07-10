@@ -94,9 +94,6 @@ export const useSupabaseSessionHelpers = () => {
     return await handleSessionExpiry(queryClient);
   }, [queryClient]);
 
-  // Bug 8C.1.1: Log that session helpers are memoized
-  console.log('🔄 Bug 8C.1.1: Session helpers memoized');
-
   return { setSessionData, invalidateSession, handleExpiredSession };
 };
 
