@@ -381,13 +381,14 @@ export default function Home() {
               text-base md:text-xl                                  // font size - text-base mobile, text-xl desktop - change to sm/lg for smaller, lg/2xl for larger
             " 
           >
+	  /*edit this copy*/
             Guarana, matcha, and raw cacao deliver smooth, crash-free energy. Adaptogens like ashwagandha and reishi support mood, focus, and stress resilience. Prebiotics and plant compounds help your gut, metabolism, and long-term clarity.
           </motion.p>
         </motion.div>
       </div>
       
       {/* Fixed positioned radial carousel */}
-      <div ref={carouselRef} className="mask-fade-sides relative z-[5]">
+      <div ref={carouselRef} className="mask-fade-sides relative z-[5] pb-20">
         <RadialCarousel />
       </div>
       

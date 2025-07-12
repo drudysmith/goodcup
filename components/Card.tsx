@@ -75,11 +75,11 @@ const Card: React.FC<CardProps> = ({
   const renderCarouselContent = () => (
     <div className="h-3/5 bg-surface flex flex-col justify-center px-4 text-left">
       {/* Title - larger */}
-      <div className="text-neutral-border font-semibold text-lg mb-2">
+      <div className="text-neutral-border font-semibold text-2xl mb-2">
         {carouselContent.title}
       </div>
       {/* Description - with flexible text styling */}
-      <div className="text-neutral-border text-sm leading-tight">
+      <div className="text-neutral-border text-lg leading-tight whitespace-pre-line">
         <StyledText>{carouselContent.description}</StyledText>
       </div>
     </div>
@@ -87,7 +87,7 @@ const Card: React.FC<CardProps> = ({
 
   const renderExpandedContent = () => (
     <div className="h-3/5 bg-surface flex flex-col justify-between px-6 py-4 text-left overflow-y-auto">
-      <div className="text-neutral-border text-sm leading-relaxed whitespace-pre-line">
+      <div className="text-neutral-border text-base leading-relaxed whitespace-pre-line">
         <StyledText>{expandedContent.content}</StyledText>
       </div>
       

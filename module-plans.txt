@@ -1161,25 +1161,91 @@ Audit logs to ensure clarity, consistency, and usefulness remain high post-clean
 
 
 
-Implemented the following without a module def - "these are the actual commands input to cursor"
-
-Shut off Logs
+Implemented the following under commit "Pre-deploy Fixes 1"
+note that below, "these are the actual commands input to cursor"
+1. Shut off Logs
 “We’re adding a global toggle to mute all console logs in dev.
 Create lib/utils/log.ts with a LOG_ENABLED flag.
 Wrap all console.log calls in the repo behind if (LOG_ENABLED) { ... } blocks.
 Prefer using import { LOG_ENABLED } directly, or a log() helper if clearer.
 Do not remove any logs — just gate them. No side effects, no unrelated edits. Confirm when done."
-
-Panel Z-Levels
+2. Panel Z-Levels
 "the notification banner lies on top of the cart panel and the checkout panel, but we want those panels to be over top of the notification panel"
-
-Market Icon
+3. Market Icon
 replace the icon for the cupgrades panel (starting line 740 of the layout.tsx file, shaped like a magnifying glass) with the file named market5.svg in the folder /public/media/icons, and make it the same color as the other icons, and it needs to be just slightly larger, slightly more noticeable, than the other ones
 
 
 >>>
 
 implement this module, stay scoped tight to this description, do not drift ouside of it, the next modules continue this work so do no more than what is specified here, keep the implementation super clean as well, do not contaminate, let me know when you are finished, do not run the dev server, do not build or compile (you may build or compile if it is absolutely necessary) (ensure Tanstack and not React is used for state managmeent)
+
+Overlay Benefits A – Data & Asset Preparation
+Summary
+Define how overlay images are referenced in the card data and ensure that all overlay artwork lives in a consistent location. Copy and base card image paths remain unchanged. The goal is to store just enough information in /data/cards.json to connect each ingredient card to its corresponding overlay, while leaving all layout and animation rules for the UI layer.
+Where to Look
+/data/cards.json – JSON file describing card titles, copy, and main images
+/public/media/card_art/ – directory for ingredient artwork, including overlay “benefits” images
+Implementation Steps
+Data Structure
+Add an optional overlay object to each card record. This object holds only the overlay image path and some configuration values designers can tweak later.
+Example of what a single card entry might look like with the new field:
+{
+  "id": 1,
+  "carouselContent": { ... },
+  "expandedContent": { ... },
+  "imageUrl": "/media/card_art/cacao.png",
+  "overlay": {
+    "imageUrl": "/media/card_art/cacao-benefits.png",
+    "sizeVW": 45,
+    "position": "center",
+    "animation": "fade",
+    "showOnHover": false,
+    "disappearAfterMs": 0,
+    "extraStyles": ""
+  }
+}
+Cards without overlay artwork simply omit this overlay field.
+Image Assets
+Place each overlay file in /public/media/card_art/.
+Use a consistent naming scheme: ingredient name followed by -benefits.png.
+Mapping for reference:
+Ingredient	Overlay File
+Raw Cacao	cacao-benefits.png
+Cordyceps	cordyceps-benefits.png
+Guarana	guarana-benefits.png
+Lion’s Mane	lions-mane-benefits.png
+Reishi	reishi-benefits.png
+Matcha	matcha-benefits.png
+Turkey Tail	turkey-tail-benefits.png
+Chaga	chaga-benefits.png
+Ashwagandha	ashwegandha-benefits.png
+All overlay information stored here focuses solely on connecting the card to its overlay file. Position, size, and animation logic are deliberately left out for the next module.
+
+Overlay Benefits B – Component Behavior & UI Logic
+Summary
+Render the overlay for expanded cards and handle its positioning, sizing, and animation entirely within RadialCarousel.tsx. The overlay sits outside of the card container so it can overlap or extend beyond the card’s edges. The Card component itself remains untouched by overlay logic.
+Where to Look
+components/RadialCarousel.tsx – modal structure and expanded-card logic around lines 458‑505
+components/Card.tsx – base card display (should not include overlay code)
+Implementation Steps
+RadialCarousel Changes
+Load the card data and read any overlay object when a card is expanded.
+Render the overlay image as a sibling to the expanded card container so it isn’t clipped by the card’s overflow-hidden style.
+Position and scale the overlay according to the sizeVW and position values from the card’s overlay field. Animate it using the specified animation setting.
+If showOnHover is true, display the overlay only while the pointer is over the card. If disappearAfterMs is nonzero, hide it after the specified time.
+Cards without an overlay field should show no overlay and behave exactly as before.
+Encapsulation & Guardrails
+Keep all overlay logic inside RadialCarousel.tsx. The Card component should remain unchanged to maintain separation of concerns.
+Ensure overlays load quickly and animations stay lightweight so the user experience doesn’t feel sluggish.
+Provide alt text or mark images as aria-hidden if they are purely decorative.
+As developers adjust overlay positions or sizes, confirm overlays do not obstruct closing the modal or navigating the carousel.
+Breakpoints & Testing
+Check the overlay’s placement and scaling on various viewport sizes, especially mobile vs. desktop.
+Verify that hover-triggered overlays work on pointer devices but don’t interfere with touch-only interfaces.
+Ensure overlays gracefully disappear if the image path is missing or incorrect.
+
+
+
 
 2. Remove Debug Logs in Stores and Queries
 Summary

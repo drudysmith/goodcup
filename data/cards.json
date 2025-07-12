@@ -3,99 +3,99 @@
     "id": 1, 
     "carouselContent": {
       "title": "Raw Cacao",
-      "description": "short description"
+      "description": "**Mood + Gut Boost** \nSupports digestion, elevates mood, and feeds good gut bacteria. 👆🏻"
     },
     "expandedContent": {
-      "content": "long description"
+      "content": "**Mood + Gut Boost** Supports digestion, elevates mood, and feeds good gut bacteria."
     },
-    "imageUrl": "/media/card_art/cacao.png"
+    "imageUrl": "/media/card_art/cacao.webp"
   },
   { 
     "id": 2, 
     "carouselContent": {
       "title": "Cordyceps",
-      "description": "**Boosts** energy. Enhances oxygen use. Supports recovery. Adapts you to stress."
+      "description": "**Cellular Energy** \nBoosts ATP production, improves oxygen use, and supports recovery. 👆🏼"
     },
     "expandedContent": {
       "content": "Cordyceps does its thing through four key compounds.\n\nCordycepin boosts ATP and mimics adenosine, so you get real energy and better endurance.\nPolysaccharides support your immune system and overall vitality.\nAdenosine helps your body manage energy and improves oxygen flow.\nAnd sterols and peptides calm inflammation and build stress resilience.\n\nPut it all together, and you've got a natural way to fuel your cells, breathe easier, and bounce back stronger."
     },
-    "imageUrl": "/media/card_art/cordyceps.png"
+    "imageUrl": "/media/card_art/cordyceps.webp"
   },
   { 
     "id": 3, 
     "carouselContent": {
       "title": "Guarana",
-      "description": "short description"
+      "description": "**Sustained Energy** \nDelivers smooth, long-lasting caffeine without jitters or gut irritation. 👆🏽"
     },
     "expandedContent": {
       "content": "long description"
     },
-    "imageUrl": "/media/card_art/guarana.png"
+    "imageUrl": "/media/card_art/guarana.webp"
   },
   { 
     "id": 4, 
     "carouselContent": {
       "title": "Lion's Mane",
-      "description": "short description"
+      "description": "**Cognitive Clarity** \nStimulates nerve growth, enhances focus and memory. 👆🏻"
     },
     "expandedContent": {
       "content": "long description"
     },
-    "imageUrl": "/media/card_art/lions-mane.png"
+    "imageUrl": "/media/card_art/lions-mane.webp"
   },
   { 
     "id": 5, 
     "carouselContent": {
       "title": "Reishi",
-      "description": "short description"
+      "description": "**Stress & Hormone Balance** \nCalms the nervous system and supports adrenal and immune regulation. 👆🏾"
     },
     "expandedContent": {
       "content": "long description"
     },
-    "imageUrl": "/media/card_art/reishi.png"
+    "imageUrl": "/media/card_art/reishi.webp"
   },
   { 
     "id": 6, 
     "carouselContent": {
       "title": "Matcha",
-      "description": "short description"
+      "description": "**Calm Focus** \nCombines gentle caffeine with L-theanine for alertness without anxiety. 👆🏼"
     },
     "expandedContent": {
       "content": "long description"
     },
-    "imageUrl": "/media/card_art/matcha.png"
+    "imageUrl": "/media/card_art/matcha.webp"
   },
   { 
     "id": 7, 
     "carouselContent": {
       "title": "Turkey Tail",
-      "description": "short description"
+      "description": "**Gut Lining Repair** \nFeeds beneficial bacteria and supports mucosal immunity. 👆🏽"
     },
     "expandedContent": {
       "content": "long description"
     },
-    "imageUrl": "/media/card_art/turkey-tail.png"
+    "imageUrl": "/media/card_art/turkey-tail.webp"
   },
   { 
     "id": 8, 
     "carouselContent": {
       "title": "Chaga",
-      "description": "short description"
+      "description": "**Immune Shield** \nHigh in antioxidants; reduces inflammation and strengthens immunity. 👆🏼"
     },
     "expandedContent": {
       "content": "long description"
     },
-    "imageUrl": "/media/card_art/chaga.png"
+    "imageUrl": "/media/card_art/chaga.webp"
   },
   { 
     "id": 9, 
     "carouselContent": {
       "title": "Ashwegandha",
-      "description": "short description"
+      "description": "**Stress Reset** \nLowers cortisol, calms inflammation, and restores body balance. 👆🏾"
     },
     "expandedContent": {
       "content": "long description"
     },
-    "imageUrl": "/media/card_art/ashwegandha.png"
+    "imageUrl": "/media/card_art/ashwegandha.webp"
   }
 ] 

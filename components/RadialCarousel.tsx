@@ -463,7 +463,7 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="fixed inset-0 backdrop-blur-md z-[9999] flex items-start justify-center pt-16 md:pt-20 p-4"
+            className="fixed inset-0 backdrop-blur-md z-[9999] flex items-start justify-center pt-16 md:pt-20 p-4 pb-20"
             onClick={handleCloseExpanded}
           >
             <motion.div
