@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import jwt from 'jsonwebtoken';
 import { supabaseServiceRole } from '../../../lib/supabaseClient';
-console.log('>> initializing init.ts');
+import { LOG_ENABLED } from '../../../lib/utils/log';
 interface InitVisitorRequest {
   visitor_id: string;
 }
@@ -41,11 +41,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .single();
 
     if (insertError && insertError.code !== '23505') { // Ignore duplicate key errors
+      if (LOG_ENABLED) {
       console.error('Error creating visitor record:', insertError);
+      }
       return res.status(500).json({ error: 'Failed to create visitor record' });
     }
 
-    console.log('🗄️ Visitor record created/found in database:', visitor_id);
+    if (LOG_ENABLED) {
+      console.log('🗄️ Bug 10: Visitor record initialized:', visitor_id);
+    }
 
     // Generate JWT for the visitor
     const jwtSecret = process.env.SUPABASE_JWT_SECRET;
@@ -63,7 +67,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       { expiresIn: '30d' }
     );
 
-    console.log('🔐 Generated JWT for visitor:', visitor_id);
+    if (LOG_ENABLED) {
+      console.log('🔐 Bug 10: JWT generated for visitor:', visitor_id);
+    }
 
     const response: InitVisitorResponse = {
       jwt: token,
@@ -72,7 +78,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     res.status(200).json(response);
   } catch (error: any) {
+    if (LOG_ENABLED) {
     console.error('Error in visitor/init:', error);
+    }
     res.status(500).json({ error: 'Internal server error' });
   }
 } 

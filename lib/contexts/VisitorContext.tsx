@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCartStore } from '../../store/cartStore';
 import { supabaseAnon } from '../supabaseClient';
-console.log('>> initializing visitor context');
+import { LOG_ENABLED } from '../utils/log';
 interface VisitorData {
   name: string | null;
   email: string | null;
@@ -35,8 +35,6 @@ interface VisitorProviderProps {
 
 // Visitor data fetching functions
 const fetchVisitorInit = async (visitorId: string) => {
-  console.log('📡 Sending visitor_id to backend for registration:', visitorId);
-  
   const response = await fetch('/api/visitor/init', {
     method: 'POST',
     headers: {
@@ -50,13 +48,13 @@ const fetchVisitorInit = async (visitorId: string) => {
   }
 
   const data = await response.json();
-  console.log('✅ Visitor registered — JWT received');
+  if (LOG_ENABLED) {
+    console.log('✅ Bug 10: Visitor registered with JWT');
+  }
   return data;
 };
 
 const fetchVisitorValidate = async (jwt: string) => {
-  console.log('🔁 Found visitor_id + JWT in localStorage — verifying with backend');
-  
   const response = await fetch('/api/visitor/validate', {
     method: 'GET',
     headers: {
@@ -70,7 +68,9 @@ const fetchVisitorValidate = async (jwt: string) => {
   }
 
   const data = await response.json();
-  console.log('✅ Valid JWT — visitor authed');
+  if (LOG_ENABLED) {
+    console.log('✅ Bug 10: Visitor JWT validated');
+  }
   return data;
 };
 
@@ -86,7 +86,9 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
     const init = async () => {
       const { data: { session } } = await supabaseAnon.auth.getSession();
       if (session) {
+        if (LOG_ENABLED) {
         console.log('🔒 User session detected — skipping visitor auth');
+        }
         setSkipVisitor(true);
         return;
       }
@@ -97,13 +99,13 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
 
       const existingVisitorId = localStorage.getItem('visitor_id');
       if (existingVisitorId) {
-        console.log('✅ Found existing visitor_id in localStorage:', existingVisitorId);
         setVisitorId(existingVisitorId);
       } else {
         const newVisitorId = uuidv4();
-        console.log('🆕 No visitor_id found in storage — generated new one:', newVisitorId);
+        if (LOG_ENABLED) {
+          console.log('🆕 Bug 10: New visitor initialized:', newVisitorId);
+        }
         localStorage.setItem('visitor_id', newVisitorId);
-        console.log('💾 Stored new visitor_id to localStorage:', newVisitorId);
         setVisitorId(newVisitorId);
       }
     };
@@ -132,7 +134,6 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
         // Module 2: Registration flow - New visitor needs JWT
         const initData = await fetchVisitorInit(visitorId);
         localStorage.setItem('visitor_jwt', initData.jwt);
-        console.log('💾 Stored visitor_jwt in localStorage');
         
         return {
           jwt: initData.jwt,
@@ -163,15 +164,18 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
           };
         } catch (error) {
           // Invalid JWT - clear and restart
+          if (LOG_ENABLED) {
           console.log('⚠️ Invalid JWT — clearing localStorage, restarting auth');
+          }
           localStorage.removeItem('visitor_id');
           localStorage.removeItem('visitor_jwt');
           
           // Generate new visitor and restart flow
           const newVisitorId = uuidv4();
-          console.log('🆕 Restarting with new visitor_id:', newVisitorId);
+          if (LOG_ENABLED) {
+            console.log('🆕 Bug 10: Restarting with new visitor:', newVisitorId);
+          }
           localStorage.setItem('visitor_id', newVisitorId);
-          console.log('💾 Stored new visitor_id to localStorage:', newVisitorId);
           
           return {
             jwt: null,
@@ -217,7 +221,6 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
         throw new Error(`Failed to sync cart: ${response.status}`);
       }
 
-      console.log('🛒 Cart synced to database');
       return response.json();
     },
     onSuccess: () => {
@@ -225,18 +228,21 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
       queryClient.invalidateQueries({ queryKey: ['visitor', visitorId] });
     },
     onError: (error) => {
+      if (LOG_ENABLED) {
       console.error('Error syncing cart:', error);
+      }
     },
   });
 
   // Function to hydrate cart store from database data
   const hydrateCartFromDatabase = (cartData: any[]) => {
     if (!Array.isArray(cartData) || cartData.length === 0) {
-      console.log('🛒 No cart data to hydrate');
       return;
     }
 
-    console.log('🛒 Hydrating cart store with', cartData.length, 'items from database');
+    if (LOG_ENABLED) {
+      console.log('🛒 Bug 10: Cart hydrated with', cartData.length, 'items');
+    }
     
     // Clear current cart first to avoid duplicates
     cartActions.clearCart();
@@ -251,8 +257,6 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
         });
       }
     });
-    
-    console.log('✅ Cart store hydrated successfully');
   };
 
   // Hydrate cart when visitor data changes
@@ -265,16 +269,13 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
 
   // Function to update visitor identity after merge/identify
   const updateVisitorIdentity = (newVisitorId: string, newJwt: string, newVisitorData: VisitorData) => {
-    console.log('🔁 Updating visitor identity:', {
-      oldVisitorId: visitorId,
-      newVisitorId,
-      newJwt: '***' + newJwt.slice(-8)
-    });
+    if (LOG_ENABLED) {
+      console.log('🔁 Bug 10: Visitor identity updated:', newVisitorId);
+    }
 
     // Update localStorage
     localStorage.setItem('visitor_id', newVisitorId);
     localStorage.setItem('visitor_jwt', newJwt);
-    console.log('💾 Updated localStorage with resolved identity');
 
     // Invalidate and refetch visitor data with new identity
     queryClient.setQueryData(['visitor', newVisitorId], {
@@ -328,7 +329,6 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
 
     // Debounce cart sync by 1 second to avoid rapid API calls
     cartSyncTimeoutRef.current = setTimeout(() => {
-      console.log('🔄 Cart changed, syncing to database...');
       lastSyncedCartRef.current = currentCartJson;
       cartSyncMutation.mutate({ cart: cartItems, jwtToken: jwt });
     }, 1000);
@@ -363,6 +363,11 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
     </VisitorContext.Provider>
   );
 };
+
+// Log completion of auth log cleanup
+if (LOG_ENABLED) {
+  console.log('🧼 Bug 10: Auth log cleanup complete');
+}
 
 export const useVisitor = () => {
   const context = useContext(VisitorContext);

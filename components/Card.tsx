@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StyledText } from '../lib/textUtils';
+import { LOG_ENABLED } from '../lib/utils/log';
 
 interface CarouselContent {
   title: string;
@@ -100,7 +101,9 @@ const Card: React.FC<CardProps> = ({
           onClick={(e) => {
             e.stopPropagation();
             // Handle "Try It" action here
-            console.log('Try It clicked for:', carouselContent.title);
+            if (LOG_ENABLED) {
+              console.log('Try It clicked for:', carouselContent.title);
+            }
           }}
         >
           Try It

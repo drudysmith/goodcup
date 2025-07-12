@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseServiceRole, supabaseAnon } from '../../../lib/supabaseClient';
+import { LOG_ENABLED } from '../../../lib/utils/log';
 
 interface MergeRequest {
   visitor_id: string;
@@ -30,7 +31,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const { data: { user }, error: authError } = await supabaseAnon.auth.getUser(token);
     
     if (authError || !user) {
+      if (LOG_ENABLED) {
       console.log('⚠️ Invalid Supabase session token:', authError);
+      }
       return res.status(401).json({ error: 'Invalid authentication token' });
     }
 
@@ -40,7 +43,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return res.status(400).json({ error: 'visitor_id is required' });
     }
 
+    if (LOG_ENABLED) {
     console.log(`🔄 Module 6b.1: Merging visitor ${visitor_id} with user ${user.id}`);
+    }
 
     // Check if visitor exists
     const { data: visitorData, error: fetchError } = await supabaseServiceRole
@@ -50,7 +55,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       .single();
 
     if (fetchError || !visitorData) {
+      if (LOG_ENABLED) {
       console.error('Error fetching visitor:', fetchError);
+      }
       return res.status(404).json({ error: 'Visitor not found' });
     }
 
@@ -66,7 +73,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     if (existingUserVisitor) {
       // User already has a visitor record - merge current visitor into existing one
+      if (LOG_ENABLED) {
       console.log(`🔄 User ${user.id} already has visitor record ${existingUserVisitor.id}, merging carts`);
+      }
       
       // Merge cart data
       const currentCart = Array.isArray(visitorData.cart) ? visitorData.cart : [];
@@ -82,20 +91,44 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         return acc;
       }, []);
 
+      // --- 8D.1: Preserve Stripe Customer ID ---
+      let stripeCustIdToUpdate = existingUserVisitor.stripe_cust_id;
+      if (!stripeCustIdToUpdate && visitorData.stripe_cust_id) {
+        stripeCustIdToUpdate = visitorData.stripe_cust_id;
+        if (LOG_ENABLED) {
+          console.log('💾 Bug 8D.1: Stripe customer ID preserved during merge:', stripeCustIdToUpdate);
+        }
+      }
+      // --- END 8D.1 ---
+
+      // --- Bug 9: Visitor/User Data Backfill ---
+      const finalEmail = existingUserVisitor.email ?? visitorData.email ?? user.email;
+      const finalPhone = existingUserVisitor.phone ?? visitorData.phone ?? user.phone;
+      const finalName  = existingUserVisitor.name  ?? visitorData.name  ?? user.user_metadata?.name;
+      // --- END Bug 9 ---
+
       // Update existing user visitor with merged data
       const { error: updateError } = await supabaseServiceRole
         .from('visitors')
         .update({
-          email: visitorData.email || existingUserVisitor.email,
-          phone: visitorData.phone || existingUserVisitor.phone,
-          name: visitorData.name || existingUserVisitor.name,
-          cart: mergedCart
+          email: finalEmail,
+          phone: finalPhone,
+          name: finalName,
+          cart: mergedCart,
+          stripe_cust_id: stripeCustIdToUpdate,
         })
         .eq('id', existingUserVisitor.id);
 
       if (updateError) {
+        if (LOG_ENABLED) {
         console.error('Error updating existing user visitor:', updateError);
+        }
         return res.status(500).json({ error: 'Failed to merge visitor data' });
+      }
+
+      // Log backfill
+      if (LOG_ENABLED) {
+        console.log('🧩 Bug 9: Visitor record backfilled with user data');
       }
 
       // Delete the temporary visitor record
@@ -105,7 +138,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         .eq('id', visitor_id);
 
       if (deleteError) {
+        if (LOG_ENABLED) {
         console.error('Error deleting temporary visitor:', deleteError);
+        }
         // Don't fail the request, just log the error
       }
 
@@ -113,20 +148,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       merged = true;
     } else {
       // No existing visitor for this user - just assign user_id to current visitor
+      if (LOG_ENABLED) {
       console.log(`📝 Assigning visitor ${visitor_id} to user ${user.id}`);
+      }
+      
+      // --- Bug 9: Visitor/User Data Backfill (simple assignment case) ---
+      const updatePayload: any = { user_id: user.id };
+      if (!visitorData.email && user.email) updatePayload.email = user.email;
+      if (!visitorData.phone && user.phone) updatePayload.phone = user.phone;
+      if (!visitorData.name && user.user_metadata?.name)  updatePayload.name  = user.user_metadata.name;
+      // --- END Bug 9 ---
       
       const { error: updateError } = await supabaseServiceRole
         .from('visitors')
-        .update({ user_id: user.id })
+        .update(updatePayload)
         .eq('id', visitor_id);
 
       if (updateError) {
+        if (LOG_ENABLED) {
         console.error('Error assigning visitor to user:', updateError);
+        }
         return res.status(500).json({ error: 'Failed to assign visitor to user' });
+      }
+
+      // Log backfill
+      if (LOG_ENABLED) {
+        console.log('🧩 Bug 9: Visitor record backfilled with user data');
       }
     }
 
+    if (LOG_ENABLED) {
     console.log(`✅ Module 6b.1: Visitor merge completed - visitor_id: ${mergedVisitorId}, user_id: ${user.id}, merged: ${merged}`);
+    }
 
     return res.status(200).json({
       success: true,
@@ -136,7 +189,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     });
 
   } catch (error) {
+    if (LOG_ENABLED) {
     console.error('Module 6b.1 Error in visitor merge:', error);
+    }
     return res.status(500).json({ error: 'Internal server error' });
   }
 } 

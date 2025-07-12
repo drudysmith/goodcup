@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
+import { LOG_ENABLED } from '../utils/log';
 
 interface WebhookEvent {
   id: string;
@@ -34,17 +35,23 @@ export const useWebhookSync = () => {
       const events = webhookData.events as WebhookEvent[];
       
       events.forEach((event) => {
-        console.log(`🔄 Module B: Processing webhook event: ${event.type}`);
+        if (LOG_ENABLED) {
+          console.log(`🔄 Module B: Processing webhook event: ${event.type}`);
+        }
         
         if (event.type === 'checkout.session.completed') {
-          console.log('📦 Module B: Invalidating orders and subscriptions queries');
+          if (LOG_ENABLED) {
+            console.log('📦 Module B: Invalidating orders and subscriptions queries');
+          }
           queryClient.invalidateQueries({ queryKey: ['orders'] });
           queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
         } else if (
           event.type.includes('subscription') || 
           event.type === 'invoice.paid'
         ) {
-          console.log('📦 Module B: Invalidating subscriptions queries');
+          if (LOG_ENABLED) {
+            console.log('📦 Module B: Invalidating subscriptions queries');
+          }
           queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
         }
       });

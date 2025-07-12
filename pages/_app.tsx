@@ -6,6 +6,7 @@ import { VisitorProvider, useVisitor } from '../lib/contexts/VisitorContext';
 import { useSupabaseSessionHelpers } from '../lib/queries/sessionQueries';
 import { useVisitorMerge } from '../lib/hooks/useVisitorMerge';
 import { supabaseAnon } from '../lib/supabaseClient';
+import { LOG_ENABLED } from '../lib/utils/log';
 
 // Create QueryClient with optimized defaults for the application
 const queryClient = new QueryClient({
@@ -50,46 +51,71 @@ function GlobalAuthListener() {
   // Bug Module 8C: Track processed sign-in events to prevent duplicate merges
   const lastProcessedSignInRef = useRef<string | null>(null);
 
+  // Stable Global Auth Listener: Use refs to prevent re-subscription
+  const visitorIdRef = useRef(visitorId);
+  const triggerMergeRef = useRef(visitorMerge.triggerMerge);
+
+  // Stable Global Auth Listener: Update refs when values change
   useEffect(() => {
+    visitorIdRef.current = visitorId;
+  }, [visitorId]);
+
+  useEffect(() => {
+    triggerMergeRef.current = visitorMerge.triggerMerge;
+  }, [visitorMerge.triggerMerge]);
+
+  useEffect(() => {
+    if (LOG_ENABLED) {
     console.log('🔄 Bug 5: Setting up global auth state listener');
     console.log('🔄 Bug 8C.1: Global listener memoized, preventing duplicate setup');
+    }
 
     // Bug 5: Register auth state change listener
     const { data: { subscription } } = supabaseAnon.auth.onAuthStateChange((event, session) => {
+      if (LOG_ENABLED) {
       console.log('🔄 Bug 5: Auth state changed:', { event, userId: session?.user?.id || null });
+      }
 
       // Bug 5: Update session data in query cache
       setSessionData(session);
+      if (LOG_ENABLED) {
       console.log('✅ Bug 5: Updated supabaseSession query with new auth state');
+      }
 
       // Bug Module 8C: Handle SIGNED_IN event for visitor merge
-      if (event === 'SIGNED_IN' && session?.user?.id && visitorId) {
+      if (event === 'SIGNED_IN' && session?.user?.id && visitorIdRef.current) {
         const signInEventId = `${session.user.id}-${Date.now()}`;
         
         // Bug Module 8C: Prevent duplicate merge for same sign-in
         if (lastProcessedSignInRef.current !== signInEventId) {
+          if (LOG_ENABLED) {
           console.log('🔄 Bug 8C: Global listener invoked visitor merge', { 
             userId: session.user.id, 
-            visitorId 
+              visitorId: visitorIdRef.current 
           });
+          }
           
           // Bug Module 8C: Trigger visitor merge
-          visitorMerge.triggerMerge();
+          triggerMergeRef.current();
           
           // Bug Module 8C: Track this sign-in to prevent duplicates
           lastProcessedSignInRef.current = signInEventId;
         } else {
+          if (LOG_ENABLED) {
           console.log('🔄 Bug 8C: Skipping duplicate merge for same sign-in event');
+          }
         }
       }
     });
 
     // Bug 5: Cleanup function to unsubscribe
     return () => {
+      if (LOG_ENABLED) {
       console.log('🧹 Bug 5: Cleaning up global auth state listener');
+      }
       subscription.unsubscribe();
     };
-  }, [setSessionData, visitorId, visitorMerge.triggerMerge]);
+  }, [setSessionData]); // Stable Global Auth Listener: Only depend on stable setSessionData
 
   return null; // This component only handles side effects
 }

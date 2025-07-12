@@ -98,7 +98,7 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
 
         {/* Header with Close button */}
         <div className="flex justify-between items-center p-6 pb-4 border-b border-neutral-border/10">
-          <h3 className="text-xl font-medium text-text-primary">Cupgrades</h3>
+          <h3 className="text-xl font-medium text-text-primary">Cupgrades Market</h3>
           <button 
             onClick={onClose}
             className="text-text-secondary hover:opacity-70 transition-opacity"

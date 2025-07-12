@@ -4,6 +4,7 @@ import { useAuthActions } from '../lib/hooks/useAuthActions';
 import { useVisitorMerge } from '../lib/hooks/useVisitorMerge';
 import { useSupabaseSession } from '../lib/queries/sessionQueries';
 import { useVisitor } from '../lib/contexts/VisitorContext';
+import { LOG_ENABLED } from '../lib/utils/log';
 
 // Module 7: Magic Link Sent subcomponent
 interface MagicLinkSentViewProps {
@@ -100,10 +101,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
       // Bug Module 8A: Reset email confirmation state when modal opens
       setAwaitingEmailConfirmation(false);
       setSignUpEmail('');
-      console.log('🎯 Module 7: Modal opened with prefilled data', {
-        email: modalState.email ? '***' + modalState.email.slice(-8) : undefined,
-        hasPassword: !!modalState.password,
-      });
+      if (LOG_ENABLED) {
+        console.log('🎯 Module 7: Modal opened with prefilled data', {
+          email: modalState.email ? '***' + modalState.email.slice(-8) : undefined,
+          hasPassword: !!modalState.password,
+        });
+      }
     }
   }, [modalState.isOpen, modalState.email, modalState.password]);
 
@@ -112,14 +115,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     if (authActions.requiresConfirmation && !awaitingEmailConfirmation) {
       setAwaitingEmailConfirmation(true);
       setSignUpEmail(modalState.email || email);
-      console.log('📧 Bug 8A: Email confirmation required – merge paused');
+      if (LOG_ENABLED) {
+        console.log('📧 Bug 8A: Email confirmation required – merge paused');
+      }
     }
   }, [authActions.requiresConfirmation, awaitingEmailConfirmation, modalState.email, email]);
 
   // Bug Module 8A: Monitor session changes for merge triggering
   useEffect(() => {
     if (awaitingEmailConfirmation && sessionQuery.data && visitorId) {
-      console.log('✅ Bug 8A: Session verified after email confirmation – triggering merge');
+      if (LOG_ENABLED) {
+        console.log('✅ Bug 8A: Session verified after email confirmation – triggering merge');
+      }
       
       // Trigger visitor merge with session verification
       visitorMerge.triggerMerge();
@@ -142,7 +149,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   // Bug Module 8B: Handle visitor merge completion for password sign-in
   useEffect(() => {
     if (!visitorMerge.isLoading && !authActions.isLoading && !authActions.requiresConfirmation && !awaitingEmailConfirmation && !authActions.error && sessionQuery.data) {
-      console.log('✅ Bug 8B: Visitor merge completed – closing modal');
+      if (LOG_ENABLED) {
+        console.log('✅ Bug 8B: Visitor merge completed – closing modal');
+      }
       
       // Update cached credentials
       updateCachedCredentials(modalState.email || email, password);
@@ -175,7 +184,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     const currentSearch = window.location.search;
     const redirectUrl = `${window.location.origin}${currentPath}${currentSearch}`;
     
-    console.log('🎯 Module 7: Magic link redirect:', redirectUrl);
+    if (LOG_ENABLED) {
+      console.log('🎯 Module 7: Magic link redirect:', redirectUrl);
+    }
     authActions.signInWithOtp(emailToUse, redirectUrl);
   };
 
@@ -189,7 +200,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
       return;
     }
 
-    console.log('🎯 Module 7: Password auth attempted');
+    if (LOG_ENABLED) {
+      console.log('🎯 Module 7: Password auth attempted');
+    }
 
     // Bug Module 7A: Auth redirect - prioritize dashboard paths, fallback to dashboard
     const currentPath = window.location.pathname;
@@ -204,7 +217,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
       redirectUrl = `${window.location.origin}/dashboard`;
     }
 
-    console.log('🎯 Bug Module 7A: Auth redirect URL:', redirectUrl);
+    if (LOG_ENABLED) {
+      console.log('🎯 Bug Module 7A: Auth redirect URL:', redirectUrl);
+    }
 
     // Module 7: Call hook methods directly
     if (isSignUp) {

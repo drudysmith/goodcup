@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { LOG_ENABLED } from '../utils/log';
 
 // Types for Stripe data
 interface StripeOrder {
@@ -45,7 +46,9 @@ export const fetchOrders = async (customerId?: string): Promise<StripeOrder[]> =
     }
     return await response.json();
   } catch (error) {
+    if (LOG_ENABLED) {
     console.error('Error fetching orders from Stripe:', error);
+    }
     // Return placeholder data on error
     return [
       { 
@@ -95,7 +98,9 @@ export const fetchSubscriptions = async (customerId?: string): Promise<StripeSub
     }
     return await response.json();
   } catch (error) {
+    if (LOG_ENABLED) {
     console.error('Error fetching subscriptions from Stripe:', error);
+    }
     // Return placeholder data on error
     return [
       { 

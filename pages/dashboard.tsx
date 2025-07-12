@@ -15,6 +15,7 @@ import { openAuthModal, updateCachedCredentials } from '../store/authModalStore'
 import { useVisitor } from '../lib/contexts/VisitorContext';
 import { supabaseAnon } from '../lib/supabaseClient';
 import { useMutation } from '@tanstack/react-query';
+import { LOG_ENABLED } from '../lib/utils/log';
 
 // SMU 4.3c: User profile response interface
 interface UserProfileResponse {
@@ -46,7 +47,9 @@ const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promi
   if (!response.ok) {
     // Handle session expiry (401/403 errors)
     if ((response.status === 401 || response.status === 403) && sessionExpiryHandler) {
-      console.log('⏰ User session expired — prompting re-auth');
+      if (LOG_ENABLED) {
+        console.log('⏰ User session expired — prompting re-auth');
+      }
       const refreshed = await sessionExpiryHandler();
       if (refreshed) {
         // Retry the request with the refreshed session
@@ -59,7 +62,9 @@ const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promi
   const profileData = await response.json();
   
   // SMU 4.3c: Log the Stripe customer ID from client
-  console.log('🔄 SMU 4.3c: Stripe customer ID loaded in dashboard:', profileData.stripe_customer_id);
+  if (LOG_ENABLED) {
+    console.log('🔄 SMU 4.3c: Stripe customer ID loaded in dashboard:', profileData.stripe_customer_id);
+  }
   
   return profileData;
 };
@@ -108,15 +113,21 @@ export default function Dashboard() {
   // SMU 4.3c: Console logging for user identification and authentication
   useEffect(() => {
     if (userSession && user) {
-      console.log('🔄 SMU 4.3c: User identified as authenticated:', {
-        userId: user.id,
-        email: user.email,
-        stripeCustomerId: user.stripeCustomerId
-      });
+      if (LOG_ENABLED) {
+        console.log('🔄 SMU 4.3c: User identified as authenticated:', {
+          userId: user.id,
+          email: user.email,
+          stripeCustomerId: user.stripeCustomerId
+        });
+      }
     } else {
-      console.log('🔄 SMU 4.3c: User in visitor mode - not authenticated');
+      if (LOG_ENABLED) {
+        console.log('🔄 SMU 4.3c: User in visitor mode - not authenticated');
+      }
       if (visitorData?.email) {
-        console.log('🔄 UxAuth 1: Visitor email available for auth modal:', visitorData.email);
+        if (LOG_ENABLED) {
+          console.log('🔄 UxAuth 1: Visitor email available for auth modal:', visitorData.email);
+        }
       }
     }
   }, [userSession, user, visitorData?.email]);
@@ -128,9 +139,11 @@ export default function Dashboard() {
   // SMU 4.3c: Console logging for Stripe history loading
   useEffect(() => {
     if (user?.stripeCustomerId) {
-      console.log('🔄 SMU 4.3c: Loading Stripe history for customer:', user.stripeCustomerId);
-      console.log('🔄 SMU 4.3c: Orders loaded:', orders.length);
-      console.log('🔄 SMU 4.3c: Subscriptions loaded:', subs.length);
+      if (LOG_ENABLED) {
+        console.log('🔄 SMU 4.3c: Loading Stripe history for customer:', user.stripeCustomerId);
+        console.log('🔄 SMU 4.3c: Orders loaded:', orders.length);
+        console.log('🔄 SMU 4.3c: Subscriptions loaded:', subs.length);
+      }
     }
   }, [user?.stripeCustomerId, orders, subs]);
 
@@ -143,10 +156,12 @@ export default function Dashboard() {
     
     // Only invalidate if the customer ID has actually changed (not on initial load)
     if (prevCustomerId !== undefined && prevCustomerId !== currentCustomerId) {
-      console.log('🔄 SMU 4.3d: User customer ID changed, invalidating caches:', {
-        from: prevCustomerId,
-        to: currentCustomerId
-      });
+      if (LOG_ENABLED) {
+        console.log('🔄 SMU 4.3d: User customer ID changed, invalidating caches:', {
+          from: prevCustomerId,
+          to: currentCustomerId
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ['orders'], exact: false });
       queryClient.invalidateQueries({ queryKey: ['subscriptions'], exact: false });
     }
@@ -166,13 +181,17 @@ export default function Dashboard() {
       return { success: true };
     },
     onSuccess: () => {
-      console.log('✅ Password updated successfully');
+      if (LOG_ENABLED) {
+        console.log('✅ Password updated successfully');
+      }
       setPasswordUpdateStatus('success');
       
       // Cache the new password for future auto-login prompts
       if (user?.email) {
         updateCachedCredentials(user.email, newPassword);
-        console.log('💾 Cached new password for future auto-login');
+        if (LOG_ENABLED) {
+          console.log('💾 Cached new password for future auto-login');
+        }
       }
       
       setNewPassword('');
@@ -209,12 +228,16 @@ export default function Dashboard() {
       return data;
     },
     onSuccess: (data) => {
-      console.log('🛠️ Opening customer portal:', data.url);
+      if (LOG_ENABLED) {
+        console.log('🛠️ Opening customer portal:', data.url);
+      }
       // Redirect to customer portal
       window.location.href = data.url;
     },
     onError: (error: any) => {
-      console.error('❌ Customer portal creation failed:', error);
+      if (LOG_ENABLED) {
+        console.error('❌ Customer portal creation failed:', error);
+      }
     },
   });
 
@@ -242,7 +265,9 @@ export default function Dashboard() {
   // Sign out functionality
   const handleSignOut = async () => {
     try {
-      console.log('🚪 User signing out from dashboard');
+      if (LOG_ENABLED) {
+        console.log('🚪 User signing out from dashboard');
+      }
       
       // Clear all user-specific caches
       queryClient.clear();
@@ -257,7 +282,9 @@ export default function Dashboard() {
       router.push('/');
       
     } catch (error) {
-      console.error('❌ Sign out failed:', error);
+      if (LOG_ENABLED) {
+        console.error('❌ Sign out failed:', error);
+      }
     }
   };
 
@@ -274,13 +301,17 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ['subscriptions'], exact: false });
       
       // Log success
-      console.log('🏁 Checkout result: success');
+      if (LOG_ENABLED) {
+        console.log('🏁 Checkout result: success');
+      }
       
       // Remove query parameter from URL
       router.replace('/dashboard', undefined, { shallow: true });
     } else if (canceled === '1') {
       // Log cancellation
-      console.log('🏁 Checkout result: canceled');
+      if (LOG_ENABLED) {
+        console.log('🏁 Checkout result: canceled');
+      }
       
       // Remove query parameter from URL
       router.replace('/dashboard', undefined, { shallow: true });
@@ -292,7 +323,9 @@ export default function Dashboard() {
     // Check if we just returned from customer portal (no specific query param needed)
     // Always invalidate subscription data when dashboard loads to ensure fresh data
     if (user?.stripeCustomerId && router.isReady) {
-      console.log('🔄 Module D: Dashboard loaded - refreshing subscription data');
+      if (LOG_ENABLED) {
+        console.log('🔄 Module D: Dashboard loaded - refreshing subscription data');
+      }
       queryClient.invalidateQueries({ queryKey: ['subscriptions'], exact: false });
     }
   }, [router.isReady, user?.stripeCustomerId, queryClient]);

@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import jwt from 'jsonwebtoken';
 import { supabaseServiceRole } from '../../../lib/supabaseClient';
+import { LOG_ENABLED } from '../../../lib/utils/log';
 
 interface VisitorData {
   id: string;
@@ -43,7 +44,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       decodedToken = jwt.verify(token, jwtSecret!) as any;
     } catch (jwtError) {
-      console.log('⚠️ JWT verification failed:', jwtError);
+      if (LOG_ENABLED) {
+        console.log('⚠️ Bug 10: JWT verification failed');
+      }
       return res.status(401).json({ error: 'Invalid JWT' });
     }
 
@@ -53,8 +56,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(401).json({ error: 'Invalid JWT payload' });
     }
 
-    console.log('🔍 Validating visitor_id with database:', visitor_id);
-
     // Fetch visitor data from Supabase with RLS
     const { data: visitorData, error } = await supabaseServiceRole
       .from('visitors')
@@ -63,19 +64,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .single();
 
     if (error) {
-      console.log('⚠️ Database error fetching visitor:', error);
+      if (LOG_ENABLED) {
+        console.log('⚠️ Bug 10: Database error fetching visitor:', error);
+      }
       return res.status(401).json({ error: 'Visitor not found' });
     }
 
     if (!visitorData) {
-      console.log('⚠️ No visitor found for ID:', visitor_id);
+      if (LOG_ENABLED) {
+        console.log('⚠️ Bug 10: No visitor found for ID:', visitor_id);
+      }
       return res.status(401).json({ error: 'Visitor not found' });
     }
 
     // UxAuth 2: Check if visitor has an associated account
     const hasAccount = !!visitorData.user_id;
     
-    console.log('✅ Visitor data fetched successfully:', visitor_id, 'has_account:', hasAccount);
+    if (LOG_ENABLED) {
+      console.log('✅ Bug 10: Visitor validated:', visitor_id, 'has_account:', hasAccount);
+    }
 
     const response: ValidateResponse = {
       visitor: {
@@ -87,7 +94,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     res.status(200).json(response);
   } catch (error: any) {
+    if (LOG_ENABLED) {
     console.error('Error in visitor/validate:', error);
+    }
     res.status(500).json({ error: 'Internal server error' });
   }
 } 

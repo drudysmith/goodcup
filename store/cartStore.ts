@@ -1,5 +1,6 @@
 import { Store } from '@tanstack/store';
 import { useStore } from '@tanstack/react-store';
+import { LOG_ENABLED } from '../lib/utils/log';
 
 export type CartItem = {
   productId: string;
@@ -34,7 +35,9 @@ const loadCartFromStorage = (): CartItem[] => {
     }
     return [];
   } catch (error) {
+    if (LOG_ENABLED) {
     console.error('Error loading cart from storage:', error);
+    }
     return [];
   }
 };
@@ -50,7 +53,9 @@ const saveCartToStorage = (items: CartItem[]) => {
     };
     localStorage.setItem('cart-storage', JSON.stringify(persistData));
   } catch (error) {
+        if (LOG_ENABLED) {
     console.error('Error saving cart to storage:', error);
+        }
   }
 };
 

@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import * as jwt from 'jsonwebtoken';
 import { supabaseServiceRole } from '../../../lib/supabaseClient';
+import { LOG_ENABLED } from '../../../lib/utils/log';
 
 interface CartItem {
   priceId: string;
@@ -50,7 +51,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       .neq('id', visitor_id); // Exclude current visitor from search
 
     if (searchError) {
+      if (LOG_ENABLED) {
       console.error('Error searching for existing visitors:', searchError);
+      }
       return res.status(500).json({ error: 'Database search failed' });
     }
 
@@ -63,7 +66,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       targetVisitorId = existingVisitor.id;
       merged = true;
 
+      if (LOG_ENABLED) {
       console.log(`🔄 Merging visitor ${visitor_id} into existing record ${targetVisitorId}`);
+      }
 
       // Get current visitor's cart data before merge
       const { data: currentVisitor } = await supabaseServiceRole
@@ -87,7 +92,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         return acc;
       }, []);
 
+      if (LOG_ENABLED) {
       console.log(`🔄 Merged ${currentCart.length} + ${existingCart.length} cart items = ${mergedCart.length} unique items`);
+      }
 
       // Update existing visitor record with merged data
       const { error: updateError } = await supabaseServiceRole
@@ -101,7 +108,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         .eq('id', targetVisitorId);
 
       if (updateError) {
+        if (LOG_ENABLED) {
         console.error('Error updating existing visitor:', updateError);
+        }
         return res.status(500).json({ error: 'Failed to merge visitor data' });
       }
 
@@ -112,13 +121,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         .eq('id', visitor_id);
 
       if (deleteError) {
+        if (LOG_ENABLED) {
         console.error('Error deleting old visitor record:', deleteError);
+        }
         // Don't fail the request, just log the error
       }
 
     } else {
       // Step 2b: No match found - Update current visitor record
+      if (LOG_ENABLED) {
       console.log(`📝 Enriching current visitor record ${visitor_id} with contact info`);
+      }
 
       const { error: updateError } = await supabaseServiceRole
         .from('visitors')
@@ -130,7 +143,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         .eq('id', visitor_id);
 
       if (updateError) {
+        if (LOG_ENABLED) {
         console.error('Error updating visitor:', updateError);
+        }
         return res.status(500).json({ error: 'Failed to update visitor data' });
       }
     }
@@ -155,14 +170,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       .single();
 
     if (fetchError) {
+      if (LOG_ENABLED) {
       console.error('Error fetching updated visitor:', fetchError);
+      }
       return res.status(500).json({ error: 'Failed to fetch updated visitor data' });
     }
 
     // UxAuth 2: Check if visitor has an associated account
     const hasAccount = !!updatedVisitor.user_id;
     
+    if (LOG_ENABLED) {
     console.log(`✅ Identity resolved: visitor_id=${targetVisitorId}, merged=${merged}, has_account=${hasAccount}`);
+    }
 
     return res.status(200).json({
       success: true,
@@ -180,7 +199,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     });
 
   } catch (error) {
+    if (LOG_ENABLED) {
     console.error('Error in visitor identify:', error);
+    }
     return res.status(500).json({ error: 'Internal server error' });
   }
 } 

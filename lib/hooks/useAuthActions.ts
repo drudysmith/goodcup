@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { supabaseAnon } from '../supabaseClient';
 import { useSupabaseSessionHelpers } from '../queries/sessionQueries';
 import { useVisitorMerge } from './useVisitorMerge';
+import { LOG_ENABLED } from '../utils/log';
 
 interface AuthActionsState {
   isLoading: boolean;
@@ -40,7 +41,9 @@ export const useAuthActions = (): AuthActionsReturn => {
       return data;
     },
     onSuccess: (data) => {
+      if (LOG_ENABLED) {
       console.log('✅ Bug 6A: Auth action success – { action: "signUp" }');
+      }
       return data;
     },
   });
@@ -60,16 +63,22 @@ export const useAuthActions = (): AuthActionsReturn => {
       return data;
     },
     onSuccess: (data) => {
+      if (LOG_ENABLED) {
       console.log('✅ Bug 8B: Password sign-in success – session confirmed');
+      }
       
       // Bug Module 8B: Immediately update global session
       if (data.session) {
         setSessionData(data.session);
+        if (LOG_ENABLED) {
         console.log('✅ Bug 8B: Global session updated immediately');
+        }
         
         // Bug Module 8B: Trigger visitor merge without waiting for auth listener
         visitorMerge.triggerMerge();
+        if (LOG_ENABLED) {
         console.log('✅ Bug 8B: Visitor merge triggered after session update');
+        }
       }
       
       return data;
@@ -93,7 +102,9 @@ export const useAuthActions = (): AuthActionsReturn => {
       return data;
     },
     onSuccess: (data) => {
+      if (LOG_ENABLED) {
       console.log('✅ Bug 6A: Auth action success – { action: "signInWithOtp" }');
+      }
       return data;
     },
   });

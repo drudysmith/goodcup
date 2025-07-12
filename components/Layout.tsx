@@ -25,6 +25,7 @@ import { openAuthModal, updateCachedCredentials } from '../store/authModalStore'
 import { navLinks } from '../lib/constants';
 import { findMostPopularProduct, findSuperHealingProduct } from '../lib/productUtils';
 import { getHeaderTextClasses } from '../lib/styleUtils';
+import { LOG_ENABLED } from '../lib/utils/log';
 
 interface LayoutProps {
   children: ReactNode;
@@ -85,7 +86,9 @@ const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promi
   if (!response.ok) {
     // Module 8: Handle session expiry (401/403 errors)
     if ((response.status === 401 || response.status === 403) && sessionExpiryHandler) {
-      console.log('⏰ User session expired — prompting re-auth');
+      if (LOG_ENABLED) {
+        console.log('⏰ User session expired — prompting re-auth');
+      }
       const refreshed = await sessionExpiryHandler();
       if (refreshed) {
         // Retry the request with the refreshed session
@@ -98,7 +101,9 @@ const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promi
   const profileData = await response.json();
   
   // SMU 4.3b: Log the Stripe customer ID from client
-  console.log('🔄 SMU 4.3b: Stripe customer ID loaded:', profileData.stripe_customer_id);
+  if (LOG_ENABLED) {
+    console.log('🔄 SMU 4.3b: Stripe customer ID loaded:', profileData.stripe_customer_id);
+  }
   
   return profileData;
 };
@@ -115,7 +120,9 @@ const submitContactInfo = async ({
   phone?: string; 
   name?: string; 
 }) => {
-  console.log('📡 Submitting contact info to Module 4 API:', { email, phone, name });
+  if (LOG_ENABLED) {
+    console.log('📡 Submitting contact info to Module 4 API:', { email, phone, name });
+  }
   
   const response = await fetch('/api/visitor/identify', {
     method: 'POST',
@@ -198,7 +205,9 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   } : null;
 
   const signOut = async () => {
-    console.log('🚪 User signing out');
+    if (LOG_ENABLED) {
+      console.log('🚪 User signing out');
+    }
     if (userSession) {
       const { supabaseAnon } = await import('../lib/supabaseClient');
       await supabaseAnon.auth.signOut();
@@ -216,7 +225,9 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
     const observer = new IntersectionObserver(entries => {
       entries.forEach(entry => {
 	if (entry.isIntersecting) {
-	  console.log('Animating:', entry.target); //test the listener
+	  if (LOG_ENABLED) {
+	    console.log('Animating:', entry.target); //test the listener
+	  }
           const el = entry.target as HTMLElement;
           el.classList.remove('reveal-init');
           el.classList.add(`animate-${el.dataset.reveal}`);
@@ -243,9 +254,13 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   useEffect(() => {
     if (sessionQuery.isSuccess) {
       if (userSession) {
-        console.log('✅ Module 7: User session active - user data hydration in progress');
+        if (LOG_ENABLED) {
+          console.log('✅ Module 7: User session active - user data hydration in progress');
+        }
       } else if (visitorReady) {
-        console.log('✅ Module 7: No user session - falling back to visitor auth');
+        if (LOG_ENABLED) {
+          console.log('✅ Module 7: No user session - falling back to visitor auth');
+        }
       }
     }
   }, [sessionQuery.isSuccess, userSession, visitorReady]);
@@ -281,11 +296,15 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
       if (!hasInitialLoad) {
         setHasInitialLoad(true);
         if (currentUserId) {
-          console.log('✅ Session status popup: user logged in');
+          if (LOG_ENABLED) {
+            console.log('✅ Session status popup: user logged in');
+          }
           showSessionStatusPopup("You're logged in.");
         }
       } else if (currentUserId && currentUserId !== prevUserSessionId) {
-        console.log('✅ Session status popup: user logged in');
+        if (LOG_ENABLED) {
+          console.log('✅ Session status popup: user logged in');
+        }
         showSessionStatusPopup("You're logged in.");
       }
 
@@ -295,7 +314,9 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
     if (sessionQuery.isError) {
       // Show session expired message for actual errors
       if (hasInitialLoad && prevUserSessionId) {
-        console.log('⚠️ Session status popup: session expired');
+        if (LOG_ENABLED) {
+          console.log('⚠️ Session status popup: session expired');
+        }
         showSessionStatusPopup('Session expired — please log in again.');
       }
     }
@@ -336,9 +357,13 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
     mutationFn: submitContactInfo,
     onSuccess: (data) => {
       if (data.merged) {
-        console.log(`🔁 Merge result: updated visitor_id ${data.visitor_id} and JWT`);
+        if (LOG_ENABLED) {
+          console.log(`🔁 Merge result: updated visitor_id ${data.visitor_id} and JWT`);
+        }
       } else {
-        console.log(`📝 Enriched visitor_id ${data.visitor_id} with contact info`);
+        if (LOG_ENABLED) {
+          console.log(`📝 Enriched visitor_id ${data.visitor_id} with contact info`);
+        }
       }
 
       // Update visitor identity in context and localStorage
@@ -356,10 +381,14 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
       });
 
       setShowContactPopup(false);
-      console.log('✅ Contact info merge completed successfully');
+      if (LOG_ENABLED) {
+        console.log('✅ Contact info merge completed successfully');
+      }
     },
     onError: (error) => {
-      console.error('Failed to submit contact info:', error.message);
+      if (LOG_ENABLED) {
+        console.error('Failed to submit contact info:', error.message);
+      }
       // Could show user-facing error here
     },
   });
@@ -433,7 +462,9 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
     window.resetNotificationBanner = () => {
       localStorage.removeItem('bannerDismissedAt');
       setShowBanner(true);
-      console.log('Notification banner has been reset');
+      if (LOG_ENABLED) {
+        console.log('Notification banner has been reset');
+      }
     };
     
     return () => {
@@ -527,28 +558,38 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
 
   // Check if contact info popup should be shown when cart opens
   useEffect(() => {
-    if (cartHovered && visitorReady) {
+    if (cartHovered && visitorReady && !userSession) {
       // Check if visitor is missing contact info
       const hasContactInfo = visitorData?.email || visitorData?.phone || visitorData?.name;
-      console.log('🔍 Visitor data:', visitorData);
+      if (LOG_ENABLED) {
+        console.log('🔍 Visitor data:', visitorData);
+      }
       if (!hasContactInfo) {
-        console.log('🛒 User triggered contact info collection');
+        if (LOG_ENABLED) {
+          console.log('🛒 User triggered contact info collection');
+        }
         setShowContactPopup(true);
       }
     }
-  }, [cartHovered, visitorReady, visitorData]);
+  }, [cartHovered, visitorReady, visitorData, userSession]);
 
   const handleContactInfoSubmit = async (contactInfo: { email: string; phone?: string; name?: string }) => {
     if (!visitorId || !jwt) {
-      console.error('Cannot submit contact info: missing visitor ID or JWT');
+      if (LOG_ENABLED) {
+        console.error('Cannot submit contact info: missing visitor ID or JWT');
+      }
       return;
     }
 
     try {
       // Ensure cart is synced to database before merge
-      console.log('🔄 Flushing cart updates before identity merge...');
+      if (LOG_ENABLED) {
+        console.log('🔄 Flushing cart updates before identity merge...');
+      }
       await syncCartToDatabase(items, jwt);
-      console.log('✅ Cart flushed - proceeding with identity merge');
+      if (LOG_ENABLED) {
+        console.log('✅ Cart flushed - proceeding with identity merge');
+      }
       
       // Use mutation instead of direct fetch
       contactInfoMutation.mutate({
@@ -558,7 +599,9 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
         name: contactInfo.name
       });
     } catch (error) {
-      console.error('Error syncing cart before contact info submission:', error);
+      if (LOG_ENABLED) {
+        console.error('Error syncing cart before contact info submission:', error);
+      }
       // Could show user-facing error here
     }
   };
@@ -573,15 +616,19 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
     const noUserSession = !userSession;
     const loginOffered = sessionStorage.getItem('loginOffered') === 'true';
 
-    console.log('🔄 UxAuth 2: Checking auto-login conditions:', {
-      hasAccount,
-      noUserSession,
-      loginOffered: !loginOffered,
-      visitorEmail: visitorData?.email ? '***' + visitorData.email.slice(-8) : undefined
-    });
+    if (LOG_ENABLED) {
+      console.log('🔄 UxAuth 2: Checking auto-login conditions:', {
+        hasAccount,
+        noUserSession,
+        loginOffered: !loginOffered,
+        visitorEmail: visitorData?.email ? '***' + visitorData.email.slice(-8) : undefined
+      });
+    }
 
     if (hasAccount && noUserSession && !loginOffered) {
-      console.log('🔐 UxAuth 2: Triggering auto-login prompt for returning visitor');
+      if (LOG_ENABLED) {
+        console.log('🔐 UxAuth 2: Triggering auto-login prompt for returning visitor');
+      }
       
       // Get cached password if available
       const cachedCredentials = (() => {
@@ -604,7 +651,9 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   // UxAuth 2: Clear loginOffered flag when user signs in
   useEffect(() => {
     if (userSession) {
-      console.log('🔄 UxAuth 2: User signed in, clearing loginOffered flag');
+      if (LOG_ENABLED) {
+        console.log('🔄 UxAuth 2: User signed in, clearing loginOffered flag');
+      }
       sessionStorage.removeItem('loginOffered');
     }
   }, [userSession]);
@@ -664,7 +713,7 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
           isScrolled ? 'py-2' : 'py-0'
         }`}>
           {/* Left: Hamburger Menu and Search - now always visible */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-5">
             <button
               ref={menuButtonRef}
               className={`flex flex-col justify-center items-center relative z-30 transition-all duration-300 ${headerStyles.iconSize} ${headerStyles.textColor} group`}
@@ -688,9 +737,10 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
               />
             </button>
 
-            {/* Search/Magnifying Glass Icon */}
+            {/* Cupgrades / Market Icon */}
             <div 
               ref={cupgradesRef}
+              
               className="relative group"
             >
               <button
@@ -699,23 +749,32 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
                   setCupgradesHovered(!cupgradesHovered);
                 }}
                 className={`flex items-center justify-center transition-all duration-300 ${headerStyles.iconSize} ${headerStyles.textColor} hover:opacity-70`}
-                aria-label="Discover Cupgrades"
+                aria-label="Cupgrades Market"
               >
+                {/* Replaced magnifying glass with market5.svg, slightly larger and using currentColor */}
                 <svg 
-                  className="w-5 h-5" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
+                  className="w-7 h-7" // slightly larger than w-6 h-6 or w-5 h-5
                   strokeWidth="2"
+                  viewBox="0 0 98.69 82.49"
+                  fill="currentColor"
+                
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-label="Cupgrades Market"
                 >
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.35-4.35" />
+                  <g>
+                    <path fill="currentColor" stroke="currentColor" strokeWidth="3" d="M49.3,0c12.9,0,25.79,0,38.69,0,1.45,0,1.57.06,2.04,1.43,2.85,8.43,5.7,16.87,8.49,25.32.23.68.23,1.53.07,2.24-.74,3.29-2.77,5.49-5.91,6.68-.31.12-.62.26-.95.33-.98.23-1.31.86-1.29,1.81.07,3.67.14,7.33.17,11,.03,3.36,0,6.72.02,10.09.05,7.36.12,14.73.19,22.09.01,1.36,0,1.38-1.36,1.38-21.38.04-42.76.08-64.14.11-5.81,0-11.61.01-17.42,0-1.36,0-1.53-.14-1.54-1.52-.01-1.77.07-3.54.08-5.31.04-10.91.06-21.82.09-32.74,0-1.71.03-3.42.11-5.13.05-1.21-.36-1.97-1.52-2.51-2.63-1.21-4.52-3.19-5.02-6.11-.2-1.17-.03-2.51.34-3.65C2.96,17.55,5.6,9.61,8.21,1.66,8.68.22,8.98,0,10.52,0c10.73,0,21.45,0,32.18,0,2.2,0,4.4,0,6.6,0ZM89.28,81.23c.03-.35.07-.59.07-.83,0-2.87,0-5.75,0-8.62,0-11.34,0-22.68.01-34.02,0-.73-.07-1.17-.99-1.21-4.02-.16-7.18-1.93-9.44-5.28-.09-.13-.26-.21-.44-.35-2.2,3.75-5.42,5.54-9.7,5.55-4.31,0-7.49-1.93-9.7-5.63-2.36,3.74-5.62,5.58-9.86,5.61-4.29.03-7.52-1.91-9.82-5.59-2.2,3.82-5.42,5.61-9.71,5.61-4.34,0-7.52-1.92-9.74-5.73-2.74,4.7-6.92,6.17-11.98,5.66v44.99h8.99c0-.47,0-.86,0-1.25,0-11.4,0-22.8,0-34.2,0-1.53,0-1.54,1.51-1.54,7,0,14,0,21,0,1.65,0,1.82.18,1.82,1.85,0,11.28,0,22.56-.01,33.84,0,.38,0,.76,0,1.15h48ZM18.18,81.45c.47,0,.81,0,1.14,0,6.26,0,12.52,0,18.78,0,1.7,0,1.96-.27,1.96-1.96,0-8.28-.01-16.56-.02-24.84,0-2.66-.01-5.32,0-7.97,0-.84-.25-1.21-1.22-1.2-6.47.05-12.95.02-19.43.03-1.21,0-1.21,0-1.21,1.18,0,11.21,0,22.42,0,33.64v1.13ZM57.79,1.19c.06.83.13,1.58.18,2.34.15,2.34.28,4.69.44,7.03.21,3.07.44,6.14.66,9.2.19,2.58.31,5.17.61,7.74.21,1.78.66,3.52,2,4.89,3.33,3.43,8.96,3.98,12.91,1.19,2.11-1.49,3.45-3.49,3.23-6.1-.3-3.47-.87-6.93-1.36-10.38-.55-3.79-1.15-7.57-1.73-11.35-.24-1.53-.49-3.05-.73-4.57h-16.2ZM24.82,1.16c-.57,3.52-1.13,6.99-1.7,10.46-.77,4.74-1.54,9.47-2.31,14.21-.37,2.26-.08,4.37,1.44,6.2,2.67,3.19,7.47,4.29,11.43,2.55,2.74-1.2,4.66-3.09,5.03-6.22.12-1,.2-2,.28-3,.3-3.73.59-7.47.89-11.2.22-2.79.45-5.59.66-8.38.11-1.51.19-3.03.28-4.61h-16.01Z"/>
+                  <path  fill="currentColor" stroke="currentColor" strokeWidth="3" d="M64.61,44.38c4.89,0,9.77,0,14.66,0,1.27,0,1.44.17,1.44,1.41,0,7.18,0,14.36,0,21.54,0,1.18-.2,1.38-1.39,1.38-9.9,0-19.79,0-29.69,0-1.14,0-1.32-.18-1.32-1.33,0-7.15,0-14.3,0-21.45,0-1.49.06-1.55,1.55-1.55,4.92,0,9.84,0,14.75,0ZM79.28,45.54h-29.51v21.9c.32.02.58.06.85.06,9.26,0,18.51,0,27.77.02.8,0,.95-.28.94-1.01-.02-6.69-.01-13.38-.02-20.08,0-.27-.02-.54-.04-.89Z"/>
+                  <path d="M38.38,61.96c0,1.15-.88,1.97-2.15,1.98-1.23.01-2.21-.84-2.22-1.94,0-1.07,1.01-2.01,2.18-2.02,1.22-.01,2.18.86,2.19,1.97ZM36.17,60.68c-.38.53-.65.91-1.06,1.47.48.22.86.52,1.23.51.26,0,.78-.54.73-.66-.17-.44-.53-.81-.9-1.32Z"/>
+                  <path d="M70.39,49.95c-.23.39-.38.86-.71,1.15-3.41,3.04-6.85,6.05-10.28,9.07-.88.78-1.79,1.53-2.68,2.29-.52-.64-.51-1.05.06-1.55,3.99-3.45,7.94-6.94,11.92-10.39.41-.35.95-.55,1.44-.82.08.08.17.16.25.25Z"/>
+                  <path d="M55.84,57.19c-.73-.48-.69-.91-.2-1.34,2.1-1.85,4.19-3.71,6.32-5.53.31-.27.79-.33,1.19-.49.06.07.12.13.19.2-.14.3-.21.69-.44.9-2.35,2.12-4.73,4.2-7.07,6.27Z"/>
+                  <path d="M73.66,53.2c-.16.3-.25.66-.49.87-2.13,1.91-4.28,3.8-6.46,5.66-.26.22-.72.22-1.09.31.13-.4.15-.93.42-1.17,2.06-1.85,4.17-3.65,6.28-5.44.29-.25.71-.35,1.06-.53.09.09.18.19.27.28Z"/>
+                </g>
                 </svg>
               </button>
               
               {/* Tooltip */}
               <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-1 bg-neutral-border text-surface-background rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity z-40 whitespace-nowrap">
-                Discover Cupgrades
+                Cupgrades Market
               </div>
             </div>
           </div>
@@ -742,7 +801,7 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
                     className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-1 bg-neutral-border text-surface-background rounded shadow text-xs opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity z-40"
                     style={{ pointerEvents: 'auto' }}
                   >
-                    Dashboard
+                    Dashboard/Login
                   </button>
                 </>
               ) : (
@@ -752,7 +811,7 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
                   </Link>
                   {/* Tooltip for non-logged in users */}
                   <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-1 bg-neutral-border text-surface-background rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity z-40 whitespace-nowrap">
-                    Dashboard
+                    Dashboard/Login
                   </div>
                 </>
               )}

@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 import { useSupabaseSession } from '../queries/sessionQueries';
 import { useVisitor } from '../contexts/VisitorContext';
+import { LOG_ENABLED } from '../utils/log';
 
 interface VisitorMergeState {
   isLoading: boolean;
@@ -18,7 +19,9 @@ export const useVisitorMerge = (): VisitorMergeState => {
   // Visitor merge mutation
   const visitorMergeMutation = useMutation({
     mutationFn: async () => {
+      if (LOG_ENABLED) {
       console.log('🧩 Bug 6B: Visitor merge triggered by session');
+      }
 
       if (!visitorId) {
         throw new Error('No visitor ID available for merge');
@@ -45,7 +48,9 @@ export const useVisitorMerge = (): VisitorMergeState => {
       return response.json();
     },
     onSuccess: (data) => {
+      if (LOG_ENABLED) {
       console.log('✅ Bug 6B: Visitor merge successful:', data);
+      }
       
       // Update visitor identity with merged data
       if (data.visitor_id && data.jwt) {
@@ -67,14 +72,18 @@ export const useVisitorMerge = (): VisitorMergeState => {
       // Remove old visitor tokens from localStorage (if different from merged)
       if (data.merged && data.visitor_id !== visitorId) {
         localStorage.removeItem('visitor_jwt');
+        if (LOG_ENABLED) {
         console.log('🧹 Bug 6B: Removed old visitor tokens from localStorage');
+        }
       }
 
       // Invalidate visitor query to refresh with merged data
       queryClient.invalidateQueries({ queryKey: ['visitor'], exact: false });
     },
     onError: (error) => {
+      if (LOG_ENABLED) {
       console.error('❌ Bug 6B: Visitor merge failed:', error);
+      }
     },
   });
 
@@ -83,7 +92,9 @@ export const useVisitorMerge = (): VisitorMergeState => {
     if (sessionQuery.data && visitorId) {
       visitorMergeMutation.mutate();
     } else {
+      if (LOG_ENABLED) {
       console.warn('⚠️ Bug 6B: Cannot trigger merge - no active session or visitor ID');
+      }
     }
   }, [sessionQuery.data, visitorId, visitorMergeMutation]);
 

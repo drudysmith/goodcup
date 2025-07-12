@@ -9,13 +9,13 @@ interface NotificationBannerProps {
 const NotificationBanner: React.FC<NotificationBannerProps> = ({ 
   show, 
   onDismiss, 
-  message = "Now booking sessions for summer 2025! Limited slots available." 
+  message = "Get 30% off your first order in July. ;)" 
 }) => {
   if (!show) return null;
 
   return (
     <div 
-      className="fixed top-0 left-0 w-full bg-neutral-border/30 text-surface-background z-30 flex items-center justify-between px-4 py-3 transition-all duration-300 ease-in-out backdrop-blur-sm animate-slide-down border-b border-transparent"
+      className="fixed top-0 left-0 w-full bg-neutral-border/30 text-surface-background z-20 flex items-center justify-between px-4 py-3 transition-all duration-300 ease-in-out backdrop-blur-sm animate-slide-down border-b border-transparent"
       style={{ backdropFilter: 'blur(4px)' }}
     >
       <p className="text-sm md:text-base font-medium mx-auto pr-10 text-text-inverse">

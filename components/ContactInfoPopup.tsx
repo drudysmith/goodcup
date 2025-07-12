@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useVisitor } from '../lib/contexts/VisitorContext';
+import { LOG_ENABLED } from '../lib/utils/log';
 
 interface ContactInfoPopupProps {
   onClose: () => void;
@@ -31,7 +32,9 @@ export const ContactInfoPopup: React.FC<ContactInfoPopupProps> = ({ onClose, onS
     setError(null);
 
     try {
-      console.log('📨 Contact info submitted from popup');
+      if (LOG_ENABLED) {
+        console.log('📨 Contact info submitted from popup');
+      }
       
       const contactInfo = {
         email: email.trim(),

@@ -1,0 +1,19 @@
+# Save this as Find-FirstMatch.ps1
+
+param (
+    [Parameter(Mandatory=$true)]
+    [string]$args
+)
+
+$SearchString = $args
+
+Get-ChildItem -Recurse -File | ForEach-Object {
+    $file = $_.FullName
+    $lines = Get-Content -Path $file -ErrorAction SilentlyContinue
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match $SearchString) {
+            Write-Output "$file : Line $($i + 1)"
+            break
+        }
+    }
+}

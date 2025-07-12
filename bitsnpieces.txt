@@ -15,6 +15,8 @@ pressing
 
 11. the dashboard icon hover tooltip needs to offer sign in/out depending on state (whether user is signed out or in), this needs to stay very small, elegant, add only text to the ui inside the tooltip, replacing the word "Dashboard"
 
+12. we have a place for users to update their password, on the dashboard page. we also need a place for them to update or add their phone number and address in the dashboard, in the same droptdown
+
 not pressing
 A. what does module state mgmt update 3 give us in options for ui/ux (was it even implemented?)
 B. capture email and phone on entry witout submission
@@ -103,16 +105,6 @@ After merging, if this flag is true, prompt the user with a login option (modal 
 Breakpoint/Bugwatch/Testing
 Submit contact info matching an existing user. The UI should recognize the account and encourage login immediately or on the next visit.
 
-Repair No. 6 – Merging by phone number
-Summary
-The merge logic checks for existing visitors with either a matching email or phone number. This can merge unrelated visitors who share a phone number but have different emails.
-Where to Look
-Query in pages/api/visitor/identify.ts using .or('email.eq... ,phone.eq...') – around where the database search occurs.
-Implementation Notes
-If merges should rely solely on email, remove or adjust the phone criterion.
-Alternatively, validate that phone numbers are unique or combine email and phone matches for stronger verification.
-Breakpoint/Bugwatch/Testing
-Test merging visitors with identical phone numbers but different emails; confirm they remain separate when the new logic is applied.
 
 Repair No. 7 – Magic link opens new tab at information step
 Summary
@@ -136,3 +128,135 @@ Either include cart data in the user profile response or allow the visitor conte
 Ensure cart syncing works bidirectionally when users add or remove items.
 Breakpoint/Bugwatch/Testing
 Log in as a user, add items to the cart, then reload or revisit later. The cart should automatically repopulate with the saved items.
+
+
+
+
+Additional Improvements
+
+
+
+3. Debounce Local Storage Persistence
+Summary
+cartStore.ts subscribes to every change and immediately writes to localStorage (lines 101‑105). Rapid cart updates cause repeated synchronous writes, adding main‑thread work.
+Where to Look
+store/cartStore.ts – subscription section
+Implementation Notes
+Replace the direct call to saveCartToStorage with a debounced function (e.g., setTimeout or a simple debounce utility with ~300 ms delay).
+Ensure the debouncer is cleared on unmount or store cleanup.
+Optionally persist on unmount to capture any final cart state.
+Guardrails
+Persistence must still occur before checkout or page reload.
+Do not alter the store API.
+Breakpoints / Testing
+Add/remove items rapidly; localStorage writes should occur at most every 300 ms.
+Verify cart contents persist across reloads.
+Quantified Improvement & Scope
+Single file change (<1 % of repo).
+Cuts localStorage writes by ~80 % during quick cart modifications.
+
+4. Narrow Store Subscriptions
+Summary
+useAuthModalState returns the entire auth modal object. Components that only care about isOpen still re-render when email or password updates.
+Where to Look
+store/authModalStore.ts – the exported hook
+components/AuthModal.tsx and other consumers
+Implementation Notes
+Add selector hooks such as useAuthModalIsOpen() that internally call useStore(authModalStore, (s) => s.isOpen);.
+Update components that only need isOpen to use the new hook.
+Keep the general useAuthModalState for cases needing the whole object.
+Guardrails
+Do not change store shape or initial state.
+Layout of the AuthModal component remains unchanged.
+Breakpoints / Testing
+Toggle the modal; confirm only affected components re-render.
+Check that closing/opening still works with cached credentials.
+Quantified Improvement & Scope
+~3 files modified (≈2 % of repo).
+Cuts unnecessary renders of modal-related components, potentially reducing their re-render count by 30‑40 %.
+
+
+6. Lighter Cart Comparison
+Summary
+The same effect stringifies the full cartItems array each time to detect changes (line 316). For large carts, repeated JSON.stringify calls are expensive.
+Where to Look
+lib/contexts/VisitorContext.tsx – within the cart sync effect
+Implementation Notes
+Replace JSON.stringify(cartItems) with a lightweight comparison such as cartItems.length plus a simple checksum (items.map(i=>i.quantity).join('-')).
+Store this checksum in lastSyncedCartRef.
+Update the comparison logic accordingly.
+Guardrails
+Ensure the checksum correctly captures quantity changes.
+Do not degrade reliability of detecting cart edits.
+Breakpoints / Testing
+With a large cart, confirm the effect still triggers on item changes.
+Profile CPU usage to verify the stringification overhead is gone.
+Quantified Improvement & Scope
+Same file as Module 5 (<1 % of repo).
+Lowers CPU cost of cart comparisons by 20‑30 % during heavy cart activity.
+
+
+8. Consistent Query Invalidations
+Summary
+Invalidations across the app use different options—some specify { exact: false }, others rely on default behavior. Inconsistency can cause extra refetches.
+Where to Look
+pages/dashboard.tsx (lines 150‑151 and 273‑296)
+pages/checkout.tsx (lines 341‑344)
+lib/hooks/useVisitorMerge.ts (line 74)
+lib/contexts/VisitorContext.tsx (line 225)
+Implementation Notes
+Establish a consistent pattern: use explicit queryKey arrays and specify exact: true or false uniformly.
+Document the pattern in comments for future modules.
+Update each invalidation call with the agreed‑upon parameters.
+Guardrails
+Ensure no query keys change unexpectedly; invalidations must still target the same caches.
+Keep any logging statements.
+Breakpoints / Testing
+After updates, run a normal checkout and dashboard workflow.
+Verify no unexpected refetches occur (watch network tab or console logs).
+Quantified Improvement & Scope
+About 4 files touched (≈3 % of repo).
+Predictable cache behavior reduces unnecessary queries by ~10‑15 % on dashboard navigation.
+9. Shared QueryClient Across Modules
+Summary
+A QueryClient instance is created in _app.tsx (lines 11‑28), yet many modules call useQueryClient() separately, creating multiple references and extra context lookups.
+Where to Look
+pages/_app.tsx – existing singleton
+Modules using useQueryClient():
+pages/checkout.tsx
+pages/dashboard.tsx
+lib/queries/sessionQueries.ts
+lib/queries/webhookQueries.ts
+lib/hooks/useVisitorMerge.ts
+Implementation Notes
+Export the singleton from a utility file (lib/queryClient.ts).
+Replace each direct useQueryClient() call with an import of this shared instance.
+Keep the provider in _app.tsx intact.
+Guardrails
+Ensure no module accidentally creates its own client.
+Do not modify the global defaults.
+Breakpoints / Testing
+Confirm queries and mutations still function after refactor.
+Inspect dev tools to verify a single cache instance.
+Quantified Improvement & Scope
+Approximately 6 files touched (≈5 % of repo).
+Marginal performance improvement (~1 %) and easier maintenance through a single shared client.
+10. Memoize Expensive Derived Data
+Summary
+Totals and item counts are recalculated on every render. Examples include cartTotal in pages/checkout.tsx (line 418) and totalItems in components/CartPanel.tsx (line 61).
+Where to Look
+pages/checkout.tsx
+components/CartPanel.tsx
+Implementation Notes
+Wrap calculations like items.reduce(...) in useMemo with [items] as the dependency.
+Use these memoized values wherever totals or counts are displayed.
+Leave UI layout exactly as is.
+Guardrails
+Avoid memoizing tiny calculations unnecessarily. Focus on totals that handle many items.
+Keep formatting logic (e.g., toFixed) outside the memo if cheap.
+Breakpoints / Testing
+Render pages with many cart items and confirm totals update correctly when quantities change.
+Use React DevTools to verify the memoized calculations aren’t recomputed on unrelated updates.
+Quantified Improvement & Scope
+~2 files modified (≈1.5 % of repo).
+Cuts CPU work for large carts, giving ~5‑10 % faster renders on the checkout page.

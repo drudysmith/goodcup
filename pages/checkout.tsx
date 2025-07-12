@@ -14,7 +14,9 @@ import { useCartStore, CartItem } from '../store/cartStore';
 import { CheckoutModeToggle } from '../components/CheckoutModeToggle';
 import { openAuthModal } from '../store/authModalStore';
 import { useVisitor } from '../lib/contexts/VisitorContext';
+import { useAuthActions } from '../lib/hooks/useAuthActions';
 import { supabaseAnon } from '../lib/supabaseClient';
+import { LOG_ENABLED } from '../lib/utils/log';
 
 interface StripePrice {
   id: string;
@@ -108,19 +110,19 @@ const createCheckoutSession = async (payload: {
   return response.json();
 };
 
-// Module 6f: Address saving function
-const saveAddress = async (address: any, token: string) => {
-  const response = await fetch('/api/saveAddress', {
+// Bug 9A: Contact saving function
+const saveContact = async (contactData: any, token: string) => {
+  const response = await fetch('/api/saveContact', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ address }),
+    body: JSON.stringify(contactData),
   });
 
   if (!response.ok) {
-    throw new Error('Failed to save address');
+    throw new Error('Failed to save contact info');
   }
 
   return response.json();
@@ -141,21 +143,27 @@ const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promi
   if (!response.ok) {
     // Module 8: Handle session expiry (401/403 errors)
     if ((response.status === 401 || response.status === 403) && sessionExpiryHandler) {
+      if (LOG_ENABLED) {
       console.log('⏰ User session expired — prompting re-auth');
+      }
       const refreshed = await sessionExpiryHandler();
       if (refreshed) {
         // Retry the request with the refreshed session
         return fetchUserProfile(session, sessionExpiryHandler);
       }
     }
+    if (LOG_ENABLED) {
     console.log('⚠️ No profile data found for user:', session.user.id);
+    }
     return null;
   }
 
   const profileData = await response.json();
   
   // SMU 4.3b: Log the Stripe customer ID from client
+  if (LOG_ENABLED) {
   console.log('🔄 SMU 4.3b: Stripe customer ID loaded:', profileData.stripe_customer_id);
+  }
   
   return profileData;
 };
@@ -183,9 +191,13 @@ export default function Checkout() {
   // Module 6b.3.1: Inline login state
   const [showInlineLogin, setShowInlineLogin] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [loginLinkSent, setLoginLinkSent] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  
+  // Auth actions hook for password authentication
+  const authActions = useAuthActions();
   
   // Module 6c: Guest flow reconciliation state
   const [showGuestConfirmation, setShowGuestConfirmation] = useState(false);
@@ -207,6 +219,20 @@ export default function Checkout() {
     phone: '',
   });
 
+  // Prefill login email when inline login shows
+  useEffect(() => {
+    if (showInlineLogin && !loginEmail) {
+      const prefillEmail = visitorData?.email || customerInfo.email;
+      if (prefillEmail) {
+        setLoginEmail(prefillEmail);
+      }
+    }
+    // Clear password when form is shown for security
+    if (showInlineLogin) {
+      setLoginPassword('');
+    }
+  }, [showInlineLogin, visitorData?.email, customerInfo.email, loginEmail]);
+
 
 
   // Module 6b.3.1: Prefill login email from available data
@@ -220,7 +246,9 @@ export default function Checkout() {
   // Module 6b.3.1: Confirm inline form display
   useEffect(() => {
     if (showInlineLogin) {
+      if (LOG_ENABLED) {
       console.log('✅ Inline login form is now displayed');
+      }
       // Reset error state when form is shown
       setLoginError(null);
     }
@@ -261,7 +289,9 @@ export default function Checkout() {
     
     if (userSession && profileData) {
       // Prefill from user profile data
+      if (LOG_ENABLED) {
       console.log('🔄 Module 6e: Prefilling checkout fields from user profile');
+      }
       const nameParts = profileData.name ? profileData.name.split(' ') : ['', ''];
       setCustomerInfo({
         email: userSession.user.email || profileData.email || '',
@@ -277,7 +307,9 @@ export default function Checkout() {
       });
     } else if (visitorData && !userSession) {
       // Prefill from visitor data
+      if (LOG_ENABLED) {
       console.log('🔄 Module 6e: Prefilling checkout fields from visitor data');
+      }
       const nameParts = visitorData.name ? visitorData.name.split(' ') : ['', ''];
       setCustomerInfo(prev => ({
         ...prev,
@@ -300,15 +332,21 @@ export default function Checkout() {
   const visitorMergeMutation = useMutation({
     mutationFn: mergeVisitor,
     onSuccess: (mergeData) => {
+      if (LOG_ENABLED) {
       console.log('✅ Module 6b.2: Visitor merge successful:', mergeData);
+      }
       
       // Clear visitor tokens from localStorage
+      if (LOG_ENABLED) {
       console.log('🧹 Module 6b.2: Clearing visitor tokens from localStorage');
+      }
       localStorage.removeItem('visitor_id');
       localStorage.removeItem('visitor_jwt');
     },
     onError: (error) => {
+      if (LOG_ENABLED) {
       console.error('Module 6b.2: Visitor merge failed:', error);
+      }
       alert('Failed to merge visitor data. Please try again.');
     },
   });
@@ -318,26 +356,34 @@ export default function Checkout() {
     mutationFn: createCheckoutSession,
     onSuccess: (checkoutData) => {
       if (checkoutData.url) {
+        if (LOG_ENABLED) {
         console.log('✅ Module 6d: Checkout session finalized — redirecting to Stripe');
         console.log('✅ Redirecting to Stripe checkout session');
+        }
         window.location.assign(checkoutData.url);
       } else {
+        if (LOG_ENABLED) {
         console.error('Checkout session creation failed:', checkoutData.error);
+        }
         alert(checkoutData.error || 'Checkout failed');
       }
     },
     onError: (error) => {
+      if (LOG_ENABLED) {
       console.error('Error creating checkout session:', error);
+      }
       alert('Checkout failed');
     },
   });
 
-  // Module 6f: Address saving mutation
-  const saveAddressMutation = useMutation({
-    mutationFn: ({ address, token }: { address: any; token: string }) => saveAddress(address, token),
+  // Bug 9A: Contact saving mutation
+  const saveContactMutation = useMutation({
+    mutationFn: ({ contactData, token }: { contactData: any; token: string }) => saveContact(contactData, token),
     onSuccess: (data) => {
-      console.log('✅ Module 6f: Address saved successfully:', data);
-      // Invalidate visitor query to refresh data with saved address
+      if (LOG_ENABLED) {
+        console.log('✅ Bug 9A: Contact info saved successfully:', data);
+      }
+      // Invalidate visitor query to refresh data with saved contact info
       queryClient.invalidateQueries({ queryKey: ['visitor', visitorId] });
       if (userSession) {
         // Also invalidate user profile if authenticated
@@ -345,8 +391,10 @@ export default function Checkout() {
       }
     },
     onError: (error) => {
-      console.error('Module 6f: Error saving address:', error);
-      alert('Failed to save address. Please try again.');
+      if (LOG_ENABLED) {
+        console.error('Bug 9A: Error saving contact:', error);
+      }
+      alert('Failed to save contact info. Please try again.');
     },
   });
 
@@ -356,7 +404,9 @@ export default function Checkout() {
     const { data: { subscription } } = supabaseAnon.auth.onAuthStateChange(async (event, session) => {
       setSessionData(session);
       if (event === 'SIGNED_IN' && session && checkoutMode === 'user' && visitorId && !isProcessingMerge) {
+        if (LOG_ENABLED) {
         console.log('✅ User authentication successful');
+        }
         setShowInlineLogin(false);
         
         // Module 6b.2: Post-Merge Cleanup and Checkout
@@ -364,7 +414,9 @@ export default function Checkout() {
         setCheckoutLoading(true);
         
         try {
+          if (LOG_ENABLED) {
           console.log('🔄 Module 6b.2: Merging visitor with authenticated user');
+          }
           
           // Call merge mutation
           const mergeData = await visitorMergeMutation.mutateAsync({
@@ -373,7 +425,9 @@ export default function Checkout() {
           });
           
           // Create checkout session with user ID
+          if (LOG_ENABLED) {
           console.log('🔄 Module 6b.2: Creating Stripe checkout session with user ID:', session.user.id);
+          }
           
           await checkoutSessionMutation.mutateAsync({
             items,
@@ -382,7 +436,9 @@ export default function Checkout() {
             checkoutMode: 'user'
           });
         } catch (error) {
+          if (LOG_ENABLED) {
           console.error('Module 6b.2: Error during merge and checkout:', error);
+          }
           alert('An error occurred during checkout. Please try again.');
         } finally {
           setIsProcessingMerge(false);
@@ -429,16 +485,23 @@ export default function Checkout() {
       return;
     }
 
-    // Module 6f: Save address before proceeding to shipping
-    console.log('📍 Module 6f: Saving address information');
+    // Bug 9A: Save contact info before proceeding to shipping
+    if (LOG_ENABLED) {
+      console.log('📇 Bug 9A: Saving contact information');
+    }
     
-    const addressPayload = {
+    const contactPayload = {
+      email: customerInfo.email,
+      phone: customerInfo.phone || '',
+      name: `${customerInfo.firstName} ${customerInfo.lastName}`.trim(),
+      address: {
       street: customerInfo.address,
       unit: customerInfo.apartment || '',
       city: customerInfo.city,
       state: customerInfo.state,
       postal_code: customerInfo.zipCode,
       country: customerInfo.country,
+      }
     };
 
     try {
@@ -446,17 +509,21 @@ export default function Checkout() {
       const token = userSession?.access_token || jwt;
       
       if (!token) {
-        console.error('⚠️ Module 6f: No authentication token available');
-        alert('Authentication required to save address');
+        if (LOG_ENABLED) {
+          console.error('⚠️ Bug 9A: No authentication token available');
+        }
+        alert('Authentication required to save contact info');
         return;
       }
 
-      await saveAddressMutation.mutateAsync({ address: addressPayload, token });
+      await saveContactMutation.mutateAsync({ contactData: contactPayload, token });
       
       // Proceed to shipping stage after successful save
       setCurrentStage('shipping');
     } catch (error) {
-      console.error('Module 6f: Failed to save address:', error);
+      if (LOG_ENABLED) {
+        console.error('Bug 9A: Failed to save contact:', error);
+      }
       // Still allow proceeding to shipping even if save fails
       setCurrentStage('shipping');
     }
@@ -473,8 +540,10 @@ export default function Checkout() {
       // Module 5: User Auth Trigger
       if (userSession) {
         // Module 6a: Session Short-Circuit
+        if (LOG_ENABLED) {
         console.log('✅ User already authed — skipping sign-in flow');
         console.log('🔄 Module 6a: Creating Stripe checkout session with user ID:', userSession.user.id);
+        }
         
         try {
           await checkoutSessionMutation.mutateAsync({
@@ -489,7 +558,9 @@ export default function Checkout() {
         return;
       } else {
         // User not signed in - show inline login
+        if (LOG_ENABLED) {
         console.log('🔐 User opted for full auth — will display inline login form');
+        }
         setShowInlineLogin(true);
         setCheckoutLoading(false);
         return;
@@ -501,7 +572,9 @@ export default function Checkout() {
     
     if (hasVisitorContactInfo && !showGuestConfirmation) {
       // Show confirmation dialog for guests with saved contact info
+      if (LOG_ENABLED) {
       console.log('🧭 Guest checkout with saved contact info — showing confirmation dialog');
+      }
       setShowGuestConfirmation(true);
       setCheckoutLoading(false);
       return;
@@ -509,7 +582,9 @@ export default function Checkout() {
 
     // Guest checkout flow using visitor context
     try {
+      if (LOG_ENABLED) {
       console.log('🧭 Proceeding with guest checkout');
+      }
       await checkoutSessionMutation.mutateAsync({
         items,
         customerEmail: visitorData?.email || customerInfo.email,
@@ -571,8 +646,8 @@ export default function Checkout() {
               <input type="text" placeholder="State" value={customerInfo.state} onChange={(e) => setCustomerInfo({ ...customerInfo, state: e.target.value })} className="w-full p-3 border rounded" />
               <input type="text" placeholder="ZIP code" value={customerInfo.zipCode} onChange={(e) => setCustomerInfo({ ...customerInfo, zipCode: e.target.value })} className="w-full p-3 border rounded" />
               <input type="text" placeholder="Country" value={customerInfo.country} onChange={(e) => setCustomerInfo({ ...customerInfo, country: e.target.value })} className="w-full p-3 border rounded" />
-              <button onClick={handleContinueToShipping} className="w-full bg-brand-secondary text-white py-3 px-6 rounded disabled:opacity-50" disabled={!validateInformationStage() || saveAddressMutation.isPending}>
-                {saveAddressMutation.isPending ? 'Saving address...' : 'Continue to shipping'}
+              <button onClick={handleContinueToShipping} className="w-full bg-brand-secondary text-white py-3 px-6 rounded disabled:opacity-50" disabled={!validateInformationStage() || saveContactMutation.isPending}>
+                {saveContactMutation.isPending ? 'Saving contact...' : 'Continue to shipping'}
               </button>
               <button
                 onClick={() => window.location.href = '/'}
@@ -615,6 +690,43 @@ export default function Checkout() {
               {checkoutMode === 'user' && !userSession && showInlineLogin && (
                 <div className="mt-4 p-4 border rounded bg-gray-50">
                   {!loginLinkSent ? (
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-medium text-gray-700">Sign in to your account</h4>
+                      
+                      {/* Email field (shared) */}
+                      <div>
+                        <label htmlFor="inline-email" className="block text-sm font-medium text-gray-700 mb-1">
+                          Email address
+                        </label>
+                        <input
+                          type="email"
+                          id="inline-email"
+                          placeholder="your@email.com"
+                          value={loginEmail}
+                          onChange={(e) => {
+                            setLoginEmail(e.target.value);
+                            if (loginError) setLoginError(null);
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          required
+                          disabled={loginLoading || authActions.isLoading}
+                          readOnly={!!(visitorData?.email || customerInfo.email)}
+                        />
+                      </div>
+
+                      {/* Error Message */}
+                      {(loginError || authActions.error) && (
+                        <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
+                          {loginError || authActions.error}
+                        </div>
+                      )}
+                      
+                      {/* Two options side-by-side on wider screens, stacked on narrow */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        
+                        {/* Magic Link Option */}
+                        <div className="space-y-3">
+                          <h5 className="text-xs font-medium text-gray-600 uppercase tracking-wide">Quick Sign In</h5>
                     <form 
                       onSubmit={async (e: React.FormEvent) => {
                         e.preventDefault();
@@ -640,7 +752,9 @@ export default function Checkout() {
                           });
                           const redirectUrl = `${window.location.origin}/checkout?${redirectParams.toString()}`;
                           
+                                if (LOG_ENABLED) {
                           console.log('🔄 Checkout magic link will redirect to:', redirectUrl);
+                                }
                           
                           const { error } = await supabaseAnon.auth.signInWithOtp({
                             email: emailToUse.trim(),
@@ -653,7 +767,9 @@ export default function Checkout() {
                             setLoginError(error.message);
                           } else {
                             setLoginLinkSent(true);
+                                  if (LOG_ENABLED) {
                             console.log('📧 Magic link sent to:', emailToUse);
+                                  }
                           }
                         } catch (err) {
                           setLoginError('Failed to send magic link');
@@ -663,40 +779,75 @@ export default function Checkout() {
                       }}
                       className="space-y-3"
                     >
-                      <h4 className="text-sm font-medium text-gray-700">Sign in to your account</h4>
-                      
+                            <button
+                              type="submit"
+                              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              disabled={loginLoading || authActions.isLoading}
+                            >
+                              {loginLoading ? 'Sending...' : 'Send magic link'}
+                            </button>
+                          </form>
+                          <p className="text-xs text-gray-500">We'll email you a secure link</p>
+                        </div>
+
+                        {/* Email/Password Option */}
+                        <div className="space-y-3">
+                          <h5 className="text-xs font-medium text-gray-600 uppercase tracking-wide">Password Sign In</h5>
+                          <form 
+                            onSubmit={async (e: React.FormEvent) => {
+                              e.preventDefault();
+                              
+                              if (!loginEmail.trim()) {
+                                setLoginError('Email is required');
+                                return;
+                              }
+
+                              if (!loginPassword.trim()) {
+                                setLoginError('Password is required');
+                                return;
+                              }
+
+                              setLoginError(null);
+                              
+                              try {
+                                authActions.signInWithPassword(loginEmail.trim(), loginPassword);
+                              } catch (err) {
+                                setLoginError('Failed to sign in');
+                              }
+                            }}
+                            className="space-y-3"
+                          >
                       <div>
-                        <label htmlFor="inline-email" className="block text-sm font-medium text-gray-700 mb-1">
-                          Email address
+                              <label htmlFor="inline-password" className="block text-sm font-medium text-gray-700 mb-1">
+                                Password
                         </label>
                         <input
-                          type="email"
-                          id="inline-email"
-                          placeholder="your@email.com"
-                          value={loginEmail}
-                          onChange={(e) => setLoginEmail(e.target.value)}
+                                type="password"
+                                id="inline-password"
+                                placeholder="Enter your password"
+                                value={loginPassword}
+                                onChange={(e) => {
+                                  setLoginPassword(e.target.value);
+                                  if (loginError) setLoginError(null);
+                                }}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           required
-                          disabled={loginLoading}
-                          readOnly={!!(visitorData?.email || customerInfo.email)}
+                                disabled={loginLoading || authActions.isLoading}
                         />
                       </div>
-
-                      {/* Error Message */}
-                      {loginError && (
-                        <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
-                          {loginError}
-                        </div>
-                      )}
                       
                       <button
                         type="submit"
-                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        disabled={loginLoading}
+                              className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              disabled={loginLoading || authActions.isLoading}
                       >
-                        {loginLoading ? 'Sending...' : 'Send magic link'}
+                              {authActions.isLoading ? 'Signing in...' : 'Sign in'}
                       </button>
                     </form>
+                          <p className="text-xs text-gray-500">Use your account password</p>
+                        </div>
+                      </div>
+                    </div>
                   ) : (
                     <div className="text-center">
                       <div className="text-green-500 mb-4">
@@ -758,7 +909,9 @@ export default function Checkout() {
               <div className="flex space-x-3">
                 <button
                   onClick={() => {
+                    if (LOG_ENABLED) {
                     console.log('🧭 Guest accepted account creation — switching to user mode');
+                    }
                     setShowGuestConfirmation(false);
                     setCheckoutMode('user');
                     setShowInlineLogin(true);
@@ -770,12 +923,16 @@ export default function Checkout() {
                 </button>
                 <button
                   onClick={async () => {
+                    if (LOG_ENABLED) {
                     console.log('🧭 Guest declined account creation — continuing as guest');
+                    }
                     setShowGuestConfirmation(false);
                     setCheckoutLoading(true);
                     
                     try {
+                      if (LOG_ENABLED) {
                       console.log('🧭 Proceeding with guest checkout');
+                      }
                       await checkoutSessionMutation.mutateAsync({
                         items,
                         customerEmail: visitorData?.email || customerInfo.email,

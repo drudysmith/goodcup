@@ -967,7 +967,38 @@ Verify that signing in still triggers a visitor merge exactly once per SIGNED_IN
 This memoization keeps the global listener stable and eliminates redundant setup logs without altering existing functionality.
 
 
-implement this module, stay scoped tight to this description, do not drift ouside of it, the next modules continue this work so do no more than what is specified here, keep the implementation super clean as well, do not contaminate, let me know when you are finished, do not run the dev server, do not build or compile (you may build or compile if it is absolutely necessary) (ensure Tanstack and not React is used for state managmeent)
+BitsNPieces Module 1. Stable Global Auth Listener
+Summary
+The global auth listener in pages/_app.tsx (lines 44‑96) still tears down whenever visitorId or the merge callback changes. Memoizing helpers reduced churn, but the effect still re-subscribes during identity switches. By storing visitorId and triggerMerge in useRef and updating them as needed, the listener mounts once and references the latest values via refs. This eliminates extra unmount/mount cycles.
+Where to Look
+pages/_app.tsx – GlobalAuthListener effect
+lib/hooks/useVisitorMerge.ts – ensure stable merge trigger
+lib/queries/sessionQueries.ts – stable session helpers
+Implementation Notes
+Inside GlobalAuthListener, replace the dependency array with an empty array.
+Use const visitorIdRef = useRef(visitorId); and update it in a small effect when visitorId changes.
+Similarly hold triggerMerge in a ref.
+The listener callback should reference visitorIdRef.current and triggerMergeRef.current.
+Keep existing cleanup via subscription.unsubscribe().
+Guardrails
+Do not alter the listener’s event logic or existing console logs.
+Ensure merges still run once per SIGNED_IN event.
+Breakpoints / Testing
+Open the app: “Setting up global auth state listener” logs only once.
+Trigger a merge by signing in and confirm only one merge occurs.
+“Cleaning up…” appears only on page unload.
+Quantified Improvement & Scope
+Roughly 3 files touched (≈2 % of the repo).
+Prevents repeated listener churn, leading to smoother identity transitions and fewer console logs.
+
+
+these were done at this point, without module numbers or definitions
+- can you remove the option to check out as user vs check out as guest from the cart panel, we will not have the visitor make that decision at that point
+this needs to be done very cleanly
+- on the checkout page we display an inline login form with magic link when the user selects checout as user, in addition, we need to allow the user to use email and password and prefill their email for them if we have it, put this next to the magic link option, side by side (unless we are on a really narrow page then you can stack)
+- the stay connected with us popup that appears when the user opens the cart panel, this should not display if we have the user name and email address saved already
+
+
 
 Bug Module 8D.1 – Preserve Stripe Customer ID on Visitor Merge
 Summary
@@ -1004,6 +1035,7 @@ Do not modify other profile fields.
 Breakpoints / Testing
 Create a user account that previously purchased as a guest. Upon first profile fetch, the API should log the backfill and return a populated stripe_cust_id.
 
+
 Bug Module 8D.3 – Confirm Stripe Webhook Delivery
 Summary
 The checkout webhook (pages/api/stripeWebhook.ts) populates stripe_cust_id. If the webhook fails or isn’t configured, customer IDs remain null. This module sets up verification to ensure webhook events arrive and logs any failures.
@@ -1019,9 +1051,6 @@ Webhook must respond with 200 quickly to avoid retries.
 Do not expose secret keys or sensitive payload data in logs.
 Breakpoints / Testing
 Use the Stripe CLI to send a checkout.session.completed event and confirm the log shows the verification message and stripe_cust_id updates in Supabase.
-
-
-
 
 
 Revised “Bug Module 9 – Visitor/User Data Backfill”
@@ -1069,6 +1098,48 @@ All operations occur sequentially within the current request; therefore no addit
 Following these steps keeps the merge behavior intact while ensuring missing visitor fields are populated from the authenticated user’s profile whenever a visitor becomes linked to that user.
 
 
+
+Bug Module 9A – Checkout Save Contact
+Summary
+Visitors can reach the Shipping stage without ever opening the contact‑info popup. At that point we already have their email, name and phone from the “Information” form. This module extends the unified address endpoint to persist those values so that a later merge (Bug Module 9) has complete contact data available.
+Where to Look
+pages/api/saveAddress.ts → rename to pages/api/saveContact.ts
+/pages/checkout.tsx – handleContinueToShipping and saveAddress helper
+Visitor table columns (email, phone, name, plus address fields)
+Implementation Steps
+Rename the API route
+Move pages/api/saveAddress.ts to pages/api/saveContact.ts.
+Update any imports or fetch calls accordingly.
+Expand the payload
+Accept email, phone and name in addition to the current address fields.
+Validate that email is present; other new fields remain optional.
+Conditional updates
+Authenticate via Supabase session or visitor JWT exactly as in the old route.
+When updating the visitor record (or the user’s visitor record), include each contact field only if the database column is currently null and the request supplies a value. Existing data must not be overwritten.
+Client integration
+In pages/checkout.tsx, modify the saveAddress helper and handleContinueToShipping to send the full contact payload to /api/saveContact.
+Payload structure:
+{
+  email: customerInfo.email,
+  phone: customerInfo.phone || '',
+  name: `${customerInfo.firstName} ${customerInfo.lastName}`.trim(),
+  address: { street, unit, city, state, postal_code, country }
+}
+Logging
+After a successful update, log
+console.log('📇 Bug 9A: Contact info saved from checkout');
+Guardrails
+Never overwrite non‑null email, phone or name values in the database.
+The endpoint must work for both authenticated users and guest visitors using the same authentication checks already present.
+Keep TanStack Query as the state manager for all related mutations.
+Breakpoints / Testing
+As a guest with no prior contact info, complete the Information stage and proceed to Shipping.
+Check /api/visitor/validate or Supabase to confirm all fields are stored.
+Repeat while signed in to ensure the user’s visitor record receives the data.
+Verify that existing contact fields remain unchanged when the form is resubmitted.
+This module ensures the checkout page itself can populate any missing contact fields, complementing Bug Module 9’s backfill during user merges.
+
+
 Bug Module 10 – Auth Logging Cleanup
 Title: Module 10 – Auth Logging Cleanup
 Summary:
@@ -1087,3 +1158,108 @@ Guardrails:
 Don’t remove critical logs necessary for troubleshooting.
 Breakpoints / Testing:
 Audit logs to ensure clarity, consistency, and usefulness remain high post-cleanup.
+
+
+
+Implemented the following without a module def - "these are the actual commands input to cursor"
+
+Shut off Logs
+“We’re adding a global toggle to mute all console logs in dev.
+Create lib/utils/log.ts with a LOG_ENABLED flag.
+Wrap all console.log calls in the repo behind if (LOG_ENABLED) { ... } blocks.
+Prefer using import { LOG_ENABLED } directly, or a log() helper if clearer.
+Do not remove any logs — just gate them. No side effects, no unrelated edits. Confirm when done."
+
+Panel Z-Levels
+"the notification banner lies on top of the cart panel and the checkout panel, but we want those panels to be over top of the notification panel"
+
+Market Icon
+replace the icon for the cupgrades panel (starting line 740 of the layout.tsx file, shaped like a magnifying glass) with the file named market5.svg in the folder /public/media/icons, and make it the same color as the other icons, and it needs to be just slightly larger, slightly more noticeable, than the other ones
+
+
+>>>
+
+implement this module, stay scoped tight to this description, do not drift ouside of it, the next modules continue this work so do no more than what is specified here, keep the implementation super clean as well, do not contaminate, let me know when you are finished, do not run the dev server, do not build or compile (you may build or compile if it is absolutely necessary) (ensure Tanstack and not React is used for state managmeent)
+
+2. Remove Debug Logs in Stores and Queries
+Summary
+Numerous console statements print on every render. Examples include the visitor context initialization logs (lib/contexts/VisitorContext.tsx lines 50‑96) and auth modal updates (store/authModalStore.ts). These clutter the console and slightly slow replays.
+Where to Look
+lib/contexts/VisitorContext.tsx
+store/authModalStore.ts
+Any query module with frequent console.log calls
+Implementation Notes
+Wrap logs with if (process.env.NODE_ENV !== 'production') so they disappear in production builds.
+Remove logs that are purely temporary once the affected flow is stable.
+Keep essential success/failure logs for debugging.
+Guardrails
+Do not drop logs that capture critical state transitions (e.g., merges).
+Respect existing emoji conventions in PATTERNS-REFERENCE.md.
+Breakpoints / Testing
+Run the app locally in development; logs still appear.
+Build for production (NODE_ENV=production) and confirm the console stays quiet.
+Quantified Improvement & Scope
+~4 files changed (≈3 % of repo).
+Reduces console chatter in production to near zero, improving readability and a small (~1‑2 %) render time reduction.
+
+Additional Refinement
+“Add a temporary isProdSim flag to our logging wrappers so I can toggle log visibility during dev without changing the build mode. Default it to false, but allow me to flip to true to simulate production behavior without building.”
+
+BitsNPieces Module 7. Use TanStack Store for Visitor Context
+Summary
+VisitorContext currently manages visitorId, jwt, visitorData, etc. via several useState calls (lines 79‑80). Each update rerenders the entire context and all consumers. Converting these pieces to a TanStack Store yields more granular subscriptions.
+Where to Look
+lib/contexts/VisitorContext.tsx – state initialization
+Components consuming visitor context
+Implementation Notes
+Create a TanStack Store for visitor data (visitorId, jwt, visitorData, isReady).
+Replace useState with store.setState updates.
+Provide selector hooks so components can subscribe to specific fields.
+Keep existing context API (updateVisitorIdentity, syncCartToDatabase) but implement them in terms of the store.
+Guardrails
+Avoid breaking existing context consumers; supply transitional wrappers if needed.
+UI must not visibly change.
+Breakpoints / Testing
+Confirm components using useVisitor() only re-render when their selected fields update.
+Test merging and cart sync flows to ensure data still propagates.
+Quantified Improvement & Scope
+2–3 files touched (≈2 % of repo).
+Eliminates many unnecessary context re-renders, improving performance in visitor-heavy flows by ~10‑15 %.
+
+
+Repair No. 6 – Merging by phone number
+Summary
+The merge logic checks for existing visitors with either a matching email or phone number. This can merge unrelated visitors who share a phone number but have different emails.
+Where to Look
+Query in pages/api/visitor/identify.ts using .or('email.eq... ,phone.eq...') – around where the database search occurs.
+Implementation Notes
+If merges should rely solely on email, remove or adjust the phone criterion.
+Alternatively, validate that phone numbers are unique or combine email and phone matches for stronger verification.
+Breakpoint/Bugwatch/Testing
+Test merging visitors with identical phone numbers but different emails; confirm they remain separate when the new logic is applied.
+
+BitsNPieces 5. Minimize useEffect Dependencies
+Summary
+The cart sync effect in VisitorContext.tsx (around line 316) listens to several query states that hardly influence the actual sync logic. When query status flags change, the effect runs again even if cart contents are unchanged.
+Where to Look
+lib/contexts/VisitorContext.tsx – effect at lines 316‑359
+Implementation Notes
+Trim the dependency array to [cartItems, visitorId, jwt] where jwt is visitorQuery.data?.jwt.
+The effect should not depend on visitorQuery.isLoading or visitorQuery.isError.
+Keep the debounce timer and cleanup logic intact.
+Guardrails
+Avoid stale values: update dependencies if new fields become relevant.
+Ensure cart sync still reacts when the JWT changes.
+Breakpoints / Testing
+Monitor console logs while query status changes; effect should not re-run unless cart items or IDs actually change.
+Validate cart data remains synced when expected.
+Quantified Improvement & Scope
+Single file touched (<1 % of repo).
+Reduces unnecessary effect triggers by roughly 50 % during visitor query transitions.
+
+
+
+
+
+
+

@@ -2,13 +2,13 @@
   { 
     "id": 1, 
     "carouselContent": {
-      "title": "Cordyceps",
-      "description": "**Boosts** energy. Enhances oxygen use. Supports recovery. Adapts you to stress."
+      "title": "Raw Cacao",
+      "description": "short description"
     },
     "expandedContent": {
-      "content": "Cordyceps does its thing through **four key compounds**.\n\n**Cordycepin** Boosts ATP and mimics adenosine, so you get real energy and better endurance.\n***Polysaccharides*** support your immune system and overall vitality.\n__Adenosine__ helps your body manage energy and improves oxygen flow.\nAnd ~~sterols~~ and `peptides` calm inflammation and build stress resilience.\n\nPut it all together, and you've got a natural way to fuel your cells, breathe easier, and bounce back stronger."
+      "content": "long description"
     },
-    "imageUrl": "/media/ingredients/cordyceps.webp"
+    "imageUrl": "/media/card_art/cacao.png"
   },
   { 
     "id": 2, 
@@ -19,72 +19,83 @@
     "expandedContent": {
       "content": "Cordyceps does its thing through four key compounds.\n\nCordycepin boosts ATP and mimics adenosine, so you get real energy and better endurance.\nPolysaccharides support your immune system and overall vitality.\nAdenosine helps your body manage energy and improves oxygen flow.\nAnd sterols and peptides calm inflammation and build stress resilience.\n\nPut it all together, and you've got a natural way to fuel your cells, breathe easier, and bounce back stronger."
     },
-    "imageUrl": "/media/card_art/card_01.webp"
+    "imageUrl": "/media/card_art/cordyceps.png"
   },
   { 
     "id": 3, 
     "carouselContent": {
-      "title": "Cordyceps",
-      "description": "**Boosts** energy. Enhances oxygen use. Supports recovery. Adapts you to stress."
+      "title": "Guarana",
+      "description": "short description"
     },
     "expandedContent": {
-      "content": "Cordyceps does its thing through four key compounds.\n\nCordycepin boosts ATP and mimics adenosine, so you get real energy and better endurance.\nPolysaccharides support your immune system and overall vitality.\nAdenosine helps your body manage energy and improves oxygen flow.\nAnd sterols and peptides calm inflammation and build stress resilience.\n\nPut it all together, and you've got a natural way to fuel your cells, breathe easier, and bounce back stronger."
+      "content": "long description"
     },
-    "imageUrl": "/media/card_art/card_01.webp"
+    "imageUrl": "/media/card_art/guarana.png"
   },
   { 
     "id": 4, 
     "carouselContent": {
-      "title": "Cordyceps",
-      "description": "**Boosts** energy. Enhances oxygen use. Supports recovery. Adapts you to stress."
+      "title": "Lion's Mane",
+      "description": "short description"
     },
     "expandedContent": {
-      "content": "Cordyceps does its thing through four key compounds.\n\nCordycepin boosts ATP and mimics adenosine, so you get real energy and better endurance.\nPolysaccharides support your immune system and overall vitality.\nAdenosine helps your body manage energy and improves oxygen flow.\nAnd sterols and peptides calm inflammation and build stress resilience.\n\nPut it all together, and you've got a natural way to fuel your cells, breathe easier, and bounce back stronger."
+      "content": "long description"
     },
-    "imageUrl": "/media/card_art/card_01.webp"
+    "imageUrl": "/media/card_art/lions-mane.png"
   },
   { 
     "id": 5, 
     "carouselContent": {
-      "title": "Cordyceps",
-      "description": "**Boosts** energy. Enhances oxygen use. Supports recovery. Adapts you to stress."
+      "title": "Reishi",
+      "description": "short description"
     },
     "expandedContent": {
-      "content": "Cordyceps does its thing through four key compounds.\n\nCordycepin boosts ATP and mimics adenosine, so you get real energy and better endurance.\nPolysaccharides support your immune system and overall vitality.\nAdenosine helps your body manage energy and improves oxygen flow.\nAnd sterols and peptides calm inflammation and build stress resilience.\n\nPut it all together, and you've got a natural way to fuel your cells, breathe easier, and bounce back stronger."
+      "content": "long description"
     },
-    "imageUrl": "/media/card_art/card_01.webp"
+    "imageUrl": "/media/card_art/reishi.png"
   },
   { 
     "id": 6, 
     "carouselContent": {
-      "title": "Cordyceps",
-      "description": "**Boosts** energy. Enhances oxygen use. Supports recovery. Adapts you to stress."
+      "title": "Matcha",
+      "description": "short description"
     },
     "expandedContent": {
-      "content": "Cordyceps does its thing through four key compounds.\n\nCordycepin boosts ATP and mimics adenosine, so you get real energy and better endurance.\nPolysaccharides support your immune system and overall vitality.\nAdenosine helps your body manage energy and improves oxygen flow.\nAnd sterols and peptides calm inflammation and build stress resilience.\n\nPut it all together, and you've got a natural way to fuel your cells, breathe easier, and bounce back stronger."
+      "content": "long description"
     },
-    "imageUrl": "/media/card_art/card_01.webp"
+    "imageUrl": "/media/card_art/matcha.png"
   },
   { 
     "id": 7, 
     "carouselContent": {
-      "title": "Cordyceps",
-      "description": "**Boosts** energy. Enhances oxygen use. Supports recovery. Adapts you to stress."
+      "title": "Turkey Tail",
+      "description": "short description"
     },
     "expandedContent": {
-      "content": "Cordyceps does its thing through four key compounds.\n\nCordycepin boosts ATP and mimics adenosine, so you get real energy and better endurance.\nPolysaccharides support your immune system and overall vitality.\nAdenosine helps your body manage energy and improves oxygen flow.\nAnd sterols and peptides calm inflammation and build stress resilience.\n\nPut it all together, and you've got a natural way to fuel your cells, breathe easier, and bounce back stronger."
+      "content": "long description"
     },
-    "imageUrl": "/media/card_art/card_01.webp"
+    "imageUrl": "/media/card_art/turkey-tail.png"
   },
   { 
     "id": 8, 
     "carouselContent": {
-      "title": "Raw Cacao",
-      "description": "**Elevates** mood. Rich in antioxidants. Boosts focus. Natural energy without the crash."
+      "title": "Chaga",
+      "description": "short description"
     },
     "expandedContent": {
-      "content": "Raw cacao is nature's ultimate **mood enhancer** and **brain fuel**.\n\n**Theobromine** provides sustained energy and gentle stimulation without jitters or crashes.\n***Flavonoids*** protect your brain from oxidative stress and support cognitive function.\n__Phenylethylamine__ (PEA) naturally elevates mood and enhances focus.\nAnd **anandamide** — the 'bliss molecule' — promotes feelings of happiness and well-being.\n\nRaw cacao also contains magnesium for muscle function and iron for energy transport. It's like having a natural antidepressant and nootropic rolled into one delicious superfood."
+      "content": "long description"
     },
-    "imageUrl": "/media/card_art/card_cacao.webp"
+    "imageUrl": "/media/card_art/chaga.png"
+  },
+  { 
+    "id": 9, 
+    "carouselContent": {
+      "title": "Ashwegandha",
+      "description": "short description"
+    },
+    "expandedContent": {
+      "content": "long description"
+    },
+    "imageUrl": "/media/card_art/ashwegandha.png"
   }
 ] 

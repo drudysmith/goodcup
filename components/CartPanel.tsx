@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckoutModeToggle } from './CheckoutModeToggle';
+import { LOG_ENABLED } from '../lib/utils/log';
 
 interface CartItem {
   productId: string;
@@ -45,7 +45,6 @@ const CartPanel: React.FC<CartPanelProps> = ({
   products,
   isOpen
 }) => {
-  const [checkoutMode, setCheckoutMode] = useState<'user' | 'guest'>('user');
   // Visitor tracking functionality has been removed
 
   // Visitor contact tracking effects have been removed
@@ -282,14 +281,7 @@ const CartPanel: React.FC<CartPanelProps> = ({
               </div>
             </div>
 
-            {/* Checkout Mode Toggle */}
-            <div className="mb-4">
-              <CheckoutModeToggle
-                onModeChange={setCheckoutMode}
-                defaultMode="user"
-                className=""
-              />
-            </div>
+
 
             {/* Checkout Button */}
             <div className="flex justify-center mb-3">
@@ -302,16 +294,11 @@ const CartPanel: React.FC<CartPanelProps> = ({
                 }}
                 onClick={() => {
                   onClose();
-                  // Branch logic will be implemented in Module 5
-                  if (checkoutMode === 'user') {
-                    // TODO: Module 5 - Trigger user authentication flow
-                    console.log('🔄 Triggering Module 5: User Authentication Flow');
-                    window.location.href = '/checkout?mode=user';
-                  } else {
-                    // Guest checkout - proceed directly to checkout with visitor context
-                    console.log('🔄 Guest checkout: Proceeding with visitor context');
-                    window.location.href = '/checkout?mode=guest';
+                  // Default to user checkout mode
+                  if (LOG_ENABLED) {
+                    console.log('🔄 Triggering checkout flow');
                   }
+                  window.location.href = '/checkout?mode=user';
                 }}
               >
                 cupgrade now

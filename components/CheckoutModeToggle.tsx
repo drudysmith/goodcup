@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { LOG_ENABLED } from '../lib/utils/log';
 
 interface CheckoutModeToggleProps {
   onModeChange: (mode: 'user' | 'guest') => void;
@@ -16,7 +17,9 @@ export const CheckoutModeToggle: React.FC<CheckoutModeToggleProps> = ({
   const handleModeSelect = (mode: 'user' | 'guest') => {
     setSelectedMode(mode);
     onModeChange(mode);
-    console.log(`🧭 Checkout mode selected: ${mode}`);
+    if (LOG_ENABLED) {
+      console.log(`🧭 Checkout mode selected: ${mode}`);
+    }
   };
 
   return (
