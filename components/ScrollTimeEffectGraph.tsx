@@ -11,7 +11,7 @@ const GRAPH_LAYOUT_CONFIG = {
   },
   desktop: {
     height: 'auto',
-    marginTop: '-200px',
+    marginTop: '-250px',
     marginBottom: '2.5rem',
     maxHeight: '90vh',
     paddingX: '12vw',
@@ -69,11 +69,11 @@ const ScrollTimeEffectGraph = () => {
           const totalFrames = animData.op;
 
           // Animation frames ScrollTrigger
-          ScrollTrigger.create({                     // we are only establishing the full scroll window
+          ScrollTrigger.create({                 // we are only establishing the full scroll window
             trigger: containerRef.current,
-            start: 'bottom 105%',                        // higher val = sooner, use >100% for before entering viewport
-            end: 'top 15%',                       // define the end of the scroll window
-            scrub: 3.3,                                // smoothness
+            start: 'bottom 105%',                // higher val = sooner, use >100% for before entering viewport
+            end: 'top 15%',                      // define the end of the scroll window
+            scrub: 3.3,                          // smoothness
             onUpdate: (self) => {
               if (animationRef.current && totalFrames) {
                 const animationProgress = Math.min(self.progress / 1, 1.0); 
@@ -86,8 +86,8 @@ const ScrollTimeEffectGraph = () => {
           // Opacity fade ScrollTrigger - separate from animation frames
           ScrollTrigger.create({
             trigger: containerRef.current,
-            start: 'top 80%',                    // when bottom of div is 90% down the viewport
-            end: 'top 80%',                      // same point - creates a toggle effect
+            start: 'top 100%',                    // when bottom of div is x% down the viewport
+            end: 'top 60%',                      // same point - creates a toggle effect
             toggleActions: 'play none reverse none', // play on enter, reverse on leave back
             onEnter: () => setIsVisible(true),      // fade in when entering
             onLeaveBack: () => setIsVisible(false), // fade out when scrolling back up past trigger

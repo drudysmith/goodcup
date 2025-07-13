@@ -3,10 +3,10 @@
     "id": 1, 
     "carouselContent": {
       "title": "Raw Cacao",
-      "description": "**Mood + Gut Boost** \nSupports digestion, elevates mood, and feeds good gut bacteria. 👆🏻"
+      "description": "**Mood + Gut Boost** \nSupports digestion, elevates mood, and feeds good gut bacteria."
     },
     "expandedContent": {
-      "content": "**Mood + Gut Boost** Supports digestion, elevates mood, and feeds good gut bacteria."
+      "content": "Flavanols **support blood flow**, enhance mood and brain function. Theobromine **gently stimulates, boosting alertness** without jitteriness. Magnesium **relaxes muscles**, supports nerve balance and heart rhythm. Polyphenols **feed gut bacteria**, reduce inflammation and oxidative stress.\n\n**Uplift mood, protect the gut**, and **sharpen focus**—delivering clean energy with deep-body benefits."
     },
     "imageUrl": "/media/card_art/cacao.webp"
   },
@@ -14,10 +14,10 @@
     "id": 2, 
     "carouselContent": {
       "title": "Cordyceps",
-      "description": "**Cellular Energy** \nBoosts ATP production, improves oxygen use, and supports recovery. 👆🏼"
+      "description": "**Cellular Energy** \nBoosts ATP production, improves oxygen use, and supports recovery."
     },
     "expandedContent": {
-      "content": "Cordyceps does its thing through four key compounds.\n\nCordycepin boosts ATP and mimics adenosine, so you get real energy and better endurance.\nPolysaccharides support your immune system and overall vitality.\nAdenosine helps your body manage energy and improves oxygen flow.\nAnd sterols and peptides calm inflammation and build stress resilience.\n\nPut it all together, and you've got a natural way to fuel your cells, breathe easier, and bounce back stronger."
+	"content": "Cordycepin **boosts ATP**, mimics adenosine for endurance. Polysaccharides strengthen immunity, **support antioxidant response**. Adenosine **regulates energy** metabolism and oxygen flow. Sterols + Peptides **reduce inflammation**, enhance stress resilience. \n\n**Fuel your cells, optimize oxygen use**, and **balance stress** systems—powering lasting energy and recovery."
     },
     "imageUrl": "/media/card_art/cordyceps.webp"
   },
@@ -25,10 +25,10 @@
     "id": 3, 
     "carouselContent": {
       "title": "Guarana",
-      "description": "**Sustained Energy** \nDelivers smooth, long-lasting caffeine without jitters or gut irritation. 👆🏽"
+      "description": "**Sustained Energy** \nDelivers smooth, long-lasting caffeine without jitters or gut irritation."
     },
     "expandedContent": {
-      "content": "long description"
+      "content": "Guaranine delivers **sustained caffeine**, absorbed more slowly due to natural plant fiber and tannins. This results in **longer-lasting energy** without sharp spikes. Alkaloids and polyphenols enhance focus, **reduce oxidative stress**, and support mood. Saponins **stimulate circulation**, aiding nutrient flow and recovery.\n\n**Prolong alertness, stabilize energy**, and **sharpen focus**—providing clean stimulation without the crash."
     },
     "imageUrl": "/media/card_art/guarana.webp"
   },
@@ -36,10 +36,10 @@
     "id": 4, 
     "carouselContent": {
       "title": "Lion's Mane",
-      "description": "**Cognitive Clarity** \nStimulates nerve growth, enhances focus and memory. 👆🏻"
+      "description": "**Cognitive Clarity** \nStimulates nerve growth, enhances focus and memory."
     },
     "expandedContent": {
-      "content": "long description"
+      "content": "Hericenones **stimulate Nerve Growth Factor (NGF)**, supporting brain cell repair and growth. Erinacines **cross the blood-brain barrier**, enhancing focus and memory. Polysaccharides **reduce inflammation**, supporting gut-brain balance. Antioxidants **protect neurons**, promoting long-term cognitive health. \n\n**Boost clarity, support neuroplasticity**, and **strengthen mind-body function**—fueling focused, adaptive performance."
     },
     "imageUrl": "/media/card_art/lions-mane.webp"
   },
@@ -47,10 +47,10 @@
     "id": 5, 
     "carouselContent": {
       "title": "Reishi",
-      "description": "**Stress & Hormone Balance** \nCalms the nervous system and supports adrenal and immune regulation. 👆🏾"
+      "description": "**Stress & Hormone Balance** \nCalms the nervous system and supports adrenal and immune regulation."
     },
     "expandedContent": {
-      "content": "long description"
+      "content": "Triterpenes **modulate stress hormones** and calm the nervous system. Beta-glucans **strengthen immune function**, enhancing resilience to stress and pathogens. Polysaccharides **support liver detox**, aiding hormonal balance. Antioxidants **reduce systemic inflammation**, promoting deep recovery.\n\n**Calm the body, regulate stress**, and **restore internal balance**—supporting long-term resilience and hormonal harmony."
     },
     "imageUrl": "/media/card_art/reishi.webp"
   },
@@ -58,10 +58,10 @@
     "id": 6, 
     "carouselContent": {
       "title": "Matcha",
-      "description": "**Calm Focus** \nCombines gentle caffeine with L-theanine for alertness without anxiety. 👆🏼"
+      "description": "**Calm Focus** \nCombines gentle caffeine with L-theanine for alertness without anxiety."
     },
     "expandedContent": {
-      "content": "long description"
+      "content": "L-theanine **promotes calm alertness**, balancing caffeine’s stimulating effects. Catechins **support metabolism**, reduce inflammation, and **protect cells** from oxidative stress. Caffeine **boosts focus**, with a gentler curve than coffee. Chlorophyll **aids detox**, supporting liver function and overall clarity.\n\n**Enhance focus, support clean energy**, and **calm the mind**—delivering smooth stimulation with mental clarity."
     },
     "imageUrl": "/media/card_art/matcha.webp"
   },
@@ -69,7 +69,7 @@
     "id": 7, 
     "carouselContent": {
       "title": "Turkey Tail",
-      "description": "**Gut Lining Repair** \nFeeds beneficial bacteria and supports mucosal immunity. 👆🏽"
+      "description": "**Gut Lining Repair** \nFeeds beneficial bacteria and supports mucosal immunity."
     },
     "expandedContent": {
       "content": "long description"
@@ -80,10 +80,10 @@
     "id": 8, 
     "carouselContent": {
       "title": "Chaga",
-      "description": "**Immune Shield** \nHigh in antioxidants; reduces inflammation and strengthens immunity. 👆🏼"
+      "description": "**Immune Shield** \nHigh in antioxidants; reduces inflammation and strengthens immunity."
     },
     "expandedContent": {
-      "content": "long description"
+      "content": "PSP **enhance immune function**, activating natural killer cells and T-cells. Beta-glucans **feed beneficial gut bacteria**, supporting microbiome diversity. Antioxidants **reduce gut inflammation**, promoting mucosal healing. Prebiotic fibers **strengthen gut lining**, aiding digestion and nutrient absorption.\n\n**Restore gut health, fortify immunity**, and **support microbial balance—building a resilient internal ecosystem."
     },
     "imageUrl": "/media/card_art/chaga.webp"
   },
@@ -91,10 +91,10 @@
     "id": 9, 
     "carouselContent": {
       "title": "Ashwegandha",
-      "description": "**Stress Reset** \nLowers cortisol, calms inflammation, and restores body balance. 👆🏾"
+      "description": "**Stress Reset** \nLowers cortisol, calms inflammation, and restores body balance."
     },
     "expandedContent": {
-      "content": "long description"
+      "content": "Withanolides **regulate cortisol**, helping reduce stress and anxiety. Alkaloids **support thyroid function**, stabilizing energy and mood. Saponins **reduce inflammation**, aiding joint and muscle recovery. Flavonoids **protect neurons**, supporting mental clarity under stress. \n\n**Lower stress, restore balance**, and **build resilience**—supporting calm energy and whole-body stability."
     },
     "imageUrl": "/media/card_art/ashwegandha.webp"
   }

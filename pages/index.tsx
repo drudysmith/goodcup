@@ -381,8 +381,8 @@ export default function Home() {
               text-base md:text-xl                                  // font size - text-base mobile, text-xl desktop - change to sm/lg for smaller, lg/2xl for larger
             " 
           >
-	  /*edit this copy*/
-            Guarana, matcha, and raw cacao deliver smooth, crash-free energy. Adaptogens like ashwagandha and reishi support mood, focus, and stress resilience. Prebiotics and plant compounds help your gut, metabolism, and long-term clarity.
+	    {/*edit this copy*/}
+            Guarana, matcha, and raw cacao deliver smooth, crash-free energy. Adaptogens like ashwagandha and reishi support mood, focus, and stress resilience. Prebiotics and plant compounds help your gut, metabolism, and long-term clarity. Browse ingredient benefits here.
           </motion.p>
         </motion.div>
       </div>
@@ -391,8 +391,8 @@ export default function Home() {
       <div ref={carouselRef} className="mask-fade-sides relative z-[5] pb-20">
         <RadialCarousel />
       </div>
-      
-        <Section
+	{/*
+        <Section 
           title="Why does Goodcup feel so different?"
           media={ <img src="https://res.cloudinary.com/dak7418bd/image/upload/v1749667229/curve-placeholder_tpnehz.webp" alt="Goodcup product visual"/> }
           text={`From jitters to flow. Most energy drinks spike and crash — giving you a moment of sharpness, then pulling the rug. Goodcup is different. We source guarana, matcha, and raw cacao — three ingredients that support a slower, more stable release of energy. Guarana, in particular, is metabolized over hours, not minutes, giving you clarity without chaos. The result? A grounded alertness you'll notice — and feel good about noticing. Twice the duration. Zero crash. Flow in body and mind.`}
@@ -407,8 +407,9 @@ export default function Home() {
           media={<img src="https://m.media-amazon.com/images/I/411mjzj45rL.jpg" alt="Flexible scheduling" />}
           layout="image-right"
           bgColor="bg-transparent"
-	        textColor="text-text-soft"
-        />
+	  textColor="text-text-soft"
+         />
+	  */}
       </div>
       
 

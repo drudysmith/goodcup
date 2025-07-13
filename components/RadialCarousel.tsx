@@ -25,7 +25,7 @@ const RESPONSIVE_CONFIG = {
     desktop: {
       left: '22%',        // Left button horizontal position
       right: '45%',       // Right button horizontal position
-      top: '48%',         // Vertical position for both buttons
+      top: '80%',         // Vertical position for both buttons
     }
   },
   
@@ -35,14 +35,16 @@ const RESPONSIVE_CONFIG = {
       marginTop: '100px',    // Top margin (negative pulls up)
       marginBottom: '20px',  // Bottom margin (positive pushes down)
       height: '75vh',        // Section height
+      //paddingTop: '20px',
       wheelTop: '30%',       // Wheel vertical position within section
       wheelLeft: '30%',      // Wheel horizontal position (centered on mobile)
     },
     desktop: {
-      marginTop: '130px',    // Top margin (negative pulls up)  
+      marginTop: '10px',    // Top margin (negative pulls up)  
       marginBottom: '0px',   // Bottom margin
+      paddingBottom: '10px',
       height: '95vh',        // Section height
-      wheelTop: '25%',       // Wheel vertical position within section
+      wheelTop: '45%',       // Wheel vertical position within section
       wheelLeft: '30%',      // Wheel horizontal position (offset left on desktop)
     }
   },
@@ -463,7 +465,7 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="fixed inset-0 backdrop-blur-md z-[9999] flex items-start justify-center pt-16 md:pt-20 p-4 pb-20"
+            className="fixed inset-0 backdrop-blur-md z-[9999] flex items-start justify-center pt-20 md:pt-20 p-4 pb-20"
             onClick={handleCloseExpanded}
           >
             <motion.div
