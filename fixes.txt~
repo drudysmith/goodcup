@@ -1,0 +1,35 @@
+1) analyze for me, we have style text on the cards in our card carousel, the custom style interpreter translates "\n" to a new line in the output/ui
+this is working for the description in the 'expanded card' view, but it is not working, no newline is being added, in the carousel view of the card
+please look deeply into this and figure out why the carousel view of the card is not converting the \n (in the cards.json file, description) into a newline in the ui
+
+>>> 3. Why This Causes the Bug
+Tailwind's whitespace-pre-line is what makes \n in the string show up as a line break in the browser.
+The carousel view is missing this class, so all whitespace (including newlines) is collapsed to a single space, which is the default browser behavior.
+4. How to Fix
+Add whitespace-pre-line to the carousel description container:
+
+
+
+
+how are we putting space between the radial carousel (on homepage) and the sections aboe and below it? I mean, how is this already being set?
+
+the expanded card is getting truncated or cut off at the bottom portioni, that is what i am trying to fix, can you tell me why this is happening? It is slight but it is noticeable
+
+i want the expanded card to be the same size and to not be cut off, if we can do that by overriding some kind of clipping that would be great
+
+top padding is not the answer either, bc the top is getting clipped a bit too
+
+where do i set overflow visible for the modal container itself
+
+
+
+we want to use only the actual prices from stripe
+remove all the other pricing
+
+we need to adjust the appearance of the product cards on the cupgrades panel, we want two things for now
+1) larger font size
+2. larger image
+
+now the other text in the cupgrades panel, outside of the product cards, it also needs to be increased two sizes
+
+now the cupgrades panel needs to be a higher z level than the radial carousel, or anything else (the carousel wrapper may be at 21, i am not sure)

@@ -40,10 +40,10 @@ const RESPONSIVE_CONFIG = {
       wheelLeft: '30%',      // Wheel horizontal position (centered on mobile)
     },
     desktop: {
-      marginTop: '10px',    // Top margin (negative pulls up)  
-      marginBottom: '0px',   // Bottom margin
-      paddingBottom: '10px',
-      height: '95vh',        // Section height
+      marginTop: '-40px',    // Top margin (negative pulls up)  
+      marginBottom: '10px',   // Bottom margin
+      paddingBottom: '50px',
+      height: '125vh',        // Section height
       wheelTop: '45%',       // Wheel vertical position within section
       wheelLeft: '30%',      // Wheel horizontal position (offset left on desktop)
     }
@@ -419,6 +419,7 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
         height: wheelContainerStyle.height, // Responsive height
         marginTop: wheelContainerStyle.marginTop, // Responsive top margin
         marginBottom: wheelContainerStyle.marginBottom, // Responsive bottom margin
+	paddingBottom: wheelContainerStyle.paddingBottom, // Responsive bottom padding
       }}
     >
       {/* Wheel container - responsive positioning and sizing with fade-out edges */}
@@ -465,7 +466,7 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="fixed inset-0 backdrop-blur-md z-[9999] flex items-start justify-center pt-20 md:pt-20 p-4 pb-20"
+            className="fixed inset-0 backdrop-blur-md z-[21] flex items-start justify-center pt-20 md:pt-20 p-4 pb-20"
             onClick={handleCloseExpanded}
           >
             <motion.div
@@ -473,7 +474,7 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.8, opacity: 0, y: 20 }}
               transition={{ duration: 0.4, ease: "easeOut" }}
-              className="relative bg-white rounded-xl shadow-2xl overflow-hidden z-[10000]"
+              className="relative bg-white rounded-xl shadow-2xl overflow-hidden z-[21]"
               style={{ 
                 aspectRatio: '2/3',
                 width: isMobile 

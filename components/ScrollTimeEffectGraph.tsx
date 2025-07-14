@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { log } from '../lib/utils/log';
 
 // Responsive layout config
 const GRAPH_LAYOUT_CONFIG = {
   mobile: {
     height: 'auto',
     marginTop: '-150px',
-    marginBottom: '40px',
+    marginBottom: '-50px',
     maxHeight: '90vh',
     paddingX: '3vw',
   },
@@ -72,22 +73,31 @@ const ScrollTimeEffectGraph = () => {
           ScrollTrigger.create({                 // we are only establishing the full scroll window
             trigger: containerRef.current,
             start: 'bottom 105%',                // higher val = sooner, use >100% for before entering viewport
-            end: 'top 15%',                      // define the end of the scroll window
+            end: 'top 40%',                      // define the end of the scroll window
             scrub: 3.3,                          // smoothness
-            onUpdate: (self) => {
-              if (animationRef.current && totalFrames) {
-                const animationProgress = Math.min(self.progress / 1, 1.0); 
-                const frame = (totalFrames - 1) * animationProgress;
-                animationRef.current.goToAndStop(frame, true);
-              }
-            },
+            onUpdate: (() => {
+              let lastPercent = -1;
+              return (self) => {
+                if (animationRef.current && totalFrames) {
+                  const animationProgress = Math.min(self.progress / 1, 1.0); 
+                  const frame = (totalFrames - 1) * animationProgress;
+                  animationRef.current.goToAndStop(frame, true);
+                }
+                // Calculate scroll percent and log only if it changes
+                const percent = Math.round(self.progress * 100);
+                if (percent !== lastPercent && percent >= 1 && percent <= 100) {
+                  log(`[ScrollTimeEffectGraph] Scroll: ${percent}%`);
+                  lastPercent = percent;
+                }
+              };
+            })(),
           });
 
           // Opacity fade ScrollTrigger - separate from animation frames
           ScrollTrigger.create({
             trigger: containerRef.current,
             start: 'top 100%',                    // when bottom of div is x% down the viewport
-            end: 'top 60%',                      // same point - creates a toggle effect
+            end: 'top 15%',                      // same point - creates a toggle effect
             toggleActions: 'play none reverse none', // play on enter, reverse on leave back
             onEnter: () => setIsVisible(true),      // fade in when entering
             onLeaveBack: () => setIsVisible(false), // fade out when scrolling back up past trigger
