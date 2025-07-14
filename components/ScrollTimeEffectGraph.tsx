@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { log } from '../lib/utils/log';
 
 // Responsive layout config
 const GRAPH_LAYOUT_CONFIG = {
@@ -26,6 +25,9 @@ const ScrollTimeEffectGraph = () => {
   const animationRef = useRef<any>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const lastLoggedPercentage = useRef<number>(-1);
+  const hasLoggedStart = useRef<boolean>(false);
+  const hasLoggedEnd = useRef<boolean>(false);
 
   // Detect mobile/desktop
   useLayoutEffect(() => {
@@ -75,22 +77,36 @@ const ScrollTimeEffectGraph = () => {
             start: 'bottom 105%',                // higher val = sooner, use >100% for before entering viewport
             end: 'top 40%',                      // define the end of the scroll window
             scrub: 3.3,                          // smoothness
-            onUpdate: (() => {
-              let lastPercent = -1;
-              return (self) => {
-                if (animationRef.current && totalFrames) {
-                  const animationProgress = Math.min(self.progress / 1, 1.0); 
-                  const frame = (totalFrames - 1) * animationProgress;
-                  animationRef.current.goToAndStop(frame, true);
+            onUpdate: (self) => {
+              if (animationRef.current && totalFrames) {
+                const animationProgress = Math.min(self.progress / 1, 1.0); 
+                const frame = (totalFrames - 1) * animationProgress;
+                animationRef.current.goToAndStop(frame, true);
+                
+                // Console logging for scroll progression
+                const progressPercentage = Math.floor(animationProgress * 100);
+                
+                // Log start of scroll
+                if (!hasLoggedStart.current && self.progress > 0) {
+                  console.log("start scroll");
+                  hasLoggedStart.current = true;
                 }
-                // Calculate scroll percent and log only if it changes
-                const percent = Math.round(self.progress * 100);
-                if (percent !== lastPercent && percent >= 1 && percent <= 100) {
-                  log(`[ScrollTimeEffectGraph] Scroll: ${percent}%`);
-                  lastPercent = percent;
+                
+                // Log percentage increments
+                if (progressPercentage !== lastLoggedPercentage.current && progressPercentage >= 0 && progressPercentage <= 100) {
+                  if (progressPercentage > 0) {
+                    console.log(`${progressPercentage}% scroll`);
+                  }
+                  lastLoggedPercentage.current = progressPercentage;
                 }
-              };
-            })(),
+                
+                // Log end of scroll
+                if (!hasLoggedEnd.current && progressPercentage >= 100) {
+                  console.log("end scroll");
+                  hasLoggedEnd.current = true;
+                }
+              }
+            },
           });
 
           // Opacity fade ScrollTrigger - separate from animation frames
@@ -115,6 +131,10 @@ const ScrollTimeEffectGraph = () => {
       import('gsap/dist/ScrollTrigger').then(({ ScrollTrigger }) => {
         ScrollTrigger.getAll().forEach(trigger => trigger.kill());
       });
+      // Reset logging state
+      lastLoggedPercentage.current = -1;
+      hasLoggedStart.current = false;
+      hasLoggedEnd.current = false;
     };
   }, []);
 
