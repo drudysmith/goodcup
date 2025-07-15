@@ -40,7 +40,6 @@ const ScrollTimeEffectGraph = () => {
   const lastLoggedPercentage = useRef<number>(-1);
   const hasLoggedStart = useRef<boolean>(false);
   const hasLoggedEnd = useRef<boolean>(false);
-  const isLoadingRef = useRef<boolean>(false);
 
   // Detect mobile/desktop
   useLayoutEffect(() => {
@@ -58,10 +57,6 @@ const ScrollTimeEffectGraph = () => {
 
   // Lottie + ScrollTrigger setup
   useEffect(() => {
-    // Prevent multiple simultaneous loads
-    if (isLoadingRef.current) return;
-    isLoadingRef.current = true;
-
     const loadLottie = async () => {
       try {
         const [lottie, { gsap }, { ScrollTrigger }] = await Promise.all([
@@ -72,10 +67,7 @@ const ScrollTimeEffectGraph = () => {
 
         gsap.registerPlugin(ScrollTrigger);
 
-        if (!containerRef.current) {
-          isLoadingRef.current = false;
-          return;
-        }
+        if (!containerRef.current) return;
 
         animationRef.current = lottie.loadAnimation({
           container: containerRef.current,
@@ -87,19 +79,13 @@ const ScrollTimeEffectGraph = () => {
 
         animationRef.current.addEventListener('DOMLoaded', () => {
           const animData = animationRef.current.animationData;
-          if (!animData || !animData.op) {
-            isLoadingRef.current = false;
-            return;
-          }
+          if (!animData || !animData.op) return;
 
           const totalFrames = animData.op;
           
           // Get responsive configuration
           const currentLayout = isMobile ? GRAPH_LAYOUT_CONFIG.mobile : GRAPH_LAYOUT_CONFIG.desktop;
           const scrollConfig = currentLayout.scroll;
-
-          // Store ScrollTrigger reference for synchronous cleanup
-          (window as any).__goodcupScrollTrigger = ScrollTrigger;
 
           // Animation frames ScrollTrigger
           ScrollTrigger.create({                 // we are only establishing the full scroll window
@@ -149,9 +135,6 @@ const ScrollTimeEffectGraph = () => {
             onEnter: () => setIsVisible(true),      // fade in when entering
             onLeaveBack: () => setIsVisible(false), // fade out when scrolling back up past trigger
           });
-
-          // Mark loading as complete
-          isLoadingRef.current = false;
         });
       } catch (error) {
         console.error('Error in loadLottie:', error);
@@ -161,27 +144,16 @@ const ScrollTimeEffectGraph = () => {
     loadLottie();
 
     return () => {
-      // Reset loading state
-      isLoadingRef.current = false;
-      
-      // Cleanup animation
-      if (animationRef.current) {
-        animationRef.current.destroy();
-        animationRef.current = null;
-      }
-      
-      // Cleanup ScrollTrigger instances synchronously
-      const ScrollTrigger = (window as any).__goodcupScrollTrigger;
-      if (ScrollTrigger) {
-        ScrollTrigger.getAll().forEach((trigger: any) => trigger.kill());
-      }
-      
+      if (animationRef.current) animationRef.current.destroy();
+      import('gsap/dist/ScrollTrigger').then(({ ScrollTrigger }) => {
+        ScrollTrigger.getAll().forEach(trigger => trigger.kill());
+      });
       // Reset logging state
       lastLoggedPercentage.current = -1;
       hasLoggedStart.current = false;
       hasLoggedEnd.current = false;
     };
-  }, [isMobile]); // Add isMobile dependency to trigger re-setup when screen size changes
+  }, []);
 
   // Apply responsive container layout
   const layout = isMobile ? GRAPH_LAYOUT_CONFIG.mobile : GRAPH_LAYOUT_CONFIG.desktop;
