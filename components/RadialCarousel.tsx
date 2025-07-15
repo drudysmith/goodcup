@@ -419,7 +419,7 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
         height: wheelContainerStyle.height, // Responsive height
         marginTop: wheelContainerStyle.marginTop, // Responsive top margin
         marginBottom: wheelContainerStyle.marginBottom, // Responsive bottom margin
-	paddingBottom: wheelContainerStyle.paddingBottom, // Responsive bottom padding
+	
       }}
     >
       {/* Wheel container - responsive positioning and sizing with fade-out edges */}
