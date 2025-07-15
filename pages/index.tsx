@@ -16,14 +16,14 @@ export default function Home() {
 
   // Video playlist logic with crossfade support
   const videoUrls = [
-    "https://goodcup.me/hero-01.mp4",
-    "https://goodcup.me/hero-07.mp4",
-    "https://goodcup.me/hero-11.mp4",
-    "https://goodcup.me/hero-14.mp4",
-    "https://goodcup.me/hero-19.mp4",
-    "https://goodcup.me/hero-24.mp4",
-    "https://goodcup.me/hero-26.mp4",
-    "https://goodcup.me/hero-27.mp4"
+    "https://hero.goodcup.me/hero-01.mp4",
+    "https://hero.goodcup.me/hero-07.mp4",
+    "https://hero.goodcup.me/hero-11.mp4",
+    "https://hero.goodcup.me/hero-14.mp4",
+    "https://hero.goodcup.me/hero-19.mp4",
+    "https://hero.goodcup.me/hero-24.mp4",
+    "https://hero.goodcup.me/hero-26.mp4",
+    "https://hero.goodcup.me/hero-27.mp4"
   ];
   const videoTextBlocks = [
     { headline: "Fuel Without the Fire", subline: "Smooth focus. No crash. No caffeine anxiety." },
