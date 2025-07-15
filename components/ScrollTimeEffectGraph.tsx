@@ -8,13 +8,25 @@ const GRAPH_LAYOUT_CONFIG = {
     marginBottom: '-50px',
     maxHeight: '90vh',
     paddingX: '3vw',
+    scroll: {
+      start: 'bottom 105%',      // start animation trigger point
+      end: 'top 40%',            // end animation trigger point
+      scrub: 3.3,                // scroll smoothness (lower = more responsive)
+      markers: false,            // debug markers
+    },
   },
   desktop: {
-    height: 'auto',
+    height: '75vh',
     marginTop: '-250px',
     marginBottom: '2.5rem',
-    maxHeight: '90vh',
+    maxHeight: '75vh',
     paddingX: '12vw',
+    scroll: {
+      start: 'bottom 125%',       // start animation trigger point
+      end: 'bottom 85%',            // end animation trigger point
+      scrub: 3.3,                // scroll smoothness (lower = more responsive)
+      markers: false,             // debug markers
+    },
   },
 };
 
@@ -70,13 +82,18 @@ const ScrollTimeEffectGraph = () => {
           if (!animData || !animData.op) return;
 
           const totalFrames = animData.op;
+          
+          // Get responsive configuration
+          const currentLayout = isMobile ? GRAPH_LAYOUT_CONFIG.mobile : GRAPH_LAYOUT_CONFIG.desktop;
+          const scrollConfig = currentLayout.scroll;
 
           // Animation frames ScrollTrigger
           ScrollTrigger.create({                 // we are only establishing the full scroll window
             trigger: containerRef.current,
-            start: 'bottom 105%',                // higher val = sooner, use >100% for before entering viewport
-            end: 'top 40%',                      // define the end of the scroll window
-            scrub: 3.3,                          // smoothness
+            start: scrollConfig.start,           // responsive start position
+            end: scrollConfig.end,               // responsive end position
+            scrub: scrollConfig.scrub,           // responsive smoothness
+            markers: scrollConfig.markers,       // responsive debug markers
             onUpdate: (self) => {
               if (animationRef.current && totalFrames) {
                 const animationProgress = Math.min(self.progress / 1, 1.0); 
