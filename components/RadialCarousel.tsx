@@ -42,7 +42,7 @@ const RESPONSIVE_CONFIG = {
     desktop: {
       marginTop: '-40px',    // Top margin (negative pulls up)  
       marginBottom: '10px',   // Bottom margin
-      paddingBottom: '50px',
+
       height: '125vh',        // Section height
       wheelTop: '45%',       // Wheel vertical position within section
       wheelLeft: '30%',      // Wheel horizontal position (offset left on desktop)
