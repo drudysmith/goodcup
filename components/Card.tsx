@@ -94,7 +94,7 @@ const Card: React.FC<CardProps> = ({
       {/* Try It button - positioned at bottom with pleasant spacing */}
       <div className="flex justify-end pt-1">
         <button 
-          className="bg-brand-secondary text-white px-4 py-2 rounded-full font-small text-base 
+          className="bg-brand-secondary text-white px-4 py-2 rounded-full font-base text-lg
                      transition-all duration-200 ease-in-out 
                      hover:scale-105 hover:shadow-lg 
                      active:scale-95"

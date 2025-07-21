@@ -227,6 +227,36 @@ small, .text-small {
   animation: fadeScaleIn 1.6s ease-out forwards;
 }
 
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes cartBounce {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+@keyframes buttonPress {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 /* 🎨 COMPONENT UTILITIES - Reusable patterns */
 .site-section-bg {
   background-image: linear-gradient(to top, 
@@ -332,6 +362,10 @@ small, .text-small {
 
 .cupgrade-button:hover, .accent-button:hover {
   @apply bg-brand-primary-light;
+}
+
+.cupgrade-button:active, .accent-button:active {
+  animation: buttonPress 0.15s ease-out;
 }
 
 .accent-button:disabled {

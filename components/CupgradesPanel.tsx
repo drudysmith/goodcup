@@ -26,7 +26,7 @@ interface CupgradesPanelProps {
   products: StripeProduct[];
   cupgradesClosing: boolean;
   onClose: () => void;
-  addItem: (item: CartItem) => void;
+  addItem: (item: CartItem, animationData?: any) => Promise<void>;
 }
 
 const CupgradesPanel: React.FC<CupgradesPanelProps> = ({ 
@@ -192,12 +192,17 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
                       )}
                       {/* Font change here - featured product button */}
                       <button
-                        className="ml-auto bg-brand-secondary text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-opacity"
-                        onClick={() => {
-                          addItem({
+                        className="ml-auto bg-brand-secondary text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-opacity active:scale-95"
+                        style={{ transition: 'transform 0.15s ease-out, opacity 0.2s ease-out' }}
+                        onClick={async (e) => {
+                          const buttonElement = e.currentTarget;
+                          await addItem({
                             productId: mostPopularProduct.id,
                             priceId: mostPopularProduct.prices[0].id,
                             quantity: 1
+                          }, {
+                            productImage: mostPopularProduct.images[0],
+                            startElement: buttonElement
                           });
                         }}
                       >
@@ -261,12 +266,17 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
                       )}
                       {/* Font change here - super healing product button */}
                       <button
-                        className="ml-auto bg-brand-primary text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-opacity"
-                        onClick={() => {
-                          addItem({
+                        className="ml-auto bg-brand-primary text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-opacity active:scale-95"
+                        style={{ transition: 'transform 0.15s ease-out, opacity 0.2s ease-out' }}
+                        onClick={async (e) => {
+                          const buttonElement = e.currentTarget;
+                          await addItem({
                             productId: superHealingProduct.id,
                             priceId: superHealingProduct.prices[0].id,
                             quantity: 1
+                          }, {
+                            productImage: superHealingProduct.images[0],
+                            startElement: buttonElement
                           });
                         }}
                       >
@@ -371,12 +381,17 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
                               )}
                               {/* Font change here - regular product card button */}
                               <button
-                                className="ml-auto bg-brand-secondary text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-opacity"
-                                onClick={() => {
-                                  addItem({
+                                className="ml-auto bg-brand-secondary text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-opacity active:scale-95"
+                                style={{ transition: 'transform 0.15s ease-out, opacity 0.2s ease-out' }}
+                                onClick={async (e) => {
+                                  const buttonElement = e.currentTarget;
+                                  await addItem({
                                     productId: product.id,
                                     priceId: product.prices[0].id,
                                     quantity: 1
+                                  }, {
+                                    productImage: product.images[0],
+                                    startElement: buttonElement
                                   });
                                 }}
                               >

@@ -18,6 +18,8 @@ import CupgradesPanel from './CupgradesPanel';
 import NotificationBanner from './NotificationBanner';
 import NavMenu from './NavMenu';
 import { ContactInfoPopup } from './ContactInfoPopup';
+import FlyToCartAnimationComponent from './FlyToCartAnimation';
+import { useFlyToCart } from '../lib/hooks/useFlyToCart';
 import { AuthModal } from './AuthModal';
 import { openAuthModal, updateCachedCredentials } from '../store/authModalStore';
 
@@ -163,6 +165,10 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   const [showSessionPopup, setShowSessionPopup] = useState(false);
   const [sessionPopupMessage, setSessionPopupMessage] = useState('');
   const [sessionPopupTimer, setSessionPopupTimer] = useState<NodeJS.Timeout | null>(null);
+  
+  // Fly-to-cart animation state
+  const [cartBouncing, setCartBouncing] = useState(false);
+  const { activeAnimations, triggerAnimation, removeAnimation } = useFlyToCart();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLUListElement>(null);
   const cartRef = useRef<HTMLDivElement>(null);
@@ -239,6 +245,23 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
     elements.forEach(el => observer.observe(el));
     return () => observer.disconnect();
   }, []);
+
+  // Expose fly-to-cart function globally for cart store
+  useEffect(() => {
+    (window as any).__triggerFlyToCart = triggerAnimation;
+    return () => {
+      delete (window as any).__triggerFlyToCart;
+    };
+  }, [triggerAnimation]);
+
+  // Handle animation completion with cart bounce
+  const handleAnimationComplete = useCallback((animationId: string) => {
+    removeAnimation(animationId);
+    
+    // Trigger cart bounce effect
+    setCartBouncing(true);
+    setTimeout(() => setCartBouncing(false), 400); // Match bounce duration
+  }, [removeAnimation]);
   
   // Optimize cart store selectors
   const items = useCartStore((state) => state.items);
@@ -702,10 +725,10 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
         onDismiss={dismissBanner}
       />
 
-      {/* Fixed Header with scroll animation */}
+      {/* Header for scroll animations*/}
       <header 
         ref={headerRef}
-        className={`fixed ${showBanner ? 'top-[41px]' : 'top-0'} left-0 w-full border-b border-transparent flex items-center justify-center z-20 transition-all duration-300 ease-in-out bg-neutral-clear ${
+        className={`fixed ${showBanner ? 'top-[41px]' : 'top-0'} left-0 w-full border-b border-transparent flex items-center justify-center z-30 transition-all duration-300 ease-in-out bg-neutral-clear ${
           isScrolled ? 'h-[5.4rem]' : 'h-[6rem]'
         }${isScrolledAndNarrow ? ' scrolled' : ''}`}
       >
@@ -846,12 +869,14 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
               >
                 {/* Simple Shopping Cart Icon to match image */}
                 <svg 
-                  className="h-6 w-6" 
+                  data-cart-icon
+                  className={`h-6 w-6 ${cartBouncing ? 'animate-pulse' : ''}`}
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24"
                   strokeWidth="2"
                   aria-label="Cart"
+                  style={cartBouncing ? { animation: 'cartBounce 0.4s ease-out' } : {}}
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17" />
                   <circle cx="9" cy="20" r="1" />
@@ -1025,6 +1050,15 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
           {overlay}
         </div>
       )}
+
+      {/* Fly-to-Cart Animations */}
+      {activeAnimations.map((animation) => (
+        <FlyToCartAnimationComponent
+          key={animation.id}
+          animation={animation}
+          onComplete={handleAnimationComplete}
+        />
+      ))}
 
       {/* Full-width Banner Dropdown Menu */}
       <NavMenu

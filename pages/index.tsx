@@ -359,7 +359,7 @@ export default function Home() {
               opacity: isCarouselInView ? 1 : 0,             // opacity controlled by carousel visibility
               x: isCarouselInView ? 0 : -50                  // x position controlled by carousel visibility
             }}
-            transition={{ duration: 0.8, delay: 0.8 }}      // Header: 0.5s delay = 0.2s after container
+            transition={{ duration: 0.5, delay: 0.3 }}      // Header: 0.5s delay = 0.2s after container
             className="
               text-text-soft text-left font-light leading-tight    // text styling - font-light weight, leading-tight spacing, text-left alignment
               text-2xl md:text-5xl                                 // font size - text-2xl mobile, text-5xl desktop - change to xl/4xl for smaller, 3xl/6xl for larger
@@ -375,7 +375,7 @@ export default function Home() {
               opacity: isCarouselInView ? 1 : 0,             // opacity controlled by carousel visibility
               x: isCarouselInView ? 0 : -30                  // x position controlled by carousel visibility
             }}
-            transition={{ duration: 0.8, delay: 1.4 }}      // Paragraph: 0.7s delay = 0.2s after header
+            transition={{ duration: 0.5, delay: .8 }}      // Paragraph: 0.7s delay = 0.2s after header
             className="
               text-text-soft text-left font-light leading-relaxed   // text styling - font-light weight, leading-relaxed spacing, text-left alignment
               text-base md:text-xl                                  // font size - text-base mobile, text-xl desktop - change to sm/lg for smaller, lg/2xl for larger

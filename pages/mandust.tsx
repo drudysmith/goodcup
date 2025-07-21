@@ -19,12 +19,17 @@ export default function ManDust() {
     }
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     const price = manDustProduct.price[selectedPlan as keyof typeof manDustProduct.price];
-    addItem({
+    const buttonElement = e.currentTarget as HTMLElement;
+    
+    await addItem({
       productId: manDustProduct.id,
       priceId: price.id,
       quantity: 1
+    }, {
+      productImage: manDustProduct.images[0],
+      startElement: buttonElement
     });
   };
 

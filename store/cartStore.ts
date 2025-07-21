@@ -1,6 +1,7 @@
 import { Store } from '@tanstack/store';
 import { useStore } from '@tanstack/react-store';
 import { LOG_ENABLED } from '../lib/utils/log';
+import type { FlyToCartData } from '../lib/hooks/useFlyToCart';
 
 export type CartItem = {
   productId: string;
@@ -10,7 +11,7 @@ export type CartItem = {
 
 interface CartState {
   items: CartItem[];
-  addItem: (item: CartItem) => void;
+  addItem: (item: CartItem, animationData?: FlyToCartData) => Promise<void>;
   removeItem: (priceId: string) => void;
   updateQuantity: (priceId: string, quantity: number) => void;
   clearCart: () => void;
@@ -68,7 +69,24 @@ const cartStore = new Store({
 });
 
 // Action functions that manipulate the store
-const addItem = (item: CartItem) => {
+const addItem = async (item: CartItem, animationData?: FlyToCartData): Promise<void> => {
+  // If animation data is provided, trigger the animation first
+  if (animationData && !animationData.skipAnimation) {
+    // Get the global fly-to-cart trigger function from window (will be set by Layout)
+    const triggerFlyToCart = (window as any).__triggerFlyToCart;
+    if (triggerFlyToCart) {
+      try {
+        // Wait for animation to complete before updating cart
+        await triggerFlyToCart(animationData);
+      } catch (error) {
+        if (LOG_ENABLED) {
+          console.warn('Fly-to-cart animation failed:', error);
+        }
+      }
+    }
+  }
+
+  // Update cart state (either immediately or after animation)
   cartStore.setState((state) => {
     // If item with same priceId exists, update quantity
     const existing = state.items.find((i) => i.priceId === item.priceId);
