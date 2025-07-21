@@ -92,13 +92,15 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
         } as React.CSSProperties}
       >
         {/* Header Banner */}
-        <div className="bg-brand-dark text-surface-background px-6 py-3 text-center text-sm">
+        {/* Font change here - header banner text */}
+        <div className="bg-brand-dark text-surface-background px-6 py-3 text-center text-xl">
           Discover your perfect cupgrade experience
         </div>
 
         {/* Header with Close button */}
         <div className="flex justify-between items-center p-6 pb-4 border-b border-neutral-border/10">
-          <h3 className="text-xl font-medium text-text-primary">Cupgrades Market</h3>
+          {/* Font change here - main header title */}
+          <h3 className="text-2xl font-medium text-text-primary">Cupgrades Market</h3>
           <button 
             onClick={onClose}
             className="text-text-secondary hover:opacity-70 transition-opacity"
@@ -160,36 +162,37 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
                 }}
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="bg-brand-secondary text-white px-2 py-1 rounded text-xs font-medium">
+                  {/* Font change here - featured product badge */}
+                  <span className="bg-brand-secondary text-white px-2 py-1 rounded text-sm font-medium">
                     MOST POPULAR
                   </span>
-                  <h4 className="text-text-primary font-medium text-sm">{mostPopularProduct.name}</h4>
+                  {/* Font change here - featured product name */}
+                  <h4 className="text-text-primary font-medium text-base">{mostPopularProduct.name}</h4>
                 </div>
                 <div className="flex items-center gap-3">
+                  {/* Image size change here - featured product image */}
                   {mostPopularProduct.images[0] && (
                     <img
                       src={mostPopularProduct.images[0]}
                       alt={mostPopularProduct.name}
-                      className="w-12 h-12 object-cover rounded-lg"
+                      className="w-32 h-32 object-cover rounded-xl block"
                     />
                   )}
                   <div className="flex-1">
-                    <p className="text-xs text-text-tertiary mb-1">
+                    {/* Font change here - featured product description */}
+                    <p className="text-sm text-text-tertiary mb-1">
                       {mostPopularProduct.description || '30 servings of daily wellness'}
                     </p>
                     <div className="flex items-center gap-2">
+                      {/* Price change here - using only actual stripe price, removed multiplier */}
                       {mostPopularProduct.prices[0] && (
-                        <>
-                          <span className="text-xs text-text-tertiary line-through">
-                            {((mostPopularProduct.prices[0].unit_amount || 0) * 1.15 / 100).toFixed(2)}
-                          </span>
-                          <span className="text-sm font-medium text-text-primary">
-                            {((mostPopularProduct.prices[0].unit_amount || 0) / 100).toFixed(2)}
-                          </span>
-                        </>
+                        <span className="text-base font-medium text-text-primary">
+                          ${((mostPopularProduct.prices[0].unit_amount || 0) / 100).toFixed(2)}
+                        </span>
                       )}
+                      {/* Font change here - featured product button */}
                       <button
-                        className="ml-auto bg-brand-secondary text-white px-3 py-1 rounded text-xs hover:opacity-90 transition-opacity"
+                        className="ml-auto bg-brand-secondary text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-opacity"
                         onClick={() => {
                           addItem({
                             productId: mostPopularProduct.id,
@@ -228,36 +231,37 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
                 }}
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="bg-brand-primary text-white px-2 py-1 rounded text-xs font-medium">
+                  {/* Font change here - super healing product badge */}
+                  <span className="bg-brand-primary text-white px-2 py-1 rounded text-sm font-medium">
                     BEST SYSTEM RESET
                   </span>
-                  <h4 className="text-text-primary font-medium text-sm">{superHealingProduct.name}</h4>
+                  {/* Font change here - super healing product name */}
+                  <h4 className="text-text-primary font-medium text-base">{superHealingProduct.name}</h4>
                 </div>
                 <div className="flex items-center gap-3">
+                  {/* Image size change here - super healing product image */}
                   {superHealingProduct.images[0] && (
                     <img
                       src={superHealingProduct.images[0]}
                       alt={superHealingProduct.name}
-                      className="w-12 h-12 object-cover rounded-lg"
+                      className="w-16 h-16 object-cover rounded-lg"
                     />
                   )}
                   <div className="flex-1">
-                    <p className="text-xs text-text-tertiary mb-1">
+                    {/* Font change here - super healing product description */}
+                    <p className="text-sm text-text-tertiary mb-1">
                       {superHealingProduct.description || 'Complete system reset formula'}
                     </p>
                     <div className="flex items-center gap-2">
+                      {/* Price change here - using only actual stripe price, removed multiplier */}
                       {superHealingProduct.prices[0] && (
-                        <>
-                          <span className="text-xs text-text-tertiary line-through">
-                            {((superHealingProduct.prices[0].unit_amount || 0) * 1.15 / 100).toFixed(2)}
-                          </span>
-                          <span className="text-sm font-medium text-text-primary">
-                            {((superHealingProduct.prices[0].unit_amount || 0) / 100).toFixed(2)}
-                          </span>
-                        </>
+                        <span className="text-base font-medium text-text-primary">
+                          ${((superHealingProduct.prices[0].unit_amount || 0) / 100).toFixed(2)}
+                        </span>
                       )}
+                      {/* Font change here - super healing product button */}
                       <button
-                        className="ml-auto bg-brand-primary text-white px-3 py-1 rounded text-xs hover:opacity-90 transition-opacity"
+                        className="ml-auto bg-brand-primary text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-opacity"
                         onClick={() => {
                           addItem({
                             productId: superHealingProduct.id,
@@ -290,7 +294,8 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
                   className="w-full flex items-center justify-between px-6 py-4 bg-surface-elevated hover:bg-neutral-muted-bg/30 transition-colors border-t border-neutral-border/10"
                   style={{ minHeight: '64px' }} // Step 4: Make dropdown taller
                 >
-                  <span className="font-medium text-text-primary">{group.name}</span>
+                  {/* Font change here - group dropdown button */}
+                  <span className="font-medium text-text-primary text-lg">{group.name}</span>
                   <svg 
                     className={`w-5 h-5 transition-transform text-text-secondary ${
                       expandedGroups.has(group.name) ? 'rotate-180' : ''
@@ -342,31 +347,31 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
                         }}
                       >
                         <div className="flex items-center gap-3">
+                          {/* Image size change here - regular product card image */}
                           {product.images[0] && (
                             <img
                               src={product.images[0]}
                               alt={product.name}
-                              className="w-12 h-12 object-cover rounded-lg"
+                              className="w-16 h-16 object-cover rounded-lg"
                             />
                           )}
                           <div className="flex-1">
-                            <h4 className="text-text-primary text-sm font-medium">{product.name}</h4>
-                            <p className="text-xs text-text-tertiary mb-2">
+                            {/* Font change here - regular product card name */}
+                            <h4 className="text-text-primary text-base font-medium">{product.name}</h4>
+                            {/* Font change here - regular product card description */}
+                            <p className="text-sm text-text-tertiary mb-2">
                               {product.description || '30 servings'}
                             </p>
                             <div className="flex items-center gap-2">
+                              {/* Price change here - using only actual stripe price, removed multiplier */}
                               {product.prices[0] && (
-                                <>
-                                  <span className="text-xs text-text-tertiary line-through">
-                                    {((product.prices[0].unit_amount || 0) * 1.15 / 100).toFixed(2)}
-                                  </span>
-                                  <span className="text-sm font-medium text-text-primary">
-                                    {((product.prices[0].unit_amount || 0) / 100).toFixed(2)}
-                                  </span>
-                                </>
+                                <span className="text-base font-medium text-text-primary">
+                                  ${((product.prices[0].unit_amount || 0) / 100).toFixed(2)}
+                                </span>
                               )}
+                              {/* Font change here - regular product card button */}
                               <button
-                                className="ml-auto bg-brand-secondary text-white px-3 py-1 rounded text-xs hover:opacity-90 transition-opacity"
+                                className="ml-auto bg-brand-secondary text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-opacity"
                                 onClick={() => {
                                   addItem({
                                     productId: product.id,
@@ -397,20 +402,24 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
           }}
         >
           <div className="text-center">
-            <h4 className="font-medium text-text-primary mb-2">Choose Your Perfect Cupgrade</h4>
-            <p className="text-xs text-text-secondary opacity-60 mb-4">
+            {/* Font change here - bottom section main title */}
+            <h4 className="font-medium text-text-primary mb-2 text-lg">Choose Your Perfect Cupgrade</h4>
+            {/* Font change here - bottom section subtitle */}
+            <p className="text-sm text-text-secondary opacity-60 mb-4">
               handpicked wellness formulas for your unique journey
             </p>
           </div>
           {/* Man Dust link */}
           <div className="text-center">
+            {/* Font change here - man dust link */}
             <a 
               href="/mandust" 
-              className="text-brand-secondary hover:underline text-sm font-medium"
+              className="text-brand-secondary hover:underline text-base font-medium"
             >
               What is Man Dust?
             </a>
-            <p className="text-xs text-text-tertiary mt-1">
+            {/* Font change here - man dust description */}
+            <p className="text-sm text-text-tertiary mt-1">
               Hands down the best T supplement for men.
             </p>
           </div>

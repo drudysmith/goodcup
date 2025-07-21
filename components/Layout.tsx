@@ -902,16 +902,98 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
       </main>
 
       {/* Footer */}
-      <footer className="w-full h-36 bg-brand-dark border-t border-neutral-border flex flex-col items-center justify-start z-10 relative">
+      <footer className="w-full bg-brand-dark border-t border-neutral-border flex flex-col items-center py-8 z-10 relative">
         {/* Animated Logo at top-center of footer */}
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 text-surface-background">
+        <div className="mb-6 text-surface-background">
           <div onClick={() => logoRef.current?.animateToNext()} style={{ cursor: 'pointer' }}>
           <LogoAnimated ref={logoRef} />
           </div>
         </div>
         
-        <div className="flex-1 flex items-center justify-center">
-          <span className="text-sm text-surface-background">Footer (Fixed)</span>
+        {/* Main Footer Content Container */}
+        <div className="w-full max-w-4xl mx-auto px-4 text-center">
+          {/* Tagline */}
+          <h3 className="text-xl font-medium text-surface-background mb-6">
+            Brew Better. Feel Better.
+          </h3>
+          
+          {/* Social & Contact Info */}
+          <div className="space-y-4 mb-8">
+            {/* Instagram */}
+            <div className="text-surface-background">
+              <span className="text-base">Follow us: </span>
+              <a 
+                href="https://instagram.com/goodcup.me" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-base font-medium hover:opacity-70 transition-opacity"
+              >
+                @goodcup.me
+              </a>
+            </div>
+            
+            {/* Location */}
+            <div className="text-base text-surface-background">
+              Brea, CA
+            </div>
+            
+            {/* Contact Email */}
+            <div className="text-surface-background">
+              <a 
+                href="mailto:hello@goodcup.me"
+                className="text-base font-medium hover:opacity-70 transition-opacity"
+              >
+                hello@goodcup.me
+              </a>
+            </div>
+          </div>
+          
+          {/* Newsletter Signup */}
+          <div className="mb-8">
+            <p className="text-base text-surface-background mb-4">
+              Be first to know — Join our list
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+              <input
+                type="email"
+                placeholder="Enter your email"
+                className="flex-1 px-4 py-2 rounded bg-surface text-text-primary placeholder:text-text-tertiary border border-neutral-border focus:outline-none focus:ring-2 focus:ring-brand-secondary"
+              />
+              <button className="px-6 py-2 bg-brand-secondary text-white rounded font-medium hover:opacity-90 transition-opacity">
+                Subscribe
+              </button>
+            </div>
+          </div>
+          
+          {/* Navigation Links */}
+          <div className="flex flex-wrap justify-center gap-6 mb-6 text-surface-background">
+            <a href="/" className="text-base hover:opacity-70 transition-opacity">
+              Home
+            </a>
+            <button 
+              onClick={() => {/* TODO: Open cupgrades panel */}}
+              className="text-base hover:opacity-70 transition-opacity cursor-pointer"
+            >
+              Shop
+            </button>
+            <a href="/about" className="text-base hover:opacity-70 transition-opacity">
+              About
+            </a>
+            <a href="mailto:hello@goodcup.me" className="text-base hover:opacity-70 transition-opacity">
+              Contact
+            </a>
+          </div>
+          
+          {/* Legal Links */}
+          <div className="flex flex-wrap justify-center gap-4 text-sm text-surface-background opacity-70">
+            <a href="/terms" className="hover:opacity-100 transition-opacity">
+              Terms
+            </a>
+            <span>•</span>
+            <a href="/privacy" className="hover:opacity-100 transition-opacity">
+              Privacy
+            </a>
+          </div>
         </div>
         
         {/* Developer reset button, subtle and unobtrusive */}

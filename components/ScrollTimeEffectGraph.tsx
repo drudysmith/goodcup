@@ -9,10 +9,10 @@ const GRAPH_LAYOUT_CONFIG = {
     maxHeight: '90vh',
     paddingX: '3vw',
     scroll: {
-      start: 'bottom 105%',      // start animation trigger point
-      end: 'top 40%',            // end animation trigger point
+      start: 'bottom 110%',      // start animation trigger point
+      end: 'top 55%',            // end animation trigger point
       scrub: 3.3,                // scroll smoothness (lower = more responsive)
-      markers: true,            // debug markers
+      markers: false,             // debug markers
     },
   },
   desktop: {
@@ -23,9 +23,9 @@ const GRAPH_LAYOUT_CONFIG = {
     paddingX: '12vw',
     scroll: {
       start: 'bottom 125%',       // start animation trigger point
-      end: 'bottom 95%',            // end animation trigger point
-      scrub: 3.3,                // scroll smoothness (lower = more responsive)
-      markers: true,             // debug markers
+      end: 'bottom 95%',          // end animation trigger point
+      scrub: 3.3,                 // scroll smoothness (lower = more responsive)
+      markers: false,              // debug markers
     },
   },
 };
@@ -62,6 +62,8 @@ const ScrollTimeEffectGraph = () => {
     if (isLoadingRef.current) return;
     isLoadingRef.current = true;
 
+    let cancelled = false; // added flag
+
     const loadLottie = async () => {
       try {
         const [lottie, { gsap }, { ScrollTrigger }] = await Promise.all([
@@ -70,9 +72,14 @@ const ScrollTimeEffectGraph = () => {
           import('gsap/dist/ScrollTrigger'),
         ]);
 
+        if (cancelled) {
+          isLoadingRef.current = false;
+          return;
+        }
+
         gsap.registerPlugin(ScrollTrigger);
 
-        if (!containerRef.current) {
+        if (!containerRef.current || cancelled) {
           isLoadingRef.current = false;
           return;
         }
@@ -86,6 +93,12 @@ const ScrollTimeEffectGraph = () => {
         });
 
         animationRef.current.addEventListener('DOMLoaded', () => {
+          if (cancelled) {
+            animationRef.current?.destroy();
+            animationRef.current = null;
+            return;
+          }
+
           const animData = animationRef.current.animationData;
           if (!animData || !animData.op) {
             isLoadingRef.current = false;
@@ -93,47 +106,54 @@ const ScrollTimeEffectGraph = () => {
           }
 
           const totalFrames = animData.op;
-          
+
           // Get responsive configuration
-          const currentLayout = isMobile ? GRAPH_LAYOUT_CONFIG.mobile : GRAPH_LAYOUT_CONFIG.desktop;
+          const currentLayout = isMobile
+            ? GRAPH_LAYOUT_CONFIG.mobile
+            : GRAPH_LAYOUT_CONFIG.desktop;
           const scrollConfig = currentLayout.scroll;
 
           // Store ScrollTrigger reference for synchronous cleanup
           (window as any).__goodcupScrollTrigger = ScrollTrigger;
 
           // Animation frames ScrollTrigger
-          ScrollTrigger.create({                 // we are only establishing the full scroll window
+          ScrollTrigger.create({
             trigger: containerRef.current,
-            start: scrollConfig.start,           // responsive start position
-            end: scrollConfig.end,               // responsive end position
-            scrub: scrollConfig.scrub,           // responsive smoothness
-            markers: scrollConfig.markers,       // responsive debug markers
+            start: scrollConfig.start,
+            end: scrollConfig.end,
+            scrub: scrollConfig.scrub,
+            markers: scrollConfig.markers,
             onUpdate: (self) => {
               if (animationRef.current && totalFrames) {
-                const animationProgress = Math.min(self.progress / 1, 1.0); 
+                const animationProgress = Math.min(self.progress / 1, 1.0);
                 const frame = (totalFrames - 1) * animationProgress;
                 animationRef.current.goToAndStop(frame, true);
-                
+
                 // Console logging for scroll progression
-                const progressPercentage = Math.floor(animationProgress * 100);
-                
+                const progressPercentage =
+                  Math.floor(animationProgress * 100);
+
                 // Log start of scroll
                 if (!hasLoggedStart.current && self.progress > 0) {
-                  console.log("start scroll");
+                  console.log('start scroll');
                   hasLoggedStart.current = true;
                 }
-                
+
                 // Log percentage increments
-                if (progressPercentage !== lastLoggedPercentage.current && progressPercentage >= 0 && progressPercentage <= 100) {
+                if (
+                  progressPercentage !== lastLoggedPercentage.current &&
+                  progressPercentage >= 0 &&
+                  progressPercentage <= 100
+                ) {
                   if (progressPercentage > 0) {
                     console.log(`${progressPercentage}% scroll`);
                   }
                   lastLoggedPercentage.current = progressPercentage;
                 }
-                
+
                 // Log end of scroll
                 if (!hasLoggedEnd.current && progressPercentage >= 100) {
-                  console.log("end scroll");
+                  console.log('end scroll');
                   hasLoggedEnd.current = true;
                 }
               }
@@ -143,11 +163,11 @@ const ScrollTimeEffectGraph = () => {
           // Opacity fade ScrollTrigger - separate from animation frames
           ScrollTrigger.create({
             trigger: containerRef.current,
-            start: 'top 100%',                    // when bottom of div is x% down the viewport
-            end: 'top 15%',                      // same point - creates a toggle effect
-            toggleActions: 'play none reverse none', // play on enter, reverse on leave back
-            onEnter: () => setIsVisible(true),      // fade in when entering
-            onLeaveBack: () => setIsVisible(false), // fade out when scrolling back up past trigger
+            start: 'top 100%',
+            end: 'top 15%',
+            toggleActions: 'play none reverse none',
+            onEnter: () => setIsVisible(true),
+            onLeaveBack: () => setIsVisible(false),
           });
 
           // Mark loading as complete
@@ -163,19 +183,20 @@ const ScrollTimeEffectGraph = () => {
     return () => {
       // Reset loading state
       isLoadingRef.current = false;
-      
+      cancelled = true; // mark cancelled
+
       // Cleanup animation
       if (animationRef.current) {
         animationRef.current.destroy();
         animationRef.current = null;
       }
-      
+
       // Cleanup ScrollTrigger instances synchronously
       const ScrollTrigger = (window as any).__goodcupScrollTrigger;
       if (ScrollTrigger) {
         ScrollTrigger.getAll().forEach((trigger: any) => trigger.kill());
       }
-      
+
       // Reset logging state
       lastLoggedPercentage.current = -1;
       hasLoggedStart.current = false;
@@ -184,7 +205,9 @@ const ScrollTimeEffectGraph = () => {
   }, [isMobile]); // Add isMobile dependency to trigger re-setup when screen size changes
 
   // Apply responsive container layout
-  const layout = isMobile ? GRAPH_LAYOUT_CONFIG.mobile : GRAPH_LAYOUT_CONFIG.desktop;
+  const layout = isMobile
+    ? GRAPH_LAYOUT_CONFIG.mobile
+    : GRAPH_LAYOUT_CONFIG.desktop;
 
   return (
     <div
@@ -199,11 +222,12 @@ const ScrollTimeEffectGraph = () => {
         marginBottom: layout.marginBottom,
         display: 'flex',
         alignItems: 'flex-start',
-        opacity: isVisible ? 1 : 0,                // controlled by ScrollTrigger
-        transition: 'opacity 0.8s ease-out',       // smooth fade transition
+        opacity: isVisible ? 1 : 0,
+        transition: 'opacity 0.8s ease-out',
       }}
     />
   );
 };
 
 export default ScrollTimeEffectGraph;
+
