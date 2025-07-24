@@ -153,6 +153,7 @@ const Card: React.FC<CardProps> = ({
                 }}
                 onTouchEnd={(e) => {
                   e.stopPropagation();
+                  e.preventDefault(); // Prevent synthetic click from being generated
                   console.log('[Modal Debug] ENTER onTouchEnd handler');
                   console.log('[Modal Debug] Button onTouchEnd triggered');
                   console.log('[Modal Debug] product object:', product);

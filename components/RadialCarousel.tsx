@@ -430,9 +430,9 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
     <section 
       ref={sectionRef}
       className={`relative w-full min-h-[350px] select-none ${className}`}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      onTouchStart={expandedCard !== null ? undefined : handleTouchStart}
+      onTouchMove={expandedCard !== null ? undefined : handleTouchMove}
+      onTouchEnd={expandedCard !== null ? undefined : handleTouchEnd}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -495,7 +495,12 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
             className="fixed inset-0 backdrop-blur-md z-[21] flex items-start justify-center pt-0 md:pt-40 p-4 pb-20"
-            onClick={handleCloseExpanded}
+            onClick={(e) => {
+              // Only close if the click was on the overlay itself, not inside the card
+              if (e.target === e.currentTarget) {
+                handleCloseExpanded();
+              }
+            }}
           >
             <motion.div
               initial={{ scale: 0.8, opacity: 0, y: 20 }}
