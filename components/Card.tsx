@@ -131,10 +131,35 @@ const Card: React.FC<CardProps> = ({
                            transition-all duration-200 ease-in-out 
                            hover:scale-105 hover:shadow-lg 
                            active:scale-95"
+                onTouchStart={(e) => {
+                  console.log('[Modal Debug] Button onTouchStart event details:', {
+                    target: e.target,
+                    currentTarget: e.currentTarget,
+                    touches: e.touches.length,
+                    clientX: e.touches[0]?.clientX,
+                    clientY: e.touches[0]?.clientY,
+                    pageX: e.touches[0]?.pageX,
+                    pageY: e.touches[0]?.pageY,
+                    targetTagName: e.target instanceof Element ? e.target.tagName : 'unknown',
+                    targetClass: e.target instanceof Element ? e.target.className : 'unknown'
+                  });
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   console.log('[Modal Debug] ENTER onClick handler');
                   console.log('[Modal Debug] Button onClick triggered');
+                  console.log('[Modal Debug] Button onClick event details:', {
+                    target: e.target,
+                    currentTarget: e.currentTarget,
+                    clientX: e.clientX,
+                    clientY: e.clientY,
+                    pageX: e.pageX,
+                    pageY: e.pageY,
+                    isTrusted: e.isTrusted,
+                    type: e.type,
+                    targetTagName: e.target instanceof Element ? e.target.tagName : 'unknown',
+                    targetClass: e.target instanceof Element ? e.target.className : 'unknown'
+                  });
                   console.log('[Modal Debug] product object:', product);
                   console.log('[Modal Debug] addItem function invoked');
                   setTimeout(() => {
@@ -156,6 +181,17 @@ const Card: React.FC<CardProps> = ({
                   e.preventDefault(); // Prevent synthetic click from being generated
                   console.log('[Modal Debug] ENTER onTouchEnd handler');
                   console.log('[Modal Debug] Button onTouchEnd triggered');
+                  console.log('[Modal Debug] Button onTouchEnd event details:', {
+                    target: e.target,
+                    currentTarget: e.currentTarget,
+                    changedTouches: e.changedTouches.length,
+                    clientX: e.changedTouches[0]?.clientX,
+                    clientY: e.changedTouches[0]?.clientY,
+                    pageX: e.changedTouches[0]?.pageX,
+                    pageY: e.changedTouches[0]?.pageY,
+                    targetTagName: e.target instanceof Element ? e.target.tagName : 'unknown',
+                    targetClass: e.target instanceof Element ? e.target.className : 'unknown'
+                  });
                   console.log('[Modal Debug] product object:', product);
                   console.log('[Modal Debug] addItem function invoked');
                   setTimeout(() => {

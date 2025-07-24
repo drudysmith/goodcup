@@ -496,9 +496,39 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
             transition={{ duration: 0.3 }}
             className="fixed inset-0 backdrop-blur-md z-[21] flex items-start justify-center pt-0 md:pt-40 p-4 pb-20"
             onClick={(e) => {
+              // Comprehensive event path logging (no JSON.stringify)
+              try {
+                const eventDetails = {
+                  targetTagName: e.target instanceof Element ? e.target.tagName : 'unknown',
+                  targetClass: e.target instanceof Element ? e.target.className : 'unknown',
+                  currentTargetTagName: e.currentTarget instanceof Element ? e.currentTarget.tagName : 'unknown',
+                  currentTargetClass: e.currentTarget instanceof Element ? e.currentTarget.className : 'unknown',
+                  clientX: e.clientX,
+                  clientY: e.clientY,
+                  pageX: e.pageX,
+                  pageY: e.pageY
+                };
+                console.log('[Modal Debug] Overlay click event details:', eventDetails);
+                // Check what element is actually under the click coordinates
+                const elementUnderPointer = document.elementFromPoint(e.clientX, e.clientY);
+                if (elementUnderPointer) {
+                  console.log('[Modal Debug] Element under click coordinates:', {
+                    tagName: elementUnderPointer.tagName,
+                    className: elementUnderPointer.className,
+                    outerHTML: elementUnderPointer.outerHTML?.slice(0, 200)
+                  });
+                } else {
+                  console.log('[Modal Debug] Element under click coordinates: null');
+                }
+              } catch (err) {
+                console.log('[Modal Debug] Overlay click event logging error:', err);
+              }
               // Only close if the click was on the overlay itself, not inside the card
               if (e.target === e.currentTarget) {
+                console.log('[Modal Debug] Closing overlay - click was on overlay itself');
                 handleCloseExpanded();
+              } else {
+                console.log('[Modal Debug] Not closing overlay - click was inside card content');
               }
             }}
           >
