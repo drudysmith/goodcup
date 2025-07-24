@@ -20,6 +20,7 @@ import NavMenu from './NavMenu';
 import { ContactInfoPopup } from './ContactInfoPopup';
 import { AuthModal } from './AuthModal';
 import { openAuthModal, updateCachedCredentials } from '../store/authModalStore';
+import EmailSignup from './EmailSignup';
 
 // Imported constants and utilities
 import { navLinks } from '../lib/constants';
@@ -960,21 +961,12 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
           </div>
           
           {/* Newsletter Signup */}
-          <div className="mb-8">
-            <p className="text-base text-surface-background mb-4">
-              Be first to know — Join our list
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 px-4 py-2 rounded bg-surface text-text-primary placeholder:text-text-tertiary border border-neutral-border focus:outline-none focus:ring-2 focus:ring-brand-secondary"
-              />
-              <button className="px-6 py-2 bg-brand-secondary text-white rounded font-medium hover:opacity-90 transition-opacity">
-                Subscribe
-              </button>
-            </div>
-          </div>
+          <EmailSignup
+            user={user}
+            visitorId={visitorId}
+            jwt={jwt}
+            updateVisitorIdentity={updateVisitorIdentity}
+          />
           
           {/* Navigation Links */}
           <div className="flex flex-wrap justify-center gap-6 mb-6 text-surface-background">

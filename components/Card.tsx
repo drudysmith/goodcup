@@ -116,7 +116,7 @@ const Card: React.FC<CardProps> = ({
     const matchingProducts = findProductsForIngredient(ingredientName, products, 2);
 
     return (
-      <div className="h-3/5 bg-surface flex flex-col justify-start px-6 py-6 text-left overflow-y-visible">
+      <div className="h-3/5 bg-surface flex flex-col justify-start px-6 py-6 text-left overflow-y-visible expanded-content">
         <div className="text-neutral-border text-xl md:text-lg leading-relaxed whitespace-pre-line mb-4">
           <StyledText>{expandedContent.content}</StyledText>
         </div>
@@ -133,6 +133,7 @@ const Card: React.FC<CardProps> = ({
                            active:scale-95"
                 onClick={(e) => {
                   e.stopPropagation();
+                  console.log('[Click] Button clicked');
                   if (product.prices[0]) {
                     addItem({
                       productId: product.id,
@@ -143,6 +144,24 @@ const Card: React.FC<CardProps> = ({
                       console.log('Feel It clicked for:', product.name);
                     }
                   }
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                  console.log('[TouchEnd] Button touched');
+                  setTimeout(() => {
+                    console.log('[TouchEnd] Delayed: Trying to add to cart');
+                    if (product.prices[0]) {
+                      addItem({
+                        productId: product.id,
+                        priceId: product.prices[0].id,
+                        quantity: 1
+                      });
+                      console.log('[TouchEnd] addItem called');
+                      if (LOG_ENABLED) {
+                        console.log('Feel It touched for:', product.name);
+                      }
+                    }
+                  }, 0);
                 }}
               >
                 Feel It. Try {product.name}
@@ -157,7 +176,22 @@ const Card: React.FC<CardProps> = ({
   return (
     <div 
       className={`w-full h-full bg-white rounded-lg overflow-hidden shadow-md flex flex-col cursor-pointer ${!isExpanded ? 'transition-transform duration-200 hover:scale-105' : ''} ${className}`}
-      onClick={onClick}
+      onClick={(e) => {
+        console.log('[Card] Root onClick fired');
+        if (isExpanded) {
+          const expandedSection = e.currentTarget.querySelector('.expanded-content');
+          if (expandedSection && expandedSection.contains(e.target as Node)) {
+            return; // Do not collapse if clicking inside expanded content
+          }
+        }
+        if (onClick) onClick();
+      }}
+      onTouchEnd={(e) => {
+        // Prevent card onClick from firing when buttons inside are touched
+        if (e.target !== e.currentTarget) {
+          e.stopPropagation();
+        }
+      }}
     >
       {/* Image section - top 2/5 */}
       <div 
@@ -166,13 +200,13 @@ const Card: React.FC<CardProps> = ({
         onMouseLeave={handleMouseLeave}
       >
         <div 
-          className={`w-full h-full bg-cover bg-center transition-transform duration-[4000ms] ease-out ${getImageTransform()}`}
+          className={`relative z-0 w-full h-full bg-cover bg-center transition-transform duration-[4000ms] ease-out ${getImageTransform()}`}
           style={{ backgroundImage: `url(${imageUrl})` }}
         />
         
         {/* Text overlay - only visible when expanded */}
         {isExpanded && (
-          <div className="absolute top-4 left-4 z-10 pointer-events-none">
+          <div className="absolute top-4 left-4 z-20 pointer-events-none">
             <h2 className="text-white font-light text-4xl md:text-5xl lg:text-6xl drop-shadow-lg leading-tight">
               {carouselContent.title.split(' ').map((word, index) => (
                 <div key={index}>{word}</div>
