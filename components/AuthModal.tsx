@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuthModalState, closeAuthModal, updateCachedCredentials } from '../store/authModalStore';
 import { useAuthActions } from '../lib/hooks/useAuthActions';
 import { useVisitorMerge } from '../lib/hooks/useVisitorMerge';
@@ -248,9 +248,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     return <MagicLinkSentView email={modalState.email || email} onClose={handleClose} />;
   }
 
+  // Ghost click protection
+  const lastTouchEndTimeRef = useRef(0);
+  useEffect(() => {
+    const updateTouchEnd = () => {
+      lastTouchEndTimeRef.current = Date.now();
+    };
+    document.addEventListener('touchend', updateTouchEnd, true);
+    return () => {
+      document.removeEventListener('touchend', updateTouchEnd, true);
+    };
+  }, []);
+
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const clickInside = e.target !== e.currentTarget;
+    if (clickInside) {
+      console.log('[Overlay Debug] Ignored click inside modal');
+      return;
+    }
+    console.log('[Overlay Debug] Overlay click closing modal');
+    handleClose();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 ease-out" onClick={handleClose} />
+      <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 ease-out" onClick={handleOverlayClick} />
       
       <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 ease-out animate-in zoom-in-95">
         {/* Header */}

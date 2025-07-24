@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from 'react';
 
-interface NotificationBannerProps {
+export interface NotificationBannerProps {
   show: boolean;
   onDismiss: () => void;
   message?: string;
+  collapsed?: boolean;
 }
 
 const NotificationBanner: React.FC<NotificationBannerProps> = ({ 
   show, 
   onDismiss, 
-  message = "Summer 18% off - AUGUST18 at Checkout ;)" 
+  message = "Summer 18% off - AUGUST18 at Checkout ;)" ,
+  collapsed = false
 }) => {
   if (!show) return null;
 
   return (
     <div 
-      className="fixed top-0 left-0 w-full bg-neutral-border/30 text-surface-background z-20 flex items-center justify-between px-4 py-3 transition-all duration-300 ease-in-out backdrop-blur-sm animate-slide-down border-b border-transparent"
+      className={`fixed top-0 left-0 w-full bg-neutral-border/30 text-surface-background z-20 flex items-center justify-between px-4 py-3 transition-all duration-300 ease-in-out backdrop-blur-sm border-b border-transparent ${collapsed ? 'animate-slide-up' : 'animate-slide-down'}`}
       style={{ backdropFilter: 'blur(4px)' }}
     >
       <p className="text-lg md:text-xl font-medium mx-auto pr-10 text-text-inverse">

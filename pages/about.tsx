@@ -1,7 +1,7 @@
 import Layout from '../components/Layout';
 import Section from '../components/Section';
 
-const IMAGE_1 = "https://res.cloudinary.com/drtaph2gu/image/upload/v1747867465/IMG_5638_rtfx3c.webp";
+
 const IMAGE_2 = "https://res.cloudinary.com/drtaph2gu/image/upload/v1712345678/goodcup-mid.jpg";
 
 export default function About() {
@@ -11,24 +11,24 @@ export default function About() {
 
         {/* First section: image left, text right */}
         <Section
-          title="About GoodCup"
-          media={<img src={IMAGE_1} alt="Father and daughter making GoodCup" />}
-          text="GoodCup is a father-daughter cottage creation, handcrafted in our home kitchen with real attention, real intention, and a lot of care. What began as a personal blend — a tea made to support clear, steady focus and deep calm — gradually evolved into something we felt ready to share. We're not a beverage company with a branding team. We're two humans with a shared rhythm, working side-by-side to fill and ship every tin with the same care we'd want if it were arriving at our own door."
+          title="How about Goodcup"
+          media={
+            <img
+              src="/media/imgs/dad-and-kid-labeling.webp"
+              alt="Father and daughter making GoodCup"
+              className="rounded-2xl animate-fade-scale"
+
+            />
+          }
+          text="Goodcup is a family-made drink, created by a dad and his daughter who love making things that feel good in the body. We started mixing and testing ingredients in our kitchen—not for a brand, but for ourselves. What came out of it was something that tasted great, boosted clarity, and supported energy without the crash. Once we started sharing it, friends kept coming back asking for more."
           bgColor="bg-transparent"
+          className="gap-y-4"
         />
 
-        {/* Second section: text only, wider and centered */}
+        {/* Second section: text left, image right */}
         <Section
           title=""
-          text="I was never a coffee drinker. The jittery spike just never matched what I needed. What I wanted was clarity and grounded energy — a slow, present alertness that doesn't overstimulate but opens up space. After years of experimenting, refining, and paying attention to the way different ingredients work on the body and mind, the GoodCup blend emerged: a gently energizing, subtly nourishing tea that supports both immediate presence and long-term vitality."
-          media={null}
-          bgColor="bg-transparent"
-        />
-
-        {/* Third section: text left, image right */}
-        <Section
-          title=""
-          text="We sometimes show up at farmers markets to connect in person, but most days you'll find us at the kitchen table, filling orders by hand and feeling grateful to offer something that helps people feel more alive, more centered. We hope GoodCup becomes part of a ritual you look forward to — a moment of grounding that meets you right where you are."
+          text="It isn’t just a morning fix—it’s an anytime boost. Whether it’s your pre-workout, afternoon pick-me-up, or evening focus tool, Goodcup meets you where you are. We believe in it because we use it every day, and we’ve seen what it does. Clean, balanced, and made to support real life—that’s what we’re here for."
           media={<img src={IMAGE_2} alt="GoodCup blend ingredients" />}
           bgColor="bg-transparent"
         />

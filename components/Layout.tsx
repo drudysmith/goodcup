@@ -151,6 +151,7 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   const [menuClosing, setMenuClosing] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
+  const [bannerCollapsed, setBannerCollapsed] = useState(false);
   const [isScrolledAndNarrow, setIsScrolledAndNarrow] = useState(false);
   const [isScrolledPast, setIsScrolledPast] = useState(false);
   const [cartHovered, setCartHovered] = useState(false);
@@ -498,6 +499,12 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
       } else {
         setIsScrolled(false);
       }
+      // Banner collapse logic
+      if (window.scrollY > 0) {
+        setBannerCollapsed(true);
+      } else {
+        setBannerCollapsed(false);
+      }
     };
 
     window.addEventListener('scroll', handleScroll);
@@ -706,18 +713,81 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
     };
   }, []);
 
+  // Dismiss menu on scroll
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleScroll = () => {
+      closeMenu();
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [menuOpen, closeMenu]);
+
+  // Dismiss menu on click outside
+  useEffect(() => {
+    if (!menuOpen || menuClosing) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        menuRef.current && 
+        !menuRef.current.contains(event.target as Node) && 
+        menuButtonRef.current && 
+        !menuButtonRef.current.contains(event.target as Node)
+      ) {
+        closeMenu();
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [menuOpen, menuClosing, closeMenu]);
+
+  useEffect(() => {
+    // Only enable in development or with ?debug=true
+    if (typeof window === 'undefined') return;
+    const isDev = process.env.NODE_ENV === 'development';
+    const debugParam = window.location && window.location.search.includes('debug=true');
+    if (!(isDev || debugParam)) return;
+
+    const clickListener = (e: Event) => {
+      try {
+        const target = e.target instanceof HTMLElement ? e.target.outerHTML.slice(0, 200) : 'non-HTMLElement';
+        console.log('[Global Event] click fired on:', target);
+      } catch (err) {
+        console.log('[Global Event] click error:', err);
+      }
+    };
+    const touchendListener = (e: Event) => {
+      try {
+        const target = e.target instanceof HTMLElement ? e.target.outerHTML.slice(0, 200) : 'non-HTMLElement';
+        console.log('[Global Event] touchend fired on:', target);
+      } catch (err) {
+        console.log('[Global Event] touchend error:', err);
+      }
+    };
+    document.addEventListener('click', clickListener);
+    document.addEventListener('touchend', touchendListener);
+    return () => {
+      document.removeEventListener('click', clickListener);
+      document.removeEventListener('touchend', touchendListener);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col bg-surface font-sans">
       {/* Notification Banner */}
       <NotificationBanner 
         show={showBanner}
         onDismiss={dismissBanner}
+        collapsed={bannerCollapsed}
       />
 
       {/* Fixed Header with scroll animation */}
       <header 
         ref={headerRef}
-        className={`fixed ${showBanner ? 'top-[41px]' : 'top-0'} left-0 w-full border-b border-transparent flex items-center justify-center z-30 transition-all duration-300 ease-in-out bg-neutral-clear ${
+        className={`fixed ${(showBanner && !bannerCollapsed) ? 'top-[41px]' : 'top-0'} left-0 w-full border-b border-transparent flex items-center justify-center z-30 transition-all duration-300 ease-in-out bg-neutral-clear ${
           isScrolled ? 'h-[5.4rem]' : 'h-[6rem]'
         }${isScrolledAndNarrow ? ' scrolled' : ''}`}
       >
@@ -970,18 +1040,18 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
           
           {/* Navigation Links */}
           <div className="flex flex-wrap justify-center gap-6 mb-6 text-surface-background">
-            <a href="/" className="text-base hover:opacity-70 transition-opacity">
+            <Link href="/" className="text-base hover:opacity-70 transition-opacity">
               Home
-            </a>
+            </Link>
             <button 
               onClick={() => {/* TODO: Open cupgrades panel */}}
               className="text-base hover:opacity-70 transition-opacity cursor-pointer"
             >
               Shop
             </button>
-            <a href="/about" className="text-base hover:opacity-70 transition-opacity">
+            <Link href="/about" className="text-base hover:opacity-70 transition-opacity">
               About
-            </a>
+            </Link>
             <a href="mailto:hello@goodcup.me" className="text-base hover:opacity-70 transition-opacity">
               Contact
             </a>
@@ -989,13 +1059,13 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
           
           {/* Legal Links */}
           <div className="flex flex-wrap justify-center gap-4 text-sm text-surface-background opacity-70">
-            <a href="/terms" className="hover:opacity-100 transition-opacity">
+            <Link href="/terms" className="hover:opacity-100 transition-opacity">
               Terms
-            </a>
+            </Link>
             <span>•</span>
-            <a href="/privacy" className="hover:opacity-100 transition-opacity">
+            <Link href="/privacy" className="hover:opacity-100 transition-opacity">
               Privacy
-            </a>
+            </Link>
           </div>
         </div>
         
@@ -1031,6 +1101,7 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
 
       {/* Full-width Banner Dropdown Menu */}
       <NavMenu
+        ref={menuRef}
         menuOpen={menuOpen}
         menuClosing={menuClosing}
         navLinks={navLinks}

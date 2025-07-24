@@ -112,7 +112,6 @@ const cartStore = new Store({
 
 // Action functions that manipulate the store
 const addItem = (item: CartItem) => {
-  console.log('[Cart] addItem received:', item);
   cartStore.setState((state) => {
     // If item with same priceId exists, update quantity
     const existing = state.items.find((i) => i.priceId === item.priceId);

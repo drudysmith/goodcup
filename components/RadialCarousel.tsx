@@ -230,6 +230,7 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
     setTouchEnd(0);
     setTouchStart(e.targetTouches[0].clientX);
     setLastDragTime(Date.now());
+    console.log('[Modal Debug] Carousel touch event fired');
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -238,6 +239,7 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
     if (Math.abs(e.targetTouches[0].clientX - touchStart) > 10) {
       e.preventDefault();
     }
+    console.log('[Modal Debug] Carousel touch event fired');
   };
 
   const handleTouchEnd = () => {

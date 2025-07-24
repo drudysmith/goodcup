@@ -7,6 +7,7 @@ import { useSupabaseSessionHelpers } from '../lib/queries/sessionQueries';
 import { useVisitorMerge } from '../lib/hooks/useVisitorMerge';
 import { supabaseAnon } from '../lib/supabaseClient';
 import { LOG_ENABLED } from '../lib/utils/log';
+import { initMobileLogger } from '../lib/utils/mobileLogger';
 
 // Create QueryClient with optimized defaults for the application
 const queryClient = new QueryClient({
@@ -121,6 +122,9 @@ function GlobalAuthListener() {
 }
 
 export default function App({ Component, pageProps }: AppProps) {
+  useEffect(() => {
+    initMobileLogger();
+  }, []);
   return (
     <QueryClientProvider client={queryClient}>
       <VisitorProvider>

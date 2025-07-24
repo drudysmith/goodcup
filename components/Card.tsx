@@ -116,7 +116,7 @@ const Card: React.FC<CardProps> = ({
     const matchingProducts = findProductsForIngredient(ingredientName, products, 2);
 
     return (
-      <div className="h-3/5 bg-surface flex flex-col justify-start px-6 py-6 text-left overflow-y-visible expanded-content">
+      <div className="h-3/5 bg-surface flex flex-col justify-start px-6 py-6 text-left overflow-y-visible">
         <div className="text-neutral-border text-xl md:text-lg leading-relaxed whitespace-pre-line mb-4">
           <StyledText>{expandedContent.content}</StyledText>
         </div>
@@ -133,7 +133,13 @@ const Card: React.FC<CardProps> = ({
                            active:scale-95"
                 onClick={(e) => {
                   e.stopPropagation();
-                  console.log('[Click] Button clicked');
+                  console.log('[Modal Debug] ENTER onClick handler');
+                  console.log('[Modal Debug] Button onClick triggered');
+                  console.log('[Modal Debug] product object:', product);
+                  console.log('[Modal Debug] addItem function invoked');
+                  setTimeout(() => {
+                    console.log('[Modal Debug] Button click handler reached (delayed)');
+                  }, 0);
                   if (product.prices[0]) {
                     addItem({
                       productId: product.id,
@@ -147,21 +153,23 @@ const Card: React.FC<CardProps> = ({
                 }}
                 onTouchEnd={(e) => {
                   e.stopPropagation();
-                  console.log('[TouchEnd] Button touched');
+                  console.log('[Modal Debug] ENTER onTouchEnd handler');
+                  console.log('[Modal Debug] Button onTouchEnd triggered');
+                  console.log('[Modal Debug] product object:', product);
+                  console.log('[Modal Debug] addItem function invoked');
                   setTimeout(() => {
-                    console.log('[TouchEnd] Delayed: Trying to add to cart');
-                    if (product.prices[0]) {
-                      addItem({
-                        productId: product.id,
-                        priceId: product.prices[0].id,
-                        quantity: 1
-                      });
-                      console.log('[TouchEnd] addItem called');
-                      if (LOG_ENABLED) {
-                        console.log('Feel It touched for:', product.name);
-                      }
-                    }
+                    console.log('[Modal Debug] Button click handler reached (delayed)');
                   }, 0);
+                  if (product.prices[0]) {
+                    addItem({
+                      productId: product.id,
+                      priceId: product.prices[0].id,
+                      quantity: 1
+                    });
+                    if (LOG_ENABLED) {
+                      console.log('Feel It touched for:', product.name);
+                    }
+                  }
                 }}
               >
                 Feel It. Try {product.name}
@@ -176,22 +184,7 @@ const Card: React.FC<CardProps> = ({
   return (
     <div 
       className={`w-full h-full bg-white rounded-lg overflow-hidden shadow-md flex flex-col cursor-pointer ${!isExpanded ? 'transition-transform duration-200 hover:scale-105' : ''} ${className}`}
-      onClick={(e) => {
-        console.log('[Card] Root onClick fired');
-        if (isExpanded) {
-          const expandedSection = e.currentTarget.querySelector('.expanded-content');
-          if (expandedSection && expandedSection.contains(e.target as Node)) {
-            return; // Do not collapse if clicking inside expanded content
-          }
-        }
-        if (onClick) onClick();
-      }}
-      onTouchEnd={(e) => {
-        // Prevent card onClick from firing when buttons inside are touched
-        if (e.target !== e.currentTarget) {
-          e.stopPropagation();
-        }
-      }}
+      onClick={onClick}
     >
       {/* Image section - top 2/5 */}
       <div 
