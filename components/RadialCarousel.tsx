@@ -1,4 +1,4 @@
-import React, { useRef, useLayoutEffect, useState } from 'react';
+import React, { useRef, useLayoutEffect, useState, useEffect } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -426,6 +426,30 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
   const cardSizeStyle = getCardSizeStyle();
   const buttonPositions = getButtonPositions();
 
+  const expandedCardRef = useRef<HTMLDivElement | null>(null);
+  const tryItButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (expandedCardRef.current) {
+      const cardStyles = window.getComputedStyle(expandedCardRef.current);
+      console.log('[Modal Debug] Expanded card (mount) computed styles:', {
+        position: cardStyles.position,
+        zIndex: cardStyles.zIndex,
+        pointerEvents: cardStyles.pointerEvents,
+        transform: cardStyles.transform
+      });
+    }
+    if (tryItButtonRef.current) {
+      const btnStyles = window.getComputedStyle(tryItButtonRef.current);
+      console.log('[Modal Debug] Try It button (mount) computed styles:', {
+        position: btnStyles.position,
+        zIndex: btnStyles.zIndex,
+        pointerEvents: btnStyles.pointerEvents,
+        transform: btnStyles.transform
+      });
+    }
+  }, [expandedCard]);
+
   return (
     <section 
       ref={sectionRef}
@@ -509,6 +533,40 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
                   pageY: e.pageY
                 };
                 console.log('[Modal Debug] Overlay click event details:', eventDetails);
+                // Log computed styles for overlay
+                if (e.currentTarget instanceof Element) {
+                  const overlayStyles = window.getComputedStyle(e.currentTarget);
+                  console.log('[Modal Debug] Overlay computed styles:', {
+                    position: overlayStyles.position,
+                    zIndex: overlayStyles.zIndex,
+                    pointerEvents: overlayStyles.pointerEvents,
+                    transform: overlayStyles.transform
+                  });
+                }
+                // Log computed styles for expanded card container and Try It button
+                if (expandedCard !== null) {
+                  const cardEl = document.querySelector('.relative.bg-white.rounded-xl.shadow-2xl.overflow-hidden.z-[21]');
+                  if (cardEl instanceof Element) {
+                    const cardStyles = window.getComputedStyle(cardEl);
+                    console.log('[Modal Debug] Expanded card computed styles:', {
+                      position: cardStyles.position,
+                      zIndex: cardStyles.zIndex,
+                      pointerEvents: cardStyles.pointerEvents,
+                      transform: cardStyles.transform
+                    });
+                  }
+                  // Try to find the Try It button inside the expanded card
+                  const tryItBtn = cardEl?.querySelector('button');
+                  if (tryItBtn instanceof Element) {
+                    const btnStyles = window.getComputedStyle(tryItBtn);
+                    console.log('[Modal Debug] Try It button computed styles:', {
+                      position: btnStyles.position,
+                      zIndex: btnStyles.zIndex,
+                      pointerEvents: btnStyles.pointerEvents,
+                      transform: btnStyles.transform
+                    });
+                  }
+                }
                 // Check what element is actually under the click coordinates
                 const elementUnderPointer = document.elementFromPoint(e.clientX, e.clientY);
                 if (elementUnderPointer) {
@@ -533,6 +591,7 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
             }}
           >
             <motion.div
+              ref={expandedCardRef}
               initial={{ scale: 0.8, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.8, opacity: 0, y: 20 }}
