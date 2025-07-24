@@ -1,7 +1,6 @@
 import { Store } from '@tanstack/store';
 import { useStore } from '@tanstack/react-store';
 import { LOG_ENABLED } from '../lib/utils/log';
-import type { FlyToCartData } from '../lib/hooks/useFlyToCart';
 
 export type CartItem = {
   productId: string;
@@ -9,13 +8,56 @@ export type CartItem = {
   quantity: number;
 };
 
+interface StripePrice {
+  id: string;
+  unit_amount: number | null;
+  currency: string;
+  recurring?: { interval: string };
+}
+
+interface StripeProduct {
+  id: string;
+  name: string;
+  description: string | null;
+  images: string[];
+  prices: StripePrice[];
+}
+
 interface CartState {
   items: CartItem[];
-  addItem: (item: CartItem, animationData?: FlyToCartData) => Promise<void>;
+  addItem: (item: CartItem) => void;
   removeItem: (priceId: string) => void;
   updateQuantity: (priceId: string, quantity: number) => void;
   clearCart: () => void;
+  validateAndCleanCart: (products: StripeProduct[]) => void;
 }
+
+// Validation function to check if cart items are valid against current product catalog
+const validateCartItems = (items: CartItem[], products: StripeProduct[]): { validItems: CartItem[], invalidItems: CartItem[] } => {
+  const validItems: CartItem[] = [];
+  const invalidItems: CartItem[] = [];
+  
+  items.forEach((item) => {
+    // Find the product
+    const product = products.find(p => p.id === item.productId);
+    if (!product) {
+      invalidItems.push(item);
+      return;
+    }
+    
+    // Find the price within the product
+    const price = product.prices.find(pr => pr.id === item.priceId);
+    if (!price) {
+      invalidItems.push(item);
+      return;
+    }
+    
+    // Item is valid
+    validItems.push(item);
+  });
+  
+  return { validItems, invalidItems };
+};
 
 // Helper functions for localStorage persistence
 const loadCartFromStorage = (): CartItem[] => {
@@ -69,24 +111,7 @@ const cartStore = new Store({
 });
 
 // Action functions that manipulate the store
-const addItem = async (item: CartItem, animationData?: FlyToCartData): Promise<void> => {
-  // If animation data is provided, trigger the animation first
-  if (animationData && !animationData.skipAnimation) {
-    // Get the global fly-to-cart trigger function from window (will be set by Layout)
-    const triggerFlyToCart = (window as any).__triggerFlyToCart;
-    if (triggerFlyToCart) {
-      try {
-        // Wait for animation to complete before updating cart
-        await triggerFlyToCart(animationData);
-      } catch (error) {
-        if (LOG_ENABLED) {
-          console.warn('Fly-to-cart animation failed:', error);
-        }
-      }
-    }
-  }
-
-  // Update cart state (either immediately or after animation)
+const addItem = (item: CartItem) => {
   cartStore.setState((state) => {
     // If item with same priceId exists, update quantity
     const existing = state.items.find((i) => i.priceId === item.priceId);
@@ -121,6 +146,23 @@ const clearCart = () => {
   cartStore.setState({ items: [] });
 };
 
+// New action to validate cart items against current product catalog and remove invalid items
+const validateAndCleanCart = (products: StripeProduct[]) => {
+  cartStore.setState((state) => {
+    const { validItems, invalidItems } = validateCartItems(state.items, products);
+    
+    if (invalidItems.length > 0) {
+      if (LOG_ENABLED) {
+        console.log(`🧹 Cart validation: Removing ${invalidItems.length} invalid items:`, 
+          invalidItems.map(item => ({ productId: item.productId, priceId: item.priceId }))
+        );
+      }
+    }
+    
+    return { items: validItems };
+  });
+};
+
 // Subscribe to changes and save to localStorage
 cartStore.subscribe(() => {
   const state = cartStore.state;
@@ -138,7 +180,11 @@ export const useCartStore = <T>(selector: (state: CartState) => T) => {
     removeItem,
     updateQuantity,
     clearCart,
+    validateAndCleanCart,
   };
   
   return selector(fullState);
-}; 
+};
+
+// Export validation function for use in other contexts (like VisitorContext)
+export { validateCartItems }; 

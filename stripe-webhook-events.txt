@@ -1,0 +1,16 @@
+
+
+checkout.session.completed
+
+customer.discount.created
+customer.discount.deleted
+customer.discount.updated
+
+customer.subscription.created
+customer.subscription.deleted
+customer.subscription.paused
+customer.subscription.resumed
+customer.subscription.updated
+
+invoice.paid
+

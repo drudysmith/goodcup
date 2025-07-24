@@ -85,7 +85,7 @@ const Section: React.FC<SectionProps> = ({
   const textAnimationClass = animation ? `reveal-init` : '';
 
   return (
-    <section className={`w-full ${bgColor} border-b border-neutral-border${className ? ` ${className}` : ''} ${hero ? 'pt-0' : ''}`}>
+    <section className={`w-full ${bgColor} border-none${className ? ` ${className}` : ''} ${hero ? 'pt-0' : ''}`}>
       <div className={containerClass}>
         {/* Text Block */}
         <div

@@ -6,7 +6,7 @@
       "description": "**Mood + Gut Boost** \nSupports digestion, elevates mood, and feeds good gut bacteria."
     },
     "expandedContent": {
-      "content": "Flavanols **support blood flow**, enhance mood and brain function. Theobromine **gently stimulates, boosting alertness** without jitteriness. Magnesium **relaxes muscles**, supports nerve balance and heart rhythm. Polyphenols **feed gut bacteria**, reduce inflammation and oxidative stress.\n\n**Uplift mood, protect the gut**, and **sharpen focus**—delivering clean energy with deep-body benefits."
+      "content": "Feel a **lift in mood** and **clearer focus** within minutes—without the jitters. That’s theobromine and flavanols at work.\nLater, magnesium and polyphenols step in to **ease tension** and support your gut."
     },
     "imageUrl": "/media/card_art/cacao.webp"
   },
@@ -17,7 +17,7 @@
       "description": "**Cellular Energy** \nBoosts ATP production, improves oxygen use, and supports recovery."
     },
     "expandedContent": {
-	"content": "Cordycepin **boosts ATP**, mimics adenosine for endurance. Polysaccharides strengthen immunity, **support antioxidant response**. Adenosine **regulates energy** metabolism and oxygen flow. Sterols + Peptides **reduce inflammation**, enhance stress resilience. \n\n**Fuel your cells, optimize oxygen use**, and **balance stress** systems—powering lasting energy and recovery."
+	"content": "Steady energy and **stress resilience**, cordycepin improves VO2max by the third week and adenosine directly improves cell function. \nWith consistent use peptides help **strengthen your system** from the inside out."
     },
     "imageUrl": "/media/card_art/cordyceps.webp"
   },
@@ -28,7 +28,7 @@
       "description": "**Sustained Energy** \nDelivers smooth, long-lasting caffeine without jitters or gut irritation."
     },
     "expandedContent": {
-      "content": "Guaranine delivers **sustained caffeine**, absorbed more slowly due to natural plant fiber and tannins. This results in **longer-lasting energy** without sharp spikes. Alkaloids and polyphenols enhance focus, **reduce oxidative stress**, and support mood. Saponins **stimulate circulation**, aiding nutrient flow and recovery.\n\n**Prolong alertness, stabilize energy**, and **sharpen focus**—providing clean stimulation without the crash."
+	"content": "Feel a **smooth lift in focus** onset in 30 minutes, lasting 3-4 hours. No spike, just steady clarity. That’s guaranine, absorbed slowly thanks to the plant’s natural fiber.\nAnd saponins and polyphenols help **circulation and recovery**."
     },
     "imageUrl": "/media/card_art/guarana.webp"
   },
@@ -39,7 +39,7 @@
       "description": "**Cognitive Clarity** \nStimulates nerve growth, enhances focus and memory."
     },
     "expandedContent": {
-      "content": "Hericenones **stimulate Nerve Growth Factor (NGF)**, supporting brain cell repair and growth. Erinacines **cross the blood-brain barrier**, enhancing focus and memory. Polysaccharides **reduce inflammation**, supporting gut-brain balance. Antioxidants **protect neurons**, promoting long-term cognitive health. \n\n**Boost clarity, support neuroplasticity**, and **strengthen mind-body function**—fueling focused, adaptive performance."
+      "content": "Subtle boost in **mental speed** lower stress within ~60 minutes—courtesy of hericenones and erinacines.\nIn 4–12 weeks, you'll feel **sharper memory, reduced inflammation**, and stronger neuron protection from polysaccharides and antioxidants."
     },
     "imageUrl": "/media/card_art/lions-mane.webp"
   },
@@ -47,10 +47,10 @@
     "id": 5, 
     "carouselContent": {
       "title": "Reishi",
-      "description": "**Stress & Hormone Balance** \nCalms the nervous system and supports adrenal and immune regulation."
+      "description": "**Hormone Balance** \nCalms the nervous system and supports adrenal and immune regulation."
     },
     "expandedContent": {
-      "content": "Triterpenes **modulate stress hormones** and calm the nervous system. Beta-glucans **strengthen immune function**, enhancing resilience to stress and pathogens. Polysaccharides **support liver detox**, aiding hormonal balance. Antioxidants **reduce systemic inflammation**, promoting deep recovery.\n\n**Calm the body, regulate stress**, and **restore internal balance**—supporting long-term resilience and hormonal harmony."
+      "content": "Expect gentle **calm and stress relief** after 1–2 weeks—thanks to triterpenes.\nIn 4–8 weeks, beta‑glucans and polysaccharides help **boost immunity**, aid liver detox, and reduce systemic inflammation—supporting deep recovery and balance."
     },
     "imageUrl": "/media/card_art/reishi.webp"
   },
@@ -61,7 +61,7 @@
       "description": "**Calm Focus** \nCombines gentle caffeine with L-theanine for alertness without anxiety."
     },
     "expandedContent": {
-      "content": "L-theanine **promotes calm alertness**, balancing caffeine’s stimulating effects. Catechins **support metabolism**, reduce inflammation, and **protect cells** from oxidative stress. Caffeine **boosts focus**, with a gentler curve than coffee. Chlorophyll **aids detox**, supporting liver function and overall clarity.\n\n**Enhance focus, support clean energy**, and **calm the mind**—delivering smooth stimulation with mental clarity."
+      "content": "Feel **calm clarity** kick in within 30 minutes—L-theanine and gentle caffeine work together to lift focus.\nAs you keep sipping, catechins and chlorophyll help **protect cells** and support liver detox for a clean, steady burn."
     },
     "imageUrl": "/media/card_art/matcha.webp"
   },
@@ -72,7 +72,7 @@
       "description": "**Gut Lining Repair** \nFeeds beneficial bacteria and supports mucosal immunity."
     },
     "expandedContent": {
-      "content": "long description"
+      "content": "In 2–4 weeks, you’ll feel **gentler immunity** and better gut balance from its polysaccharides.\nOver 8–12 weeks, expect **stronger immune resilience** and **reduced inflammation** from PSK/PSP and antioxidants."
     },
     "imageUrl": "/media/card_art/turkey-tail.webp"
   },
@@ -83,7 +83,7 @@
       "description": "**Immune Shield** \nHigh in antioxidants; reduces inflammation and strengthens immunity."
     },
     "expandedContent": {
-      "content": "PSP **enhance immune function**, activating natural killer cells and T-cells. Beta-glucans **feed beneficial gut bacteria**, supporting microbiome diversity. Antioxidants **reduce gut inflammation**, promoting mucosal healing. Prebiotic fibers **strengthen gut lining**, aiding digestion and nutrient absorption.\n\n**Restore gut health, fortify immunity**, and **support microbial balance—building a resilient internal ecosystem."
+      "content": "Within 2–3 weeks, PSP and beta-glucans begin to **strengthen your gut** and support immune defense.\nOver 6–10 weeks, prebiotics and antioxidants help **heal the gut lining** and build lasting microbial balance"
     },
     "imageUrl": "/media/card_art/chaga.webp"
   },
@@ -94,8 +94,96 @@
       "description": "**Stress Reset** \nLowers cortisol, calms inflammation, and restores body balance."
     },
     "expandedContent": {
-      "content": "Withanolides **regulate cortisol**, helping reduce stress and anxiety. Alkaloids **support thyroid function**, stabilizing energy and mood. Saponins **reduce inflammation**, aiding joint and muscle recovery. Flavonoids **protect neurons**, supporting mental clarity under stress. \n\n**Lower stress, restore balance**, and **build resilience**—supporting calm energy and whole-body stability."
+      "content": "Feel a **calm start** within 2–4 weeks—thanks to withanolides regulating cortisol and easing anxiety.\nBy **6–10 weeks**, alkaloids, saponins, and flavonoids join in—supporting your energy, reducing inflammation, and protecting mental clarity."
     },
     "imageUrl": "/media/card_art/ashwegandha.webp"
+  },
+      { 
+    "id": 10, 
+    "carouselContent": {
+      "title": "Coconut Cream",
+      "description": "Smooth energy delivers creamy fats for steady fuel and gentle metabolic balance."
+    },
+    "expandedContent": {
+      "content": "Feel a gentle **energy boost** within a few hours—its creamy fats fuel brain and body while adding a subtle, smooth sweetness.\nExpect **better blood sugar control** and immune perks from lauric acid and antioxidants."
+    },
+    "imageUrl": "/media/card_art/coconut-cream.webp"
+      },
+  { 
+    "id": 11, 
+    "carouselContent": {
+      "title": "Vanilla Bean",
+      "description": "**Rich calm** soothes the senses on contact; supports mood, gut health, and antioxidant protection."
+    },
+    "expandedContent": {
+      "content": "Savor the aroma of **stress relief and calm**—vanilla's scent has been shown to reduce anxiety quickly.\nIn 4–6 weeks, its natural compounds support **heart and gut health**, gently regulating blood sugar and inflammation."
+    },
+    "imageUrl": "/media/card_art/vanilla-bean.webp"
+  },
+  { 
+    "id": 12, 
+    "carouselContent": {
+      "title": "Maple",
+      "description": "**Sweet balance** from a natural energizer that supports blood sugar and gut health."
+    },
+    "expandedContent": {
+      "content": "Enjoy an immediate warming **gentle uplift**—maple's natural sweetness and minerals like potassium and manganese give a clean energy feel.\nIn **6–8 weeks**, its polyphenols and antioxidants help **stabilize blood sugar**."
+    },
+    "imageUrl": "/media/card_art/maple.webp"
+  },
+  { 
+    "id": 13, 
+    "carouselContent": {
+      "title": "Stevia",
+      "description": "Sweet swap with a **zero-calorie natural sweetener** that supports stable blood sugar."
+    },
+    "expandedContent": {
+      "content": "Enjoy light sweetness **without affecting blood glucose**. Studies show stevia use can improve blood sugar control and help stablize body weight with no negative impact on gut health or insulin response."
+    },
+    "imageUrl": "/media/card_art/stevia.webp"
+  },
+  { 
+    "id": 14, 
+    "carouselContent": {
+      "title": "Black Pepper",
+      "description": "Metabolic spark delivers bold flavor while firing up your body’s **natural calorie burn**."
+    },
+    "expandedContent": {
+      "content": "Feel a **digestive spark** within hours—piperine gets enzymes moving and metabolism rising.\nOver 4–8weeks it **enhances absorption**, supports blood sugar balance, and reduces fat cell formation—backed by antioxidant and thermogenic effects."
+    },
+    "imageUrl": "/media/card_art/black-pepper.webp"
+  },
+  { 
+    "id": 15, 
+    "carouselContent": {
+      "title": "Cayenne Pepper",
+      "description": "Thermo spark ignites a kick to enhance digestion, fat burn, and circulation."
+    },
+    "expandedContent": {
+      "content": "Feel a **metabolic tingle** and appetite dampening within hours—capsaicin ramps up heat and calms hunger.\nWithin 8–12 weeks, expect subtle increases in fat burning, **blood sugar balance**, **inflammation control**, and cardiovascular support."
+    },
+    "imageUrl": "/media/card_art/cayenne-pepper.webp"
+  },
+  { 
+    "id": 16, 
+    "carouselContent": {
+      "title": "Turmeric",
+      "description": "Anti-inflammatory support for joint comfort and metabolic balance with curcumin antioxidants."
+    },
+    "expandedContent": {
+      "content": "Expect **reduced inflammation and joint ease** in 4 weeks—curcumin helps lower key cytokines and C‑reactive proteins.\nIn 8–12 weeks, you'll notice improved blood sugar balance, cardiovascular support, **liver protection, and sustained antioxidant benefits**."
+    },
+    "imageUrl": "/media/card_art/turmeric.webp"
+  },
+  { 
+    "id": 17, 
+    "carouselContent": {
+      "title": "Ceylon Cinnamon",
+      "description": "Gently stabilize with the spice that **reduces inflammation**."
+    },
+    "expandedContent": {
+      "content": "Notice a **mild sense of balance** soon after use—thanks to cinnamaldehyde’s antioxidant kick.\nOver 8–12 weeks, expect noticeable **blood sugar regulation**, **improved lipid profiles**, reduced inflammation, and metabolic support."
+    },
+    "imageUrl": "/media/card_art/ceylon-cinnamon.webp"
   }
 ] 

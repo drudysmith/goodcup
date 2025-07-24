@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useCartStore } from '../../store/cartStore';
+import { useCartStore, validateCartItems } from '../../store/cartStore';
 import { supabaseAnon } from '../supabaseClient';
 import { LOG_ENABLED } from '../utils/log';
 interface VisitorData {
@@ -25,6 +25,7 @@ interface VisitorContextType {
   isReady: boolean;
   updateVisitorIdentity: (newVisitorId: string, newJwt: string, newVisitorData: VisitorData) => void;
   syncCartToDatabase: (cart: object, jwtToken: string) => Promise<void>;
+  hydrateCartFromDatabase: (cartData: any[], products?: any[]) => void;
 }
 
 const VisitorContext = createContext<VisitorContextType | undefined>(undefined);
@@ -234,29 +235,58 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
     },
   });
 
-  // Function to hydrate cart store from database data
-  const hydrateCartFromDatabase = (cartData: any[]) => {
+  // Function to hydrate cart store from database data with validation
+  const hydrateCartFromDatabase = (cartData: any[], products?: any[]) => {
     if (!Array.isArray(cartData) || cartData.length === 0) {
       return;
     }
 
     if (LOG_ENABLED) {
-      console.log('🛒 Bug 10: Cart hydrated with', cartData.length, 'items');
+      console.log('🛒 Cart hydrating with', cartData.length, 'items from database');
     }
     
     // Clear current cart first to avoid duplicates
     cartActions.clearCart();
     
-    // Add each item from database to cart store
-    cartData.forEach((item: any) => {
-      if (item.priceId && item.quantity) {
-        cartActions.addItem({
-          productId: item.productId || '', // Handle missing productId gracefully
-          priceId: item.priceId,
-          quantity: item.quantity
-        });
+    // Convert database data to CartItem format
+    const cartItems = cartData
+      .filter((item: any) => item.priceId && item.quantity)
+      .map((item: any) => ({
+        productId: item.productId || '',
+        priceId: item.priceId,
+        quantity: item.quantity
+      }));
+    
+    // If products are available, validate items
+    if (products && Array.isArray(products)) {
+      const { validItems, invalidItems } = validateCartItems(cartItems, products);
+      
+      if (invalidItems.length > 0) {
+        if (LOG_ENABLED) {
+          console.log(`🧹 Database hydration: Filtering out ${invalidItems.length} invalid items:`, 
+            invalidItems.map(item => ({ productId: item.productId, priceId: item.priceId }))
+          );
+        }
       }
-    });
+      
+      // Add only valid items
+      validItems.forEach((item) => {
+        cartActions.addItem(item);
+      });
+      
+      if (LOG_ENABLED) {
+        console.log(`✅ Cart hydrated with ${validItems.length} valid items`);
+      }
+    } else {
+      // No products available for validation, add all items (will be validated later)
+      cartItems.forEach((item) => {
+        cartActions.addItem(item);
+      });
+      
+      if (LOG_ENABLED) {
+        console.log(`⚠️ Cart hydrated with ${cartItems.length} items (validation pending)`);
+      }
+    }
   };
 
   // Hydrate cart when visitor data changes
@@ -355,6 +385,7 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
     isReady,
     updateVisitorIdentity,
     syncCartToDatabase,
+    hydrateCartFromDatabase,
   };
 
   return (

@@ -17,7 +17,7 @@ export interface CardData {
 export const cardData: CardData[] = cardDataJson as CardData[];
 
 // Helper function to create the full card array by repeating the base cards for the carousel effect
-export const createCardArray = (baseCards: CardData[], repetitions: number = 5): CardData[] => {
+export const createCardArray = (baseCards: CardData[], repetitions: number = 3): CardData[] => {
   const fullArray: CardData[] = [];
   for (let i = 0; i < repetitions; i++) {
     fullArray.push(...baseCards);

@@ -25,7 +25,7 @@ const RESPONSIVE_CONFIG = {
     desktop: {
       left: '22%',        // Left button horizontal position
       right: '45%',       // Right button horizontal position
-      top: '80%',         // Vertical position for both buttons
+      top: '55%',         // Vertical position for both buttons
     }
   },
   
@@ -40,11 +40,11 @@ const RESPONSIVE_CONFIG = {
       wheelLeft: '30%',      // Wheel horizontal position (centered on mobile)
     },
     desktop: {
-      marginTop: '-40px',    // Top margin (negative pulls up)  
+      marginTop: '-60px',    // Top margin (negative pulls up)  
       marginBottom: '10px',   // Bottom margin
 
       height: '125vh',        // Section height
-      wheelTop: '45%',       // Wheel vertical position within section
+      wheelTop: '37%',       // Wheel vertical position within section
       wheelLeft: '30%',      // Wheel horizontal position (offset left on desktop)
     }
   },
@@ -52,16 +52,16 @@ const RESPONSIVE_CONFIG = {
   // Wheel sizing control - the invisible circular container that cards rotate around
   wheelSize: {
     mobile: {
-      width: '550vw',        // Wheel width (viewport width units for responsiveness)
-      height: '550vw',       // Wheel height (should match width for perfect circle)
-      maxWidth: '2500px',    // Maximum wheel width in pixels (prevents too large on big screens)
-      maxHeight: '2500px',   // Maximum wheel height in pixels
+      width: '650vw',        // Wheel width (viewport width units for responsiveness) - increased for wider arc
+      height: '650vw',       // Wheel height (should match width for perfect circle)
+      maxWidth: '2800px',    // Maximum wheel width in pixels (prevents too large on big screens)
+      maxHeight: '2800px',   // Maximum wheel height in pixels
     },
     desktop: {
-      width: '450vw',        // Larger wheel on desktop for more dramatic effect
-      height: '450vw',       // Larger wheel height (should match width)
-      maxWidth: '3000px',    // Higher maximum for desktop
-      maxHeight: '3000px',   // Higher maximum for desktop
+      width: '550vw',        // Larger wheel on desktop for more dramatic effect - increased for wider arc
+      height: '550vw',       // Larger wheel height (should match width)
+      maxWidth: '3300px',    // Higher maximum for desktop
+      maxHeight: '3300px',   // Higher maximum for desktop
     }
   },
   
@@ -74,7 +74,7 @@ const RESPONSIVE_CONFIG = {
     },
     desktop: {
       widthPercent: '6%',    // Smaller percentage on desktop (since wheel is bigger)
-      maxWidth: '200px',     // Larger maximum width on desktop
+      maxWidth: '185px',     // Larger maximum width on desktop
       aspectRatio: '2/3',    // Same aspect ratio for consistency
     }
   },
@@ -83,14 +83,38 @@ const RESPONSIVE_CONFIG = {
   mobileBreakpoint: 768
 };
 
+interface StripeProduct {
+  id: string;
+  name: string;
+  description: string | null;
+  images: string[];
+  prices: Array<{
+    id: string;
+    unit_amount: number | null;
+    currency: string;
+    recurring?: { interval: string };
+  }>;
+  metadata?: { [key: string]: string };
+}
+
+interface CartItem {
+  productId: string;
+  priceId: string;
+  quantity: number;
+}
+
 interface RadialCarouselProps {
   className?: string;
   cardData?: CardData[];
+  products?: StripeProduct[];
+  addItem?: (item: CartItem) => void;
 }
 
 const RadialCarousel: React.FC<RadialCarouselProps> = ({ 
   className = "",
-  cardData = defaultCardData
+  cardData = defaultCardData,
+  products = [],
+  addItem
 }) => {
   const sectionRef = useRef<HTMLDivElement>(null);
   const wheelRef = useRef<HTMLDivElement>(null);
@@ -453,6 +477,8 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
               expandedContent={cardData.expandedContent}
               imageUrl={cardData.imageUrl}
               onClick={() => handleCardClick(index)}
+              products={products}
+              addItem={addItem}
             />
           </div>
         ))}
@@ -466,7 +492,7 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="fixed inset-0 backdrop-blur-md z-[21] flex items-start justify-center pt-20 md:pt-20 p-4 pb-20"
+            className="fixed inset-0 backdrop-blur-md z-[21] flex items-start justify-center pt-0 md:pt-40 p-4 pb-20"
             onClick={handleCloseExpanded}
           >
             <motion.div
@@ -502,6 +528,8 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
                     expandedContent={fullCardArray[expandedCard].expandedContent}
                     imageUrl={fullCardArray[expandedCard].imageUrl}
                     isExpanded={true}
+                    products={products}
+                    addItem={addItem}
                   />
                 </div>
               </div>

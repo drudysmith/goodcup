@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 
 interface StripePrice {
@@ -14,6 +14,8 @@ interface StripeProduct {
   description: string | null;
   images: string[];
   prices: StripePrice[];
+  metadata?: { [key: string]: string };
+  staticLabel?: string; // Added for pre-selected feature labels
 }
 
 interface CartItem {
@@ -26,7 +28,7 @@ interface CupgradesPanelProps {
   products: StripeProduct[];
   cupgradesClosing: boolean;
   onClose: () => void;
-  addItem: (item: CartItem, animationData?: any) => Promise<void>;
+  addItem: (item: CartItem) => void;
 }
 
 const CupgradesPanel: React.FC<CupgradesPanelProps> = ({ 
@@ -35,38 +37,133 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
   onClose, 
   addItem 
 }) => {
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-
-  // Find the most popular product (Goodcup Daily 80)
-  const mostPopularProduct = useMemo(() => {
-    return products.find(p => p.name.toLowerCase().includes('daily') && p.name.toLowerCase().includes('80'));
-  }, [products]);
-
-  // Find the super healing product
-  const superHealingProduct = useMemo(() => {
-    return products.find(p => p.name.toLowerCase().includes('healing'));
-  }, [products]);
-
-  // Cupgrades product groupings
-  const cupgradesGroups = useMemo(() => {
+  // Auto-scroll state management
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [autoScrollActive, setAutoScrollActive] = useState(false);
+  const [autoScrollCancelled, setAutoScrollCancelled] = useState(false);
+  const [showScrollIndicator, setShowScrollIndicator] = useState(true);
+  const autoScrollRef = useRef<number | null>(null);
+  const lastScrollTop = useRef<number>(0);
+  // Get featured products (metadata value < 10) with static random labels
+  const featuredProducts = useMemo(() => {
     if (!products.length) return [];
     
-    // Get featured product IDs to exclude from lists
-    const featuredProductIds = new Set([
-      mostPopularProduct?.id,
-      superHealingProduct?.id
-    ].filter(Boolean));
+    const getRandomFeatureLabel = (product: StripeProduct) => {
+      const featureLabels = product.metadata?.['feature-label'] || '';
+      if (!featureLabels) return 'FEATURED';
+      
+      const labels = featureLabels.split(',').map(label => label.trim()).filter(label => label);
+      if (labels.length === 0) return 'FEATURED';
+      
+      const randomIndex = Math.floor(Math.random() * labels.length);
+      return labels[randomIndex].toUpperCase();
+    };
     
-    const groups = [
-      {
-        name: 'See All Cupgrades',
-        products: products.filter(p => !featuredProductIds.has(p.id))
+    return products
+      .filter(p => {
+        const featuredValue = parseInt(p.metadata?.['featured-item'] || '0');
+        return featuredValue > 0 && featuredValue < 10;
+      })
+      .sort((a, b) => {
+        const aValue = parseInt(a.metadata?.['featured-item'] || '0');
+        const bValue = parseInt(b.metadata?.['featured-item'] || '0');
+        return aValue - bValue; // Sort ascending (1, 2, 3...)
+      })
+      .map(product => ({
+        ...product,
+        staticLabel: getRandomFeatureLabel(product) // Select label once and store it
+      }));
+  }, [products]);
+
+  // Get regular products (metadata value >= 10) ordered by metadata value
+  const regularProducts = useMemo(() => {
+    if (!products.length) return [];
+    
+    return products
+      .filter(p => {
+        const featuredValue = parseInt(p.metadata?.['featured-item'] || '0');
+        return featuredValue >= 10;
+      })
+      .sort((a, b) => {
+        const aValue = parseInt(a.metadata?.['featured-item'] || '0');
+        const bValue = parseInt(b.metadata?.['featured-item'] || '0');
+        return aValue - bValue; // Sort ascending (10, 11, 12...)
+      });
+  }, [products]);
+
+  // Auto-scroll logic
+  useEffect(() => {
+    if (cupgradesClosing || autoScrollCancelled) return;
+
+    // Start auto-scroll after 1 second delay
+    const startDelay = setTimeout(() => {
+      if (autoScrollCancelled) return;
+      
+      setAutoScrollActive(true);
+      let startTime = Date.now();
+      
+      const autoScroll = () => {
+        if (autoScrollCancelled || !scrollContainerRef.current) return;
+        
+        const currentTime = Date.now();
+        const elapsed = currentTime - startTime;
+        const scrollAmount = elapsed * 0.03; // 0.05 pixels per millisecond
+        
+        const container = scrollContainerRef.current;
+        const maxScroll = container.scrollHeight - container.clientHeight;
+        
+        if (scrollAmount >= maxScroll) {
+          // Reached the bottom, stop auto-scroll
+          setAutoScrollActive(false);
+          // Keep scroll indicator visible until user manually scrolls
+          return;
+        }
+        
+        container.scrollTop = scrollAmount;
+        autoScrollRef.current = requestAnimationFrame(autoScroll);
+      };
+      
+      autoScrollRef.current = requestAnimationFrame(autoScroll);
+    }, 2000);
+
+    return () => {
+      clearTimeout(startDelay);
+      if (autoScrollRef.current) {
+        cancelAnimationFrame(autoScrollRef.current);
       }
-      // Removed separate daily and super healing groups - now just one comprehensive list
-    ];
+    };
+  }, [cupgradesClosing, autoScrollCancelled]);
+
+  // Manual scroll detection
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      if (autoScrollCancelled) return;
+      
+      const currentScrollTop = container.scrollTop;
+      
+      // Check if user manually scrolled (significant change not caused by auto-scroll)
+      if (Math.abs(currentScrollTop - lastScrollTop.current) > 2) {
+        setAutoScrollCancelled(true);
+        setAutoScrollActive(false);
+        setShowScrollIndicator(false);
+        
+        if (autoScrollRef.current) {
+          cancelAnimationFrame(autoScrollRef.current);
+        }
+      }
+      
+      lastScrollTop.current = currentScrollTop;
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
     
-    return groups.filter(group => group.products.length > 0);
-  }, [products, mostPopularProduct?.id, superHealingProduct?.id]);
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+    };
+  }, [autoScrollCancelled]);
 
   return (
     <>
@@ -98,7 +195,7 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
         </div>
 
         {/* Header with Close button */}
-        <div className="flex justify-between items-center p-6 pb-4 border-b border-neutral-border/10">
+        <div className="flex justify-between items-center p-6 pb-4 border-b border-neutral-border/10 relative">
           {/* Font change here - main header title */}
           <h3 className="text-2xl font-medium text-text-primary">Cupgrades Market</h3>
           <button 
@@ -109,11 +206,32 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
+          
+          {/* Shadow cast by header onto scroll area */}
+          <div className="absolute -bottom-3 left-0 right-0 h-3 bg-gradient-to-b from-black/15 via-black/8 to-transparent pointer-events-none z-10"></div>
+          
+          {/* Scroll Indicator - positioned from header */}
+          {showScrollIndicator && (
+            <div className="absolute top-full right-4 mt-4 z-30 pointer-events-none">
+              <div className="w-8 h-8 bg-neutral-muted-bg rounded-full flex items-center justify-center">
+                <svg 
+                  className="w-4 h-4 text-text-tertiary animate-bounce" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                  style={{ animationDuration: '2s' }}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Scrollable Content Area with hidden scrollbar */}
         <div 
-          className="flex-1 overflow-y-auto"
+          ref={scrollContainerRef}
+          className="flex-1 overflow-y-auto relative"
           style={{
             scrollbarWidth: 'none', /* Firefox */
             msOverflowStyle: 'none',  /* Internet Explorer 10+ */
@@ -140,290 +258,164 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
               }
             }}
           >
-            {/* Most Popular Product at Top - Step 3: Full width, shorter, no spacing */}
-            {mostPopularProduct && (
-              <motion.div 
-                className="cupgrade-item bg-brand-secondary/10 border-l-4 border-brand-secondary"
-                style={{ padding: '16px 24px' }}
-                variants={{
-                  hidden: { 
-                    opacity: 0, 
-                    x: -50 
-                  },
-                  visible: { 
-                    opacity: 1, 
-                    x: 0,
-                    transition: {
-                      type: "tween",
-                      ease: "easeOut",
-                      duration: 0.4
-                    }
-                  }
-                }}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  {/* Font change here - featured product badge */}
-                  <span className="bg-brand-secondary text-white px-2 py-1 rounded text-sm font-medium">
-                    MOST POPULAR
-                  </span>
-                  {/* Font change here - featured product name */}
-                  <h4 className="text-text-primary font-medium text-base">{mostPopularProduct.name}</h4>
-                </div>
-                <div className="flex items-center gap-3">
-                  {/* Image size change here - featured product image */}
-                  {mostPopularProduct.images[0] && (
-                    <img
-                      src={mostPopularProduct.images[0]}
-                      alt={mostPopularProduct.name}
-                      className="w-32 h-32 object-cover rounded-xl block"
-                    />
-                  )}
-                  <div className="flex-1">
-                    {/* Font change here - featured product description */}
-                    <p className="text-sm text-text-tertiary mb-1">
-                      {mostPopularProduct.description || '30 servings of daily wellness'}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      {/* Price change here - using only actual stripe price, removed multiplier */}
-                      {mostPopularProduct.prices[0] && (
-                        <span className="text-base font-medium text-text-primary">
-                          ${((mostPopularProduct.prices[0].unit_amount || 0) / 100).toFixed(2)}
-                        </span>
-                      )}
-                      {/* Font change here - featured product button */}
-                      <button
-                        className="ml-auto bg-brand-secondary text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-opacity active:scale-95"
-                        style={{ transition: 'transform 0.15s ease-out, opacity 0.2s ease-out' }}
-                        onClick={async (e) => {
-                          const buttonElement = e.currentTarget;
-                          await addItem({
-                            productId: mostPopularProduct.id,
-                            priceId: mostPopularProduct.prices[0].id,
-                            quantity: 1
-                          }, {
-                            productImage: mostPopularProduct.images[0],
-                            startElement: buttonElement
-                          });
-                        }}
-                      >
-                        Add to Cart
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Super Healing Product - Best System Reset - Step 3: Full width, shorter, no spacing */}
-            {superHealingProduct && (
-              <motion.div 
-                className="cupgrade-item bg-brand-primary/10 border-l-4 border-brand-primary"
-                style={{ padding: '16px 24px' }}
-                variants={{
-                  hidden: { 
-                    opacity: 0, 
-                    x: -50 
-                  },
-                  visible: { 
-                    opacity: 1, 
-                    x: 0,
-                    transition: {
-                      type: "tween",
-                      ease: "easeOut",
-                      duration: 0.4
-                    }
-                  }
-                }}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  {/* Font change here - super healing product badge */}
-                  <span className="bg-brand-primary text-white px-2 py-1 rounded text-sm font-medium">
-                    BEST SYSTEM RESET
-                  </span>
-                  {/* Font change here - super healing product name */}
-                  <h4 className="text-text-primary font-medium text-base">{superHealingProduct.name}</h4>
-                </div>
-                <div className="flex items-center gap-3">
-                  {/* Image size change here - super healing product image */}
-                  {superHealingProduct.images[0] && (
-                    <img
-                      src={superHealingProduct.images[0]}
-                      alt={superHealingProduct.name}
-                      className="w-16 h-16 object-cover rounded-lg"
-                    />
-                  )}
-                  <div className="flex-1">
-                    {/* Font change here - super healing product description */}
-                    <p className="text-sm text-text-tertiary mb-1">
-                      {superHealingProduct.description || 'Complete system reset formula'}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      {/* Price change here - using only actual stripe price, removed multiplier */}
-                      {superHealingProduct.prices[0] && (
-                        <span className="text-base font-medium text-text-primary">
-                          ${((superHealingProduct.prices[0].unit_amount || 0) / 100).toFixed(2)}
-                        </span>
-                      )}
-                      {/* Font change here - super healing product button */}
-                      <button
-                        className="ml-auto bg-brand-primary text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-opacity active:scale-95"
-                        style={{ transition: 'transform 0.15s ease-out, opacity 0.2s ease-out' }}
-                        onClick={async (e) => {
-                          const buttonElement = e.currentTarget;
-                          await addItem({
-                            productId: superHealingProduct.id,
-                            priceId: superHealingProduct.prices[0].id,
-                            quantity: 1
-                          }, {
-                            productImage: superHealingProduct.images[0],
-                            startElement: buttonElement
-                          });
-                        }}
-                      >
-                        Add to Cart
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Cupgrades Groups - Step 4: Taller dropdown */}
-            {cupgradesGroups.map((group, groupIndex) => (
-              <div key={group.name} className="mb-2">
-                <button
-                  onClick={() => {
-                    const newExpanded = new Set(expandedGroups);
-                    if (newExpanded.has(group.name)) {
-                      newExpanded.delete(group.name);
-                    } else {
-                      newExpanded.add(group.name);
-                    }
-                    setExpandedGroups(newExpanded);
-                  }}
-                  className="w-full flex items-center justify-between px-6 py-4 bg-surface-elevated hover:bg-neutral-muted-bg/30 transition-colors border-t border-neutral-border/10"
-                  style={{ minHeight: '64px' }} // Step 4: Make dropdown taller
-                >
-                  {/* Font change here - group dropdown button */}
-                  <span className="font-medium text-text-primary text-lg">{group.name}</span>
-                  <svg 
-                    className={`w-5 h-5 transition-transform text-text-secondary ${
-                      expandedGroups.has(group.name) ? 'rotate-180' : ''
-                    }`}
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                
-                {expandedGroups.has(group.name) && (
+            {/* Featured Products - dynamically rendered based on metadata */}
+            {featuredProducts.map((featuredProduct, index) => {
+              // Alternate between green (brand-secondary) and orange (brand-primary) colors
+              const isEven = index % 2 === 0;
+              const badgeColor = isEven ? 'bg-brand-secondary' : 'bg-brand-primary';
+              
+              // Use the pre-selected static label
+              const badgeText = featuredProduct.staticLabel;
+              
+                              return (
                   <motion.div 
-                    className="border-b border-neutral-border/10 relative"
-                    initial="hidden"
-                    animate="visible"
+                    key={featuredProduct.id}
+                    className={`cupgrade-item ${badgeColor}/10 border-l-4 ${badgeColor.replace('bg-', 'border-')}`}
+                    style={{ padding: '16px 24px' }}
                     variants={{
-                      hidden: { opacity: 1 },
-                      visible: {
-                        opacity: 1,
+                      hidden: { 
+                        opacity: 0, 
+                        x: -50 
+                      },
+                      visible: { 
+                        opacity: 1, 
+                        x: 0,
                         transition: {
-                          staggerChildren: 0.08
+                          type: "tween",
+                          ease: "easeOut",
+                          duration: 0.4
                         }
                       }
                     }}
                   >
-                    {/* Shadow when expanded content might go under anchored bottom */}
-                    <div className="scroll-shadow scroll-shadow-cupgrades"></div>
-                    
-                    {group.products.map((product, productIndex) => (
-                      <motion.div 
-                        key={product.id}
-                        className="cupgrade-item px-6 py-4 border-b border-neutral-border/5"
-                        variants={{
-                          hidden: { 
-                            opacity: 0, 
-                            x: -50 
-                          },
-                          visible: { 
-                            opacity: 1, 
-                            x: 0,
-                            transition: {
-                              type: "tween",
-                              ease: "easeOut",
-                              duration: 0.4
-                            }
-                          }
+                    <div className="flex items-center gap-2 mb-2">
+                      {/* Font change here - featured product badge */}
+                      <span className={`${badgeColor} text-white px-2 py-1 rounded text-sm font-medium`}>
+                        {badgeText}
+                      </span>
+                      {/* Font change here - featured product name */}
+                      <h4 className="text-text-primary font-medium text-base">{featuredProduct.name}</h4>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {/* Image size change here - featured product image */}
+                      {featuredProduct.images[0] && (
+                        <img
+                          src={featuredProduct.images[0]}
+                          alt={featuredProduct.name}
+                          className="w-24 h-24 object-cover rounded-xl block"
+                        />
+                      )}
+                      <div className="flex-1">
+                        {/* Font change here - featured product description */}
+                        <p className="text-sm text-text-tertiary mb-1">
+                          {featuredProduct.description || '30 servings of daily wellness'}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          {/* Price change here - using only actual stripe price, removed multiplier */}
+                          {featuredProduct.prices[0] && (
+                            <span className="text-base font-medium text-text-primary">
+                              ${((featuredProduct.prices[0].unit_amount || 0) / 100).toFixed(2)}
+                            </span>
+                          )}
+                          {/* Font change here - featured product button */}
+                          <button
+                            className={`ml-auto ${badgeColor} text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-opacity`}
+                            onClick={() => {
+                              addItem({
+                                productId: featuredProduct.id,
+                                priceId: featuredProduct.prices[0].id,
+                                quantity: 1
+                              });
+                            }}
+                          >
+                            Add to Cart
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+            })}
+
+
+
+            {/* Regular Products - displayed directly without dropdown */}
+            {regularProducts.map((product, productIndex) => (
+              <motion.div 
+                key={product.id}
+                className="cupgrade-item px-6 py-4 border-b border-neutral-border/5"
+                variants={{
+                  hidden: { 
+                    opacity: 0, 
+                    x: -50 
+                  },
+                  visible: { 
+                    opacity: 1, 
+                    x: 0,
+                    transition: {
+                      type: "tween",
+                      ease: "easeOut",
+                      duration: 0.4
+                    }
+                  }
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  {/* Image size change here - regular product card image */}
+                  {product.images[0] && (
+                    <img
+                      src={product.images[0]}
+                      alt={product.name}
+                      className="w-24 h-24 object-cover rounded-lg"
+                    />
+                  )}
+                  <div className="flex-1">
+                    {/* Font change here - regular product card name */}
+                    <h4 className="text-text-primary text-base font-medium">{product.name}</h4>
+                    {/* Font change here - regular product card description */}
+                    <p className="text-sm text-text-tertiary mb-2">
+                      {product.description || '30 servings'}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      {/* Price change here - using only actual stripe price, removed multiplier */}
+                      {product.prices[0] && (
+                        <span className="text-base font-medium text-text-primary">
+                          ${((product.prices[0].unit_amount || 0) / 100).toFixed(2)}
+                        </span>
+                      )}
+                      {/* Font change here - regular product card button */}
+                      <button
+                        className="ml-auto bg-brand-secondary text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-opacity"
+                        onClick={() => {
+                          addItem({
+                            productId: product.id,
+                            priceId: product.prices[0].id,
+                            quantity: 1
+                          });
                         }}
                       >
-                        <div className="flex items-center gap-3">
-                          {/* Image size change here - regular product card image */}
-                          {product.images[0] && (
-                            <img
-                              src={product.images[0]}
-                              alt={product.name}
-                              className="w-16 h-16 object-cover rounded-lg"
-                            />
-                          )}
-                          <div className="flex-1">
-                            {/* Font change here - regular product card name */}
-                            <h4 className="text-text-primary text-base font-medium">{product.name}</h4>
-                            {/* Font change here - regular product card description */}
-                            <p className="text-sm text-text-tertiary mb-2">
-                              {product.description || '30 servings'}
-                            </p>
-                            <div className="flex items-center gap-2">
-                              {/* Price change here - using only actual stripe price, removed multiplier */}
-                              {product.prices[0] && (
-                                <span className="text-base font-medium text-text-primary">
-                                  ${((product.prices[0].unit_amount || 0) / 100).toFixed(2)}
-                                </span>
-                              )}
-                              {/* Font change here - regular product card button */}
-                              <button
-                                className="ml-auto bg-brand-secondary text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-opacity active:scale-95"
-                                style={{ transition: 'transform 0.15s ease-out, opacity 0.2s ease-out' }}
-                                onClick={async (e) => {
-                                  const buttonElement = e.currentTarget;
-                                  await addItem({
-                                    productId: product.id,
-                                    priceId: product.prices[0].id,
-                                    quantity: 1
-                                  }, {
-                                    productImage: product.images[0],
-                                    startElement: buttonElement
-                                  });
-                                }}
-                              >
-                                Add
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </motion.div>
-                )}
-              </div>
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
             ))}
+
           </motion.div>
         </div>
 
+
+
         {/* Fixed Bottom Info Section - Always visible and anchored with safe area support and proper padding */}
         <div 
-          className="flex-shrink-0 border-t border-neutral-border/10 bg-surface p-6 pb-8"
+          className="flex-shrink-0 border-t border-neutral-border/10 bg-surface p-6 pb-8 relative"
           style={{
             paddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 16px))'
           }}
         >
-          <div className="text-center">
-            {/* Font change here - bottom section main title */}
-            <h4 className="font-medium text-text-primary mb-2 text-lg">Choose Your Perfect Cupgrade</h4>
-            {/* Font change here - bottom section subtitle */}
-            <p className="text-sm text-text-secondary opacity-60 mb-4">
-              handpicked wellness formulas for your unique journey
-            </p>
-          </div>
+          {/* Shadow cast by footer onto scroll area */}
+          <div className="absolute -top-3 left-0 right-0 h-3 bg-gradient-to-t from-black/15 via-black/8 to-transparent pointer-events-none z-10"></div>
           {/* Man Dust link */}
           <div className="text-center">
             {/* Font change here - man dust link */}

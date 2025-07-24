@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyledText } from '../lib/textUtils';
 import { LOG_ENABLED } from '../lib/utils/log';
+import { findProductsForIngredient, extractIngredientFromTitle } from '../lib/productUtils';
 
 interface CarouselContent {
   title: string;
@@ -11,6 +12,26 @@ interface ExpandedContent {
   content: string;
 }
 
+interface StripeProduct {
+  id: string;
+  name: string;
+  description: string | null;
+  images: string[];
+  prices: Array<{
+    id: string;
+    unit_amount: number | null;
+    currency: string;
+    recurring?: { interval: string };
+  }>;
+  metadata?: { [key: string]: string };
+}
+
+interface CartItem {
+  productId: string;
+  priceId: string;
+  quantity: number;
+}
+
 interface CardProps {
   carouselContent: CarouselContent;
   expandedContent: ExpandedContent;
@@ -18,6 +39,8 @@ interface CardProps {
   onClick?: () => void;
   className?: string;
   isExpanded?: boolean;
+  products?: StripeProduct[];
+  addItem?: (item: CartItem) => void;
 }
 
 const Card: React.FC<CardProps> = ({ 
@@ -26,7 +49,9 @@ const Card: React.FC<CardProps> = ({
   imageUrl = '/media/card_art/card_01.webp', // Fallback in case imageUrl is not provided
   onClick,
   className = "",
-  isExpanded = false
+  isExpanded = false,
+  products = [],
+  addItem
 }) => {
   const [imageScale, setImageScale] = useState<'normal' | 'expanded' | 'hover'>('normal');
   const [hasPlayedInitial, setHasPlayedInitial] = useState(false);
@@ -85,32 +110,49 @@ const Card: React.FC<CardProps> = ({
     </div>
   );
 
-  const renderExpandedContent = () => (
-    <div className="h-3/5 bg-surface flex flex-col justify-between px-6 py-6 text-left overflow-y-visible">
-      <div className="text-neutral-border text-base leading-relaxed whitespace-pre-line">
-        <StyledText>{expandedContent.content}</StyledText>
+  const renderExpandedContent = () => {
+    // Find matching products for this ingredient
+    const ingredientName = extractIngredientFromTitle(carouselContent.title);
+    const matchingProducts = findProductsForIngredient(ingredientName, products, 2);
+
+    return (
+      <div className="h-3/5 bg-surface flex flex-col justify-start px-6 py-6 text-left overflow-y-visible">
+        <div className="text-neutral-border text-xl md:text-lg leading-relaxed whitespace-pre-line mb-4">
+          <StyledText>{expandedContent.content}</StyledText>
+        </div>
+        
+        {/* Feel It buttons for matching products */}
+        {matchingProducts.length > 0 && addItem && (
+          <div className="flex flex-col gap-2 mt-auto">
+            {matchingProducts.map((product) => (
+              <button
+                key={product.id}
+                className="bg-brand-secondary text-white px-4 py-2 rounded-full font-medium text-base md:text-base
+                           transition-all duration-200 ease-in-out 
+                           hover:scale-105 hover:shadow-lg 
+                           active:scale-95"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (product.prices[0]) {
+                    addItem({
+                      productId: product.id,
+                      priceId: product.prices[0].id,
+                      quantity: 1
+                    });
+                    if (LOG_ENABLED) {
+                      console.log('Feel It clicked for:', product.name);
+                    }
+                  }
+                }}
+              >
+                Feel It. Try {product.name}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-      
-      {/* Try It button - positioned at bottom with pleasant spacing */}
-      <div className="flex justify-end pt-1">
-        <button 
-          className="bg-brand-secondary text-white px-4 py-2 rounded-full font-base text-lg
-                     transition-all duration-200 ease-in-out 
-                     hover:scale-105 hover:shadow-lg 
-                     active:scale-95"
-          onClick={(e) => {
-            e.stopPropagation();
-            // Handle "Try It" action here
-            if (LOG_ENABLED) {
-              console.log('Try It clicked for:', carouselContent.title);
-            }
-          }}
-        >
-          Try It
-        </button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div 

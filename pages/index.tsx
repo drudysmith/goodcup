@@ -6,6 +6,17 @@ import ScrollTimeEffectGraph from '../components/ScrollTimeEffectGraph';
 import RadialCarousel from '../components/RadialCarousel';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
+import { useCartStore } from '../store/cartStore';
+
+// Query function for products
+const fetchProducts = async (): Promise<{ products: Array<any> }> => {
+  const response = await fetch('/api/products');
+  if (!response.ok) {
+    throw new Error('Failed to fetch products');
+  }
+  return response.json();
+};
 
 export default function Home() {
   const [showOrder, setShowOrder] = useState(false);
@@ -13,6 +24,16 @@ export default function Home() {
     const t = setTimeout(() => setShowOrder(true), 1000);
     return () => clearTimeout(t);
   }, []);
+
+  // Products query for Feel It buttons
+  const productsQuery = useQuery({
+    queryKey: ['products'],
+    queryFn: fetchProducts,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Cart functionality for Feel It buttons
+  const addItem = useCartStore((state) => state.addItem);
 
   // Video playlist logic with crossfade support
   const videoUrls = [
@@ -25,7 +46,7 @@ export default function Home() {
     "https://hero.goodcup.me/hero-26.mp4",
     "https://hero.goodcup.me/hero-27.mp4"
   ];
-  const videoTextBlocks = [
+  /*  const videoTextBlocks = [
     { headline: "Fuel Without the Fire", subline: "Smooth focus. No crash. No caffeine anxiety." },
     { headline: "Mornings That Taste Like Meaning", subline: "One scoop. One breath. One better day." },
     { headline: "Clarity, Not Chaos", subline: "Designed for rhythm, not rollercoasters." },
@@ -34,7 +55,17 @@ export default function Home() {
     { headline: "Wakefulness, Reimagined", subline: "Gentle energy meets grounded clarity." },
     { headline: "Your Mind, in Flow", subline: "Calm, focused, and fully present." },
     { headline: "The Ritual That Listens Back", subline: "You don't just drink it — it meets you." },
-  ];
+    ];*/
+    const videoTextBlocks = [
+  { headline: "Flow", subline: "Smooth energy. No crash." },
+  { headline: "Rise", subline: "One scoop. One shift." },
+  { headline: "Calm", subline: "Focus steady. Mood clear." },
+  { headline: "Alive", subline: "Sip. Breathe. Feel better." },
+  { headline: "Clear", subline: "Energy without the edge." },
+  { headline: "Wake", subline: "Gentle power. Lasting calm." },
+  { headline: "Focus", subline: "Stay sharp. Stay soft." },
+  { headline: "Ritual", subline: "It meets you back." },
+    ];
   const [currentVideo, setCurrentVideo] = useState(0);
   const [previousVideo, setPreviousVideo] = useState<number | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -57,7 +88,7 @@ export default function Home() {
   };
 
   // CTA microcopy array
-  const ctaMicrocopy = [
+  /*  const ctaMicrocopy = [
     "Not another cup. A different one. Goodcup.",
     "The calmest energy you've ever met. Goodcup.",
     "You haven't sipped this yet. Goodcup.",
@@ -68,8 +99,21 @@ export default function Home() {
     "Go ahead — unlearn your morning. Goodcup.",
     "It starts with one sip. Goodcup.",
     "Keep scrolling. You'll feel it. Goodcup."
-  ];
+    ];*/
+    const ctaMicrocopy = [
+    "Beyond your cup.",
+    "Energy meets calm.",
+    "Sip what’s next.",
+    "Clarity on tap.",
+    "Forget mushroom coffee.",
+    "Welcome your Cupgrade.",
+    "Ritual, reimagined daily.",
+    "Morning, meet better.",
+    "Starts with sip.",
+    "Scroll. Feel it.",
+    ];
 
+  
   // Scroll cue state
   const [showScrollCue, setShowScrollCue] = useState(true);
   const [ctaPhrase, setCtaPhrase] = useState<string | null>(null);
@@ -83,7 +127,7 @@ export default function Home() {
   // ==== Page Load Animation =====
   const [hasLoaded, setHasLoaded] = useState(false);
   useEffect(() => {
-    const timer = setTimeout(() => setHasLoaded(true), 3000);
+    const timer = setTimeout(() => setHasLoaded(true), 500);
     return () => clearTimeout(timer);
   }, []);
 
@@ -218,10 +262,10 @@ export default function Home() {
             transition={{ duration: 1.2, delay: 0.3 }}
             className="absolute bottom-8 right-8 md:bottom-12 md:right-12 text-white text-right max-w-[280px] sm:max-w-[320px] md:max-w-[380px] drop-shadow-md z-10 flex flex-col gap-2 items-end"
           >
-            <div className="text-2xl md:text-5xl font-extralight leading-tight break-words">
+            <div className="text-4xl md:text-3xl font-light leading-tight break-words">
               {videoTextBlocks[currentVideo].headline}
             </div>
-            <div className="text-base md:text-xl font-light break-words leading-relaxed">
+            <div className="text-xl md:text-2xl font-light break-words leading-relaxed">
               {videoTextBlocks[currentVideo].subline}
             </div>
           </motion.div>
@@ -260,14 +304,14 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
               transition={{ duration: 0.6 }}
-              className="text-text-secondary text-center text-base md:text-lg font-light drop-shadow-md max-w-xs md:max-w-sm"
+              className="text-text-secondary text-center text-lg md:text-lg font-light drop-shadow-md max-w-xs md:max-w-sm"
               onMouseLeave={handleMouseLeave}
             >
               <div className="leading-relaxed">
                 {ctaPhrase.replace(/ Goodcup\.$/, '')}
               </div>
               <div className="text-center mt-1 font-light">
-                Goodcup.
+
               </div>
             </motion.div>
           )}
@@ -301,7 +345,7 @@ export default function Home() {
               opacity: hasLoaded ? 1 : 0,       // opacity controlled by graph visibility
               x: hasLoaded ? 0 : -20            // x position controlled by graph visibility
             }}
-            transition={{ duration: 0.6, delay: 0 }}      // Header: 0.3s delay = 0.3s after container
+            transition={{ duration: 1, delay: .5 }}      // Header: 0.3s delay = 0.3s after container
             className="
               text-neutral-border text-left font-light leading-tight    // text styling - font-light weight, leading-tight spacing, text-left alignment
               text-2xl md:text-5xl                                 // font size - text-2xl mobile, text-5xl desktop - matches carousel overlay sizing
@@ -314,16 +358,19 @@ export default function Home() {
           <motion.p
             initial={false}                                  // initial={false} prevents animation on first render
             animate={{ 
-              opacity: hasScrolledPastThreshold ? 0.6 : 0,       // opacity controlled by graph visibility
-              x: hasScrolledPastThreshold ? 0 : -20            // x position controlled by graph visibility
+              opacity: hasLoaded ? 0.6 : 0,       // opacity controlled by graph visibility
+              x: hasLoaded ? 0 : -20            // x position controlled by graph visibility
             }}
-            transition={{ duration: 0.8, delay: 0 }}      // Paragraph: 0.5s delay = 0.2s after header
+            transition={{ duration: 1, delay: 1.4 }}      // Paragraph: 0.5s delay = 0.2s after header
             className="
               text-neutral-border text-left font-light leading-relaxed   // text styling - font-light weight, leading-relaxed spacing, text-left alignment
               text-base md:text-xl                                  // font size - text-base mobile, text-xl desktop - matches carousel overlay sizing
             " 
           >
-            From jitters to flow. Most energy drinks spike and crash — giving you a moment of sharpness, then pulling the rug. Goodcup is different. We source guarana, matcha, and raw cacao — three ingredients that support a slower, more stable release of energy. Guarana, in particular, is metabolized over hours, not minutes, giving you clarity without chaos. The result? A grounded alertness you'll notice — and feel good about noticing. Twice the duration. Zero crash. Flow in body and mind.
+	     From jitters to flow. Most drinks spike and crash. Goodcup works differently — with guarana, matcha, and cacao for steady, lasting energy. The result? Clarity without chaos. Calm you can feel.
+	    <br />Keep scrolling — the graph says it better.
+
+	    
           </motion.p>
         </motion.div>
       </div>
@@ -389,7 +436,10 @@ export default function Home() {
       
       {/* Fixed positioned radial carousel */}
       <div ref={carouselRef} className="mask-fade-sides relative z-[21] pb-20">
-        <RadialCarousel />
+        <RadialCarousel 
+          products={productsQuery.data?.products || []}
+          addItem={addItem}
+        />
       </div>
 	{/*
         <Section 
