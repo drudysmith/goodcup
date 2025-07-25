@@ -1,12 +1,15 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
+import { LOG_ENABLED } from '../../lib/utils/log';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: '2025-05-28.basil',
 });
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  console.log('🔍 API: current-banner-promo endpoint called');
+  if (LOG_ENABLED) {
+    console.log('🔍 API: current-banner-promo endpoint called');
+  }
   try {
     const promoCodes = await stripe.promotionCodes.list({ active: true, limit: 100 });
     const promo = promoCodes.data.find(
@@ -18,11 +21,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const coupon = promo.coupon;
     
     // Log the redemption values for debugging
-    console.log('🔍 Promo Code Redemption Info:');
-    console.log('  Code:', promo.code);
-    console.log('  Duration:', coupon.duration);
-    console.log('  Duration in Months:', coupon.duration_in_months);
-    console.log('  First Time Transaction:', promo.restrictions?.first_time_transaction);
+    if (LOG_ENABLED) {
+      console.log('🔍 Promo Code Redemption Info:');
+      console.log('  Code:', promo.code);
+      console.log('  Duration:', coupon.duration);
+      console.log('  Duration in Months:', coupon.duration_in_months);
+      console.log('  First Time Transaction:', promo.restrictions?.first_time_transaction);
+    }
     
     res.status(200).json({
       code: promo.code,

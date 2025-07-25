@@ -1,4 +1,4 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseServiceRole, supabaseAnon } from '../../../lib/supabaseClient';
 import { LOG_ENABLED } from '../../../lib/utils/log';
 

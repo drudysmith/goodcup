@@ -67,7 +67,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log('✅ Module 7: User profile loaded successfully');
     
     // SMU 4.3a: Log the Stripe customer ID
+    if (LOG_ENABLED) {
     console.log('🔄 Module 4.3a: Stripe customer ID:', visitorData.stripe_cust_id);
+    }
     }
 
     // Only use the value from the DB, no backfill

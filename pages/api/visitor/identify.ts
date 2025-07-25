@@ -1,4 +1,4 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiRequest, NextApiResponse } from 'next';
 import * as jwt from 'jsonwebtoken';
 import { supabaseServiceRole } from '../../../lib/supabaseClient';
 import { LOG_ENABLED } from '../../../lib/utils/log';

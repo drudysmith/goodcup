@@ -491,7 +491,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="bg-surface border border-neutral-border rounded-lg p-6 mb-6">
+            <div className="bg-surface border border-neutral-border rounded-lg p-6">
               <button
                 onClick={() => setSubsExpanded(!subsExpanded)}
                 className="w-full flex items-center justify-between py-2 px-0 text-left transition-all duration-200 hover:-translate-y-0.5 rounded border border-neutral-border"

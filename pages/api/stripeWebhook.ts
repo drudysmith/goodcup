@@ -210,11 +210,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     
     // Log specific cancellation events
     if (event.type === 'customer.subscription.deleted') {
+      if (LOG_ENABLED) {
       console.log(`🗑️ CANCELLATION: Subscription ${subscription.id} was deleted/canceled`);
+      }
     } else if (event.type === 'customer.subscription.updated' && subscription.status === 'canceled') {
+      if (LOG_ENABLED) {
       console.log(`❌ CANCELLATION: Subscription ${subscription.id} status updated to canceled`);
+      }
     } else if (event.type === 'customer.subscription.updated' && (subscription as any).cancel_at_period_end) {
+      if (LOG_ENABLED) {
       console.log(`⏰ CANCELLATION SCHEDULED: Subscription ${subscription.id} will cancel at period end`);
+      }
       }
     }
     
