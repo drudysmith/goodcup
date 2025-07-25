@@ -1,5 +1,5 @@
 export const navLinks = [
-  { name: 'EXPERIENCE GOODCUP', href: '/product-test' },
+  { name: 'WHAT IS MANDUST', href: '/mandust' },
   { name: 'OUR DADDY-DAUGHTER SHOP', href: '/about' },
 ];
 

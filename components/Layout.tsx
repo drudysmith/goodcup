@@ -500,10 +500,10 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
         setIsScrolled(false);
       }
       // Banner collapse logic
-      if (window.scrollY > 0) {
-        setBannerCollapsed(true);
-      } else {
+      if (window.scrollY === 0) {
         setBannerCollapsed(false);
+      } else {
+        setBannerCollapsed(true);
       }
     };
 
@@ -779,7 +779,7 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
     <div className="min-h-screen flex flex-col bg-surface font-sans">
       {/* Notification Banner */}
       <NotificationBanner 
-        show={showBanner}
+        show={showBanner && !bannerCollapsed}
         onDismiss={dismissBanner}
         collapsed={bannerCollapsed}
       />

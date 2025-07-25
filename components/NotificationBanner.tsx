@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useBannerPromoQuery } from '../lib/queries/stripeQueries';
 
 export interface NotificationBannerProps {
   show: boolean;
@@ -13,7 +14,11 @@ const NotificationBanner: React.FC<NotificationBannerProps> = ({
   message = "Summer 18% off - AUGUST18 at Checkout ;)" ,
   collapsed = false
 }) => {
+  const { data, isLoading, isError } = useBannerPromoQuery();
   if (!show) return null;
+  if (isLoading) return null;
+  if (isError) return null;
+  if (!data || !data.code || !data.metadata?.copy) return null;
 
   return (
     <div 
@@ -21,7 +26,7 @@ const NotificationBanner: React.FC<NotificationBannerProps> = ({
       style={{ backdropFilter: 'blur(4px)' }}
     >
       <p className="text-lg md:text-xl font-medium mx-auto pr-10 text-text-inverse">
-        {message}
+        {data.metadata.copy}
       </p>
       <button 
         onClick={onDismiss}

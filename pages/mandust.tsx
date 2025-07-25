@@ -4,33 +4,37 @@ import { StyledText } from '../lib/textUtils';
 import { useCartStore } from '../store/cartStore';
 import { useVisitor } from '../lib/contexts/VisitorContext';
 import { useQuery } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { log } from '../lib/utils/log';
+import { motion, AnimatePresence } from 'framer-motion';
+import gsap from 'gsap';
+import ScrollTrigger from 'gsap/ScrollTrigger';
+gsap.registerPlugin(ScrollTrigger);
 
-const INGREDIENTS = [
-  { name: 'AMERICAN GINSENG', dose: '500 mg', benefit: 'Boosts energy, immune resilience', onset: '1–2 weeks' },
-  { name: 'ASIAN GINSENG', dose: '500 mg', benefit: 'Vitality, focus (adaptogen)', onset: '2–3 weeks' },
-  { name: 'BLACK MACA', dose: '100 mg', benefit: 'Libido, hormone, mood', onset: '7–10 days' },
-  { name: 'BORON CITRATE', dose: '6 mg', benefit: 'Free T, bone strength', onset: 'steady use' },
-  { name: 'DIM', dose: '200 mg', benefit: 'Estrogen metabolism', onset: '2–4 weeks' },
-  { name: 'GINKGO BILOBA', dose: '500 mg', benefit: 'Memory, blood flow', onset: 'within a month' },
-  { name: 'L-ARGININE', dose: '2.5 g', benefit: 'Nitric oxide, blood flow', onset: 'hours' },
-  { name: 'L-CITRULLINE', dose: '2.25 g', benefit: 'Endurance, oxygen', onset: 'days' },
-  { name: 'LEMON EXTRACT', dose: '300 mg', benefit: 'Immunity, skin (antioxidant)', onset: '1–2 weeks' },
-  { name: 'MAGNESIUM GLYCINATE', dose: '400 mg', benefit: 'Nervous system, sleep', onset: 'days' },
-  { name: 'MALIC ACID', dose: '250 mg', benefit: 'Energy, recovery', onset: 'post-exercise' },
-  { name: 'MUCUNA PRURIENS', dose: '500 mg', benefit: 'Dopamine, testosterone', onset: '1–2 weeks' },
-  { name: 'SHILAJIT', dose: '1 g', benefit: 'Mineral-rich adaptogen', onset: 'weeks' },
-  { name: 'TONGKAT ALI', dose: '600 mg', benefit: 'Testosterone, libido, strength', onset: '2–3 weeks' },
-  { name: 'TRIBULUS TERRESTRIS', dose: '1 g', benefit: 'Libido, performance', onset: '2–4 weeks' },
-  { name: 'VITAMIN B12', dose: '200 mcg', benefit: 'Energy, nerve health', onset: 'days' },
-  { name: 'VITAMIN B5', dose: '20 mg', benefit: 'Metabolism, adrenal', onset: 'subtle, weeks' },
-  { name: 'VITAMIN B6', dose: '10 mg', benefit: 'Mood, neurotransmitter', onset: '1–2 weeks' },
-  { name: 'VITAMIN B7', dose: '2 mg', benefit: 'Hair, skin, nails', onset: '4–6 weeks' },
-  { name: 'VITAMIN D3', dose: '100 mcg', benefit: 'Immunity, hormone', onset: '2–6 weeks' },
-  { name: 'YIN YANG HUO', dose: '1.25 g', benefit: 'Libido booster', onset: '2–3 weeks' },
-  { name: 'YOHIMBE', dose: '50 mg', benefit: 'Blood flow, libido', onset: 'fast-acting' },
-  { name: 'ZINC', dose: '30 mg', benefit: 'Testosterone, immunity', onset: 'over time' },
+const mandustIngredients = [
+  { name: "American Ginseng", benefit: "Boosts stamina, resilience", onset: "1–2 weeks" },
+  { name: "Asian Ginseng", benefit: "Sharpens focus, vitality", onset: "2–3 weeks" },
+  { name: "Black Maca", benefit: "Mood, libido, hormone tone", onset: "7–10 days" },
+  { name: "Boron Citrate", benefit: "Frees up testosterone", onset: "Steady use" },
+  { name: "DIM", benefit: "Balances estrogen signals", onset: "2–4 weeks" },
+  { name: "Ginkgo Biloba", benefit: "Improves memory, flow", onset: "3–4 weeks" },
+  { name: "L-Arginine", benefit: "Enhances blood circulation", onset: "Hours" },
+  { name: "L-Citrulline", benefit: "Increases oxygen & drive", onset: "Few days" },
+  { name: "Lemon Extract", benefit: "Immunity + skin defense", onset: "1–2 weeks" },
+  { name: "Magnesium Glycinate", benefit: "Deeper calm and recovery", onset: "Few days" },
+  { name: "Malic Acid", benefit: "Faster energy production", onset: "Post-exercise" },
+  { name: "Mucuna Pruriens", benefit: "Mood & motivation boost", onset: "1–2 weeks" },
+  { name: "Shilajit", benefit: "Minerals for hormone health", onset: "Over weeks" },
+  { name: "Tongkat Ali", benefit: "Raises strength, libido", onset: "2–3 weeks" },
+  { name: "Tribulus Terrestris", benefit: "Supports sex & stamina", onset: "2–4 weeks" },
+  { name: "Vitamin B12", benefit: "Clean energy and focus", onset: "Few days" },
+  { name: "Vitamin B5", benefit: "Adrenal + metabolic help", onset: "1 week" },
+  { name: "Vitamin B6", benefit: "Supports brain chemistry", onset: "1–2 weeks" },
+  { name: "Vitamin B7", benefit: "Hair, skin, nail support", onset: "4–6 weeks" },
+  { name: "Vitamin D3", benefit: "Vital for hormone flow", onset: "2–6 weeks" },
+  { name: "Yin Yang Huo", benefit: "Traditional drive booster", onset: "2–3 weeks" },
+  { name: "Yohimbe", benefit: "Fast, potent libido lift", onset: "Rapid" },
+  { name: "Zinc", benefit: "T levels + immune power", onset: "Ongoing use" },
 ];
 
 interface MandustPrice {
@@ -54,7 +58,6 @@ interface MandustProduct {
   prices: MandustPrice[];
 }
 
-// Fetch Mandust products from our new API endpoint
 const fetchMandustProducts = async (): Promise<{ products: MandustProduct[]; count: number }> => {
   const response = await fetch('/api/mandustProducts');
   if (!response.ok) {
@@ -63,7 +66,6 @@ const fetchMandustProducts = async (): Promise<{ products: MandustProduct[]; cou
   return response.json();
 };
 
-// Format interval display text
 const formatInterval = (interval: string, intervalCount: number = 1): string => {
   const baseInterval = interval === 'month' ? 'Monthly' : 
                       interval === 'year' ? 'Yearly' : 
@@ -76,7 +78,6 @@ const formatInterval = (interval: string, intervalCount: number = 1): string => 
   return baseInterval;
 };
 
-// Format price display
 const formatPrice = (price: MandustPrice): string => {
   if (!price.unit_amount) return 'Free';
   const amount = price.unit_amount / 100;
@@ -88,6 +89,95 @@ const formatPrice = (price: MandustPrice): string => {
   return `$${amount.toFixed(2)}${intervalText}`;
 };
 
+function FlipCard({ isFlipped, front, back }: { isFlipped: boolean; front: React.ReactNode; back: React.ReactNode }) {
+  return (
+    <div className="perspective-1000 w-full md:w-80 h-20 flex items-center justify-center">
+      <motion.div
+        className="relative w-full h-full"
+        style={{ perspective: 1000 }}
+        animate={{ rotateY: isFlipped ? 180 : 0 }}
+        transition={{ duration: 0.6, ease: 'easeInOut' }}
+      >
+        {/* Front Side */}
+        <div
+          className="absolute w-full h-full flex items-center justify-center shadow-md bg-surface rounded-xl border border-neutral-border backface-hidden"
+          style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+        >
+          {front}
+        </div>
+        {/* Back Side */}
+        <div
+          className="absolute w-full h-full flex items-center justify-center shadow-md bg-surface rounded-xl border border-neutral-border backface-hidden"
+          style={{
+            transform: 'rotateY(180deg)',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
+          }}
+        >
+          {back}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function BenefitsFlipStack() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [flipped, setFlipped] = useState(() => mandustIngredients.map(() => false));
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const triggers: ScrollTrigger[] = [];
+
+    mandustIngredients.forEach((_, idx) => {
+      const card = cardRefs.current[idx];
+      if (!card) return;
+      const trigger = ScrollTrigger.create({
+        trigger: card,
+        start: 'center center+=-40', // Card center near viewport center
+        end: 'center center+=40',
+        onEnter: () => setFlipped(f => f.map((v, i) => (i === idx ? true : v))),
+        onLeaveBack: () => setFlipped(f => f.map((v, i) => (i === idx ? false : v))),
+        onLeave: () => setFlipped(f => f.map((v, i) => (i === idx ? false : v))),
+        onEnterBack: () => setFlipped(f => f.map((v, i) => (i === idx ? true : v))),
+        // markers: true, // Uncomment for debugging
+      });
+      triggers.push(trigger);
+    });
+    return () => {
+      triggers.forEach(t => t.kill());
+    };
+  }, []);
+
+  return (
+    <div ref={containerRef} className="flex flex-col items-center gap-8 w-full max-w-xl mx-auto py-8">
+      {mandustIngredients.map((ing, idx) => (
+        <div
+          key={ing.name}
+          ref={el => { cardRefs.current[idx] = el; }}
+          className="w-full flex flex-col items-center select-none min-h-[80px]"
+        >
+          <FlipCard
+            isFlipped={flipped[idx]}
+            front={
+              <div className="flex flex-row items-center justify-center w-full h-full">
+                <span className="font-extrabold text-2xl text-text-primary whitespace-nowrap">{ing.name}</span>
+                <span className="text-base text-text-tertiary font-semibold whitespace-nowrap ml-3">{(ing as any).dose || ''}</span>
+              </div>
+            }
+            back={
+              <div className="flex flex-col items-center justify-center w-full h-full px-4">
+                <span className="font-bold text-xl text-text-primary text-center">{ing.benefit}</span>
+              </div>
+            }
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Mandust() {
   const addItem = useCartStore((state) => state.addItem);
   const { visitorData, visitorId, jwt } = useVisitor();
@@ -95,25 +185,21 @@ export default function Mandust() {
   const [selectedPriceId, setSelectedPriceId] = useState<string>('');
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
-  // Fetch Mandust products using TanStack Query
   const { data: productsData, isLoading, error } = useQuery({
     queryKey: ['mandustProducts'],
     queryFn: fetchMandustProducts,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  // Get the first (primary) Mandust product and its prices
   const mandustProduct = productsData?.products?.[0];
   const availablePrices = mandustProduct?.prices || [];
 
-  // Set default selected price to first available price
   useState(() => {
     if (availablePrices.length > 0 && !selectedPriceId) {
       setSelectedPriceId(availablePrices[0].id);
     }
   });
 
-  // Handle checkout
   const handleCheckout = async () => {
     if (!selectedPriceId) {
       log('No price selected for checkout');
@@ -168,23 +254,21 @@ export default function Mandust() {
     orderRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Handle loading state
   if (isLoading) {
     return (
       <Layout>
         <div className="site-section-bg min-h-screen flex items-center justify-center">
-          <div className="text-surface-background text-xl">Loading Mandust products...</div>
+          <div className="text-surface-background text-lg">Loading Mandust products...</div>
         </div>
       </Layout>
     );
   }
 
-  // Handle error state
   if (error || !mandustProduct) {
     return (
       <Layout>
         <div className="site-section-bg min-h-screen flex items-center justify-center">
-          <div className="text-surface-background text-xl">
+          <div className="text-surface-background text-lg">
             {error ? 'Error loading Mandust products' : 'No Mandust products found'}
           </div>
         </div>
@@ -192,46 +276,62 @@ export default function Mandust() {
     );
   }
 
-  // Get selected price details
   const selectedPrice = availablePrices.find(p => p.id === selectedPriceId);
 
   return (
     <Layout>
-      <div className="site-section-bg min-h-screen flex flex-col font-sans text-surface-background" style={{ fontFamily: 'Manrope, Arial, Helvetica, sans-serif' }}>
+      {/* Mandust-only footer override: make footer transparent */}
+      <style>{`
+        footer.w-full.bg-brand-dark {
+          background: transparent !important;
+          background-color: transparent !important;
+        }
+      `}</style>
+      {/* Background video and overlay */}
+      <div className="fixed inset-0 z-0 w-full h-full pointer-events-none">
+        <video
+          className="absolute inset-0 w-full h-full object-cover"
+          src="/media/backgrounds/mandustflame.mp4"
+          autoPlay
+          loop
+          muted
+          playsInline
+        />
+        {/* Overlay for readability */}
+        <div className="absolute inset-0 bg-black/60" />
+      </div>
+      {/* Main content (z-10) */}
+      <div className="min-h-screen flex flex-col font-sans relative z-10" style={{ fontFamily: 'Manrope, Arial, Helvetica, sans-serif' }}>
         {/* Hero Section */}
-        <section className="flex flex-col items-center justify-center text-center py-20 px-4 md:mx-24 mx-8">
-          <h1 className="text-5xl md:text-6xl font-normal tracking-tight mb-6">MANDUST — The Best Testosterone Supplement Ever</h1>
-          <p className="text-2xl md:text-3xl font-normal mb-8">Real energy. Real edge. Built from years of trial, not theory.</p>
+        <section className="flex flex-col items-center justify-center text-center py-20 px-4 md:mx-24 mx-8 text-text-soft">
+          <h1 className="text-5xl font-normal tracking-tight mb-6">MANDUST — The Best Testosterone Supplement Ever</h1>
+          <p className="text-2xl font-normal mb-8">Real energy. Real edge. Built from years of trial, not theory.</p>
           <button
-            className="px-10 py-4 text-xl rounded bg-brand-secondary text-surface-background font-normal mb-6"
+            className="px-10 py-4 text-2xl rounded bg-brand-secondary text-surface-background font-normal mb-6"
             onClick={scrollToOrder}
           >
             Try It
           </button>
-          <p className="text-lg max-w-xl mx-auto mt-4">If you're over 30, your T is already slipping. Time to reclaim the edge.</p>
-          <div className="mt-12 flex justify-center">
-            <img
-              src={mandustProduct.images[0] || "/media/card_art/card_01.webp"}
-              alt="Mandust gritty product visual"
-              className="w-72 h-72 object-cover rounded-lg grayscale contrast-125 border-2 border-neutral-border"
-              style={{ background: 'transparent' }}
-            />
-          </div>
+          <p className="text-2xl max-w-xl mx-auto mt-4">If you're over 30, your T is already slipping. Time to reclaim the edge.</p>
         </section>
 
         {/* Intro Copy Section */}
-        <section className="md:mx-24 mx-8 my-12">
+        <section className="md:mx-24 mx-8 my-12 text-text-soft">
           <div className="w-full bg-transparent">
-            <StyledText>
-              {mandustProduct.description || `Once you hit 30 as a man — sometimes earlier depending on stress and lifestyle — your testosterone starts dropping fast. Low T means lower energy, slower metabolism, foggy focus, and less drive.\n\nThere are three pillars to healthy testosterone:\n- Exercise\n- Mental-emotional mastery (especially masculine work)\n- Nutrition\n\nSupplementation is part of pillar three. And Mandust does it right. It's the most complete, ratio-corrected T-support stack on the market. No fluff, no trendy filler — just results.`}
-            </StyledText>
+	    <h2 className="text-4xl font-normal mb-4">Why Mandust?</h2>
+            <p className="text-xl mb-3 font-normal">
+		Once you hit 30 as a man — sometimes earlier depending on stress and lifestyle — your testosterone starts dropping fast. Low T means lower energy, slower metabolism, foggy focus, and less drive. There are three pillars to healthy testosterone: 
+            </p>
+	    <p className="text-xl mb-3 font-normal">
+		Exercise, Mental-emotional mastery (especially masculine work) and Nutrition. Supplementation is part of pillar three. And Mandust does it right. It's the most complete, ratio-corrected T-support stack on the market. No fluff, no trendy filler — just results.
+	    </p>
           </div>
         </section>
 
         {/* Founder's Story Block */}
-        <section className="md:mx-24 mx-8 my-12">
+        <section className="md:mx-24 mx-8 my-12 text-text-soft">
           <div className="w-full bg-transparent">
-            <h3 className="text-2xl font-normal mb-4">Founder's Story</h3>
+            <h2 className="text-4xl font-normal mb-4">Founder's Story</h2>
             <p className="text-xl mb-3 font-normal">
               Mandust started when my own T levels crashed to 100 in my early 30s. That's dangerously low. I tried prescription TRT — short-term bandaid with long-term consequences.
             </p>
@@ -242,48 +342,31 @@ export default function Mandust() {
         </section>
 
         {/* Flavor/Rite of Passage Block */}
-        <section className="w-full py-12 md:mx-24 mx-8">
-          <h3 className="text-3xl md:text-4xl font-normal mb-6 tracking-tight">Mandust doesn't taste like candy. It tastes like work. Like grit.</h3>
-          <p className="text-xl font-normal mb-8">Real quotes from first-timers:</p>
-          <div className="flex flex-wrap justify-center gap-6 mb-6">
-            {['"motor oil"', '"barn"', '"wet hay"', '"shoulder pads"', '"locker room"'].map((q) => (
-              <span key={q} className="px-6 py-3 rounded-full font-normal text-lg border border-neutral-700" style={{ background: 'transparent' }}>{q}</span>
-            ))}
+        <section className="md:mx-24 mx-8 my-12 text-text-soft">
+          <div className="w-full bg-transparent">
+            <h2 className="text-4xl font-normal mb-4">Mandust doesn't taste like candy. It tastes like a man ground up.</h2>
+            <p className="text-xl mb-3 font-normal">Real quotes from first-timers:</p>
+            <p className="text-xl font-normal mb-6">
+              "motor oil"<br />
+              "barn"<br />
+              "wet hay"<br />
+              "shoulder pads"<br />
+              "locker room"
+            </p>
+            <p className="text-xl font-normal mt-8">It's an acquired taste — and that's on purpose. This is not a drink mix. It's a rite of passage.</p>
           </div>
-          <p className="text-xl font-normal mt-8">It's an acquired taste — and that's on purpose. This is not a drink mix. It's a rite of passage.</p>
         </section>
 
-        {/* Ingredient Grid Section */}
-        <section className="max-w-5xl mx-auto py-12 md:mx-24 mx-8">
-          <h2 className="text-4xl font-normal mb-10 text-center tracking-tight">What's Inside Mandust?</h2>
-          <div className="overflow-x-auto bg-transparent">
-            <table className="min-w-full border-separate border-spacing-y-3 bg-transparent">
-              <thead>
-                <tr className="text-left text-xl">
-                  <th className="px-3 py-3">Ingredient</th>
-                  <th className="px-3 py-3">Dosage</th>
-                  <th className="px-3 py-3">Benefit</th>
-                  <th className="px-3 py-3">Onset</th>
-                </tr>
-              </thead>
-              <tbody>
-                {INGREDIENTS.map((ing) => (
-                  <tr key={ing.name} className="text-lg" style={{ background: 'transparent' }}>
-                    <td className="px-3 py-3 font-normal whitespace-nowrap">{ing.name}</td>
-                    <td className="px-3 py-3 whitespace-nowrap">{ing.dose}</td>
-                    <td className="px-3 py-3">{ing.benefit}</td>
-                    <td className="px-3 py-3 whitespace-nowrap">{ing.onset}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        {/* Ingredient Grid Section (now Benefits List) */}
+        <section className="max-w-5xl mx-auto py-12 md:mx-24 mx-8 text-text-soft">
+          <h2 className="text-4xl font-normal mb-10 text-center tracking-tight">What does Mandust do?</h2>
+          <BenefitsFlipStack />
         </section>
 
         {/* Try It Section (Order) */}
-        <section ref={orderRef} className="w-full py-12 md:mx-24 mx-8 text-center">
-          <h2 className="text-4xl md:text-5xl font-normal mb-6 tracking-tight">Ready to Try Mandust?</h2>
-          <p className="text-2xl md:text-3xl font-normal mb-8">If it works, you'll feel it in a week. If it doesn't, you'll know — but it will.</p>
+        <section ref={orderRef} className="w-full py-12 md:mx-24 mx-8 text-center text-text-soft">
+          <h2 className="text-4xl font-normal mb-6 tracking-tight">Ready to Try Mandust?</h2>
+          <p className="text-lg font-normal mb-8">If it works, you'll feel it in a week. If it doesn't, you'll know — but it will.</p>
           
           {/* Price Selection */}
           {availablePrices.length > 1 && (
@@ -291,7 +374,7 @@ export default function Mandust() {
               <select
                 value={selectedPriceId}
                 onChange={(e) => setSelectedPriceId(e.target.value)}
-                className="px-6 py-3 text-lg bg-transparent border border-neutral-700 rounded text-surface-background"
+                className="px-6 py-3 text-lg bg-transparent border border-neutral-700 rounded text-text-soft"
                 style={{ fontFamily: 'Manrope, Arial, Helvetica, sans-serif' }}
               >
                 {availablePrices.map((price) => (
@@ -304,7 +387,7 @@ export default function Mandust() {
           )}
 
           <button
-            className="px-12 py-5 text-2xl rounded bg-brand-secondary text-surface-background font-normal mb-6 disabled:opacity-50"
+            className="px-12 py-5 text-lg rounded bg-brand-secondary text-text-soft font-normal mb-6 disabled:opacity-50"
             onClick={handleCheckout}
             disabled={isCheckingOut || !selectedPrice}
             style={{ fontFamily: 'Manrope, Arial, Helvetica, sans-serif' }}

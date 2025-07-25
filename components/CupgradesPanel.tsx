@@ -1,5 +1,6 @@
 import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { useBannerPromoQuery } from '../lib/queries/stripeQueries';
 
 interface StripePrice {
   id: string;
@@ -90,6 +91,8 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
         return aValue - bValue; // Sort ascending (10, 11, 12...)
       });
   }, [products]);
+
+  const { data: promo } = useBannerPromoQuery();
 
   // Auto-scroll logic
   useEffect(() => {
@@ -267,74 +270,79 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
               // Use the pre-selected static label
               const badgeText = featuredProduct.staticLabel;
               
-                              return (
-                  <motion.div 
-                    key={featuredProduct.id}
-                    className={`cupgrade-item ${badgeColor}/10 border-l-4 ${badgeColor.replace('bg-', 'border-')}`}
-                    style={{ padding: '16px 24px' }}
-                    variants={{
-                      hidden: { 
-                        opacity: 0, 
-                        x: -50 
-                      },
-                      visible: { 
-                        opacity: 1, 
-                        x: 0,
-                        transition: {
-                          type: "tween",
-                          ease: "easeOut",
-                          duration: 0.4
-                        }
-                      }
-                    }}
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      {/* Font change here - featured product badge */}
-                      <span className={`${badgeColor} text-white px-2 py-1 rounded text-sm font-medium`}>
-                        {badgeText}
-                      </span>
-                      {/* Font change here - featured product name */}
-                      <h4 className="text-text-primary font-medium text-base">{featuredProduct.name}</h4>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {/* Image size change here - featured product image */}
-                      {featuredProduct.images[0] && (
-                        <img
-                          src={featuredProduct.images[0]}
-                          alt={featuredProduct.name}
-                          className="w-24 h-24 object-cover rounded-xl block"
-                        />
-                      )}
-                      <div className="flex-1">
-                        {/* Font change here - featured product description */}
-                        <p className="text-sm text-text-tertiary mb-1">
-                          {featuredProduct.description || '30 servings of daily wellness'}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          {/* Price change here - using only actual stripe price, removed multiplier */}
-                          {featuredProduct.prices[0] && (
-                            <span className="text-base font-medium text-text-primary">
-                              ${((featuredProduct.prices[0].unit_amount || 0) / 100).toFixed(2)}
-                            </span>
-                          )}
-                          {/* Font change here - featured product button */}
-                          <button
-                            className={`ml-auto ${badgeColor} text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-opacity`}
-                            onClick={() => {
-                              addItem({
-                                productId: featuredProduct.id,
-                                priceId: featuredProduct.prices[0].id,
-                                quantity: 1
-                              });
-                            }}
-                          >
-                            Add to Cart
-                          </button>
-                        </div>
+              const price = featuredProduct.prices[0];
+              const displayPrice = price?.unit_amount || 0;
+              let promoPrice = null;
+              if (promo && (promo.percent_off || promo.amount_off)) {
+                if (promo.percent_off) {
+                  promoPrice = displayPrice * (1 - promo.percent_off / 100);
+                } else if (promo.amount_off) {
+                  promoPrice = displayPrice - promo.amount_off;
+                }
+              }
+              
+              return (
+                <motion.div 
+                  key={featuredProduct.id}
+                  className={`cupgrade-item ${badgeColor}/10 border-l-4 ${badgeColor.replace('bg-', 'border-')}`}
+                  style={{ padding: '16px 24px' }}
+                  variants={{
+                    hidden: { opacity: 0, x: -50 },
+                    visible: { opacity: 1, x: 0, transition: { type: "tween", ease: "easeOut", duration: 0.4 } }
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    {/* Font change here - featured product badge */}
+                    <span className={`${badgeColor} text-white px-2 py-1 rounded text-sm font-medium`}>
+                      {badgeText}
+                    </span>
+                    {/* Font change here - featured product name */}
+                    <h4 className="text-text-primary font-medium text-base">{featuredProduct.name}</h4>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {/* Image size change here - featured product image */}
+                    {featuredProduct.images[0] && (
+                      <img
+                        src={featuredProduct.images[0]}
+                        alt={featuredProduct.name}
+                        className="w-24 h-24 object-cover rounded-xl block"
+                      />
+                    )}
+                    <div className="flex-1">
+                      {/* Font change here - featured product description */}
+                      <p className="text-sm text-text-tertiary mb-1">
+                        {featuredProduct.description || '30 servings of daily wellness'}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        {/* Price change here - using only actual stripe price, removed multiplier */}
+                        {price && (
+                          promoPrice && promoPrice < displayPrice ? (
+                            <>
+                              <span className="line-through text-base opacity-60 text-text-secondary mr-1">${(displayPrice / 100).toFixed(2)}</span>
+                              <span className="text-lg font-bold text-brand-secondary">${(promoPrice / 100).toFixed(2)}</span>
+                            </>
+                          ) : (
+                            <span className="text-base font-medium text-text-primary">${(displayPrice / 100).toFixed(2)}</span>
+                          )
+                        )}
+                        {/* Font change here - featured product button */}
+                        <button
+                          className={`ml-auto ${badgeColor} text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-opacity`}
+                          onClick={() => {
+                            addItem({
+                              productId: featuredProduct.id,
+                              priceId: featuredProduct.prices[0].id,
+                              quantity: 1
+                            });
+                          }}
+                        >
+                          Add to Cart
+                        </button>
                       </div>
                     </div>
-                  </motion.div>
-                );
+                  </div>
+                </motion.div>
+              );
             })}
 
 
@@ -345,19 +353,8 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
                 key={product.id}
                 className="cupgrade-item px-6 py-4 border-b border-neutral-border/5"
                 variants={{
-                  hidden: { 
-                    opacity: 0, 
-                    x: -50 
-                  },
-                  visible: { 
-                    opacity: 1, 
-                    x: 0,
-                    transition: {
-                      type: "tween",
-                      ease: "easeOut",
-                      duration: 0.4
-                    }
-                  }
+                  hidden: { opacity: 0, x: -50 },
+                  visible: { opacity: 1, x: 0, transition: { type: "tween", ease: "easeOut", duration: 0.4 } }
                 }}
               >
                 <div className="flex items-center gap-3">
@@ -378,14 +375,29 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
                     </p>
                     <div className="flex items-center gap-2">
                       {/* Price change here - using only actual stripe price, removed multiplier */}
-                      {product.prices[0] && (
-                        <span className="text-base font-medium text-text-primary">
-                          ${((product.prices[0].unit_amount || 0) / 100).toFixed(2)}
-                        </span>
-                      )}
+                      {product.prices[0] && (() => {
+                        const price = product.prices[0];
+                        const displayPrice = price.unit_amount || 0;
+                        let promoPrice = null;
+                        if (promo && (promo.percent_off || promo.amount_off)) {
+                          if (promo.percent_off) {
+                            promoPrice = displayPrice * (1 - promo.percent_off / 100);
+                          } else if (promo.amount_off) {
+                            promoPrice = displayPrice - promo.amount_off;
+                          }
+                        }
+                        return promoPrice && promoPrice < displayPrice ? (
+                          <>
+                            <span className="line-through text-base opacity-60 text-text-secondary mr-1">${(displayPrice / 100).toFixed(2)}</span>
+                            <span className="text-lg font-bold text-brand-secondary">${(promoPrice / 100).toFixed(2)}</span>
+                          </>
+                        ) : (
+                          <span className="text-base font-medium text-text-primary">${(displayPrice / 100).toFixed(2)}</span>
+                        );
+                      })()}
                       {/* Font change here - regular product card button */}
                       <button
-                        className="ml-auto bg-brand-secondary text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-opacity"
+                        className="ml-auto bg-brand-secondary text-white px-3 py-1 rounded text-base hover:opacity-90 transition-opacity"
                         onClick={() => {
                           addItem({
                             productId: product.id,
@@ -394,7 +406,7 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
                           });
                         }}
                       >
-                        Add
+                        Add to Cart
                       </button>
                     </div>
                   </div>
@@ -421,12 +433,12 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
             {/* Font change here - man dust link */}
             <a 
               href="/mandust" 
-              className="text-brand-secondary hover:underline text-base font-medium"
+              className="text-brand-secondary hover:underline text-xl font-medium"
             >
               What is Man Dust?
             </a>
             {/* Font change here - man dust description */}
-            <p className="text-sm text-text-tertiary mt-1">
+            <p className="text-lg text-text-tertiary mt-1">
               Hands down the best T supplement for men.
             </p>
           </div>

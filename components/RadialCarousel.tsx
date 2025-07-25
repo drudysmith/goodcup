@@ -4,6 +4,8 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { motion, AnimatePresence } from 'framer-motion';
 import Card from './Card';
 import { CardData, cardData as defaultCardData, createCardArray } from '../lib/cardUtils';
+import { findProductsForIngredient, extractIngredientFromTitle } from '../lib/productUtils';
+import { createPortal } from 'react-dom';
 
 // Register GSAP plugins
 if (typeof window !== 'undefined') {
@@ -230,7 +232,6 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
     setTouchEnd(0);
     setTouchStart(e.targetTouches[0].clientX);
     setLastDragTime(Date.now());
-    console.log('[Modal Debug] Carousel touch event fired');
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -239,7 +240,6 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
     if (Math.abs(e.targetTouches[0].clientX - touchStart) > 10) {
       e.preventDefault();
     }
-    console.log('[Modal Debug] Carousel touch event fired');
   };
 
   const handleTouchEnd = () => {
@@ -428,26 +428,63 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
 
   const expandedCardRef = useRef<HTMLDivElement | null>(null);
   const tryItButtonRef = useRef<HTMLButtonElement | null>(null);
+  
+  // Additional refs for Card internal elements
+  const imageContainerRef = useRef<HTMLDivElement | null>(null);
+  const textOverlayRef = useRef<HTMLDivElement | null>(null);
+  const tryItButtonRefs = useRef<React.RefObject<HTMLButtonElement>[]>([]);
+
+  // Initialize button refs for the expanded card
+  useEffect(() => {
+    if (expandedCard !== null && products?.length) {
+      const card = fullCardArray[expandedCard];
+      if (card) {
+        const ingredientName = extractIngredientFromTitle(card.carouselContent.title);
+        const matchingProducts = findProductsForIngredient(ingredientName, products, 2);
+        tryItButtonRefs.current = matchingProducts.map(() => React.createRef<HTMLButtonElement>());
+      }
+    }
+  }, [expandedCard, products]);
 
   useEffect(() => {
     if (expandedCardRef.current) {
-      const cardStyles = window.getComputedStyle(expandedCardRef.current);
-      console.log('[Modal Debug] Expanded card (mount) computed styles:', {
-        position: cardStyles.position,
-        zIndex: cardStyles.zIndex,
-        pointerEvents: cardStyles.pointerEvents,
-        transform: cardStyles.transform
-      });
+      // const cardStyles = window.getComputedStyle(expandedCardRef.current);
+      // console.log('[Modal Debug] Expanded card (mount) computed styles:', {
+      //   position: cardStyles.position,
+      //   zIndex: cardStyles.zIndex,
+      //   pointerEvents: cardStyles.pointerEvents,
+      //   transform: cardStyles.transform
+      // });
     }
-    if (tryItButtonRef.current) {
-      const btnStyles = window.getComputedStyle(tryItButtonRef.current);
-      console.log('[Modal Debug] Try It button (mount) computed styles:', {
-        position: btnStyles.position,
-        zIndex: btnStyles.zIndex,
-        pointerEvents: btnStyles.pointerEvents,
-        transform: btnStyles.transform
-      });
+    if (imageContainerRef.current) {
+      // const imageStyles = window.getComputedStyle(imageContainerRef.current);
+      // console.log('[Modal Debug] Image container (mount) computed styles:', {
+      //   position: imageStyles.position,
+      //   zIndex: imageStyles.zIndex,
+      //   pointerEvents: imageStyles.pointerEvents,
+      //   transform: imageStyles.transform
+      // });
     }
+    if (textOverlayRef.current) {
+      // const textStyles = window.getComputedStyle(textOverlayRef.current);
+      // console.log('[Modal Debug] Text overlay (mount) computed styles:', {
+      //   position: textStyles.position,
+      //   zIndex: textStyles.zIndex,
+      //   pointerEvents: textStyles.pointerEvents,
+      //   transform: textStyles.transform
+      // });
+    }
+    tryItButtonRefs.current.forEach((ref, index) => {
+      if (ref.current) {
+        // const btnStyles = window.getComputedStyle(ref.current);
+        // console.log(`[Modal Debug] Try It button ${index} (mount) computed styles:`, {
+        //   position: btnStyles.position,
+        //   zIndex: btnStyles.zIndex,
+        //   pointerEvents: btnStyles.pointerEvents,
+        //   transform: btnStyles.transform
+        // });
+      }
+    });
   }, [expandedCard]);
 
   return (
@@ -513,124 +550,81 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
       {/* Expanded Card Modal */}
       <AnimatePresence>
         {expandedCard !== null && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 backdrop-blur-md z-[21] flex items-start justify-center pt-0 md:pt-40 p-4 pb-20"
-            onClick={(e) => {
-              // Comprehensive event path logging (no JSON.stringify)
-              try {
-                const eventDetails = {
-                  targetTagName: e.target instanceof Element ? e.target.tagName : 'unknown',
-                  targetClass: e.target instanceof Element ? e.target.className : 'unknown',
-                  currentTargetTagName: e.currentTarget instanceof Element ? e.currentTarget.tagName : 'unknown',
-                  currentTargetClass: e.currentTarget instanceof Element ? e.currentTarget.className : 'unknown',
-                  clientX: e.clientX,
-                  clientY: e.clientY,
-                  pageX: e.pageX,
-                  pageY: e.pageY
-                };
-                console.log('[Modal Debug] Overlay click event details:', eventDetails);
-                // Log computed styles for overlay
-                if (e.currentTarget instanceof Element) {
-                  const overlayStyles = window.getComputedStyle(e.currentTarget);
-                  console.log('[Modal Debug] Overlay computed styles:', {
-                    position: overlayStyles.position,
-                    zIndex: overlayStyles.zIndex,
-                    pointerEvents: overlayStyles.pointerEvents,
-                    transform: overlayStyles.transform
-                  });
-                }
-                // Log computed styles for expanded card container and Try It button
-                if (expandedCard !== null) {
-                  const cardEl = document.querySelector('.relative.bg-white.rounded-xl.shadow-2xl.overflow-hidden.z-[21]');
-                  if (cardEl instanceof Element) {
-                    const cardStyles = window.getComputedStyle(cardEl);
-                    console.log('[Modal Debug] Expanded card computed styles:', {
-                      position: cardStyles.position,
-                      zIndex: cardStyles.zIndex,
-                      pointerEvents: cardStyles.pointerEvents,
-                      transform: cardStyles.transform
-                    });
-                  }
-                  // Try to find the Try It button inside the expanded card
-                  const tryItBtn = cardEl?.querySelector('button');
-                  if (tryItBtn instanceof Element) {
-                    const btnStyles = window.getComputedStyle(tryItBtn);
-                    console.log('[Modal Debug] Try It button computed styles:', {
-                      position: btnStyles.position,
-                      zIndex: btnStyles.zIndex,
-                      pointerEvents: btnStyles.pointerEvents,
-                      transform: btnStyles.transform
-                    });
-                  }
-                }
-                // Check what element is actually under the click coordinates
-                const elementUnderPointer = document.elementFromPoint(e.clientX, e.clientY);
-                if (elementUnderPointer) {
-                  console.log('[Modal Debug] Element under click coordinates:', {
-                    tagName: elementUnderPointer.tagName,
-                    className: elementUnderPointer.className,
-                    outerHTML: elementUnderPointer.outerHTML?.slice(0, 200)
-                  });
-                } else {
-                  console.log('[Modal Debug] Element under click coordinates: null');
-                }
-              } catch (err) {
-                console.log('[Modal Debug] Overlay click event logging error:', err);
-              }
-              // Only close if the click was on the overlay itself, not inside the card
-              if (e.target === e.currentTarget) {
-                console.log('[Modal Debug] Closing overlay - click was on overlay itself');
-                handleCloseExpanded();
-              } else {
-                console.log('[Modal Debug] Not closing overlay - click was inside card content');
-              }
-            }}
-          >
+          <>
+            {/* Overlay */}
             <motion.div
-              ref={expandedCardRef}
-              initial={{ scale: 0.8, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.8, opacity: 0, y: 20 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
-              className="relative bg-white rounded-xl shadow-2xl overflow-hidden z-[21]"
-              style={{ 
-                aspectRatio: '2/3',
-                width: isMobile 
-                  ? `clamp(${EXPANDED_CARD_CONFIG.mobile.minWidth}, ${EXPANDED_CARD_CONFIG.mobile.viewportPercent}, ${EXPANDED_CARD_CONFIG.mobile.maxWidth})`
-                  : `clamp(${EXPANDED_CARD_CONFIG.desktop.minWidth}, ${EXPANDED_CARD_CONFIG.desktop.viewportPercent}, ${EXPANDED_CARD_CONFIG.desktop.maxWidth})`
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="fixed inset-0 backdrop-blur-md z-0 flex items-start justify-center pt-0 md:pt-40 p-4 pb-20"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  handleCloseExpanded();
+                }
               }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Close button */}
-              <button
-                onClick={handleCloseExpanded}
-                className="absolute top-4 right-4 bg-white/80 hover:bg-white rounded-full p-2 transition-colors duration-200 z-20 shadow-md"
+            />
+            {/* Expanded Card rendered via portal */}
+            {typeof window !== 'undefined' && createPortal(
+              <motion.div
+                ref={expandedCardRef}
+                initial={{ scale: 0.8, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.8, opacity: 0, y: 20 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="fixed left-0 top-0 w-full h-full flex items-start justify-center z-[21] pointer-events-auto"
+                style={{
+                  pointerEvents: 'auto',
+                  // Lower the card on mobile by increasing top padding
+                  paddingTop: isMobile ? '20vh' : '10vh',
+                  paddingLeft: '1rem',
+                  paddingRight: '1rem',
+                  paddingBottom: '5vh',
+                }}
+                onClick={(e) => e.stopPropagation()}
               >
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-
-              {/* Expanded card content */}
-              <div className="w-full h-full flex flex-col">
-                {/* Card content area - full card display */}
-                <div className="flex-1">
-                  <Card
-                    carouselContent={fullCardArray[expandedCard].carouselContent}
-                    expandedContent={fullCardArray[expandedCard].expandedContent}
-                    imageUrl={fullCardArray[expandedCard].imageUrl}
-                    isExpanded={true}
-                    products={products}
-                    addItem={addItem}
-                  />
+                <div 
+                  className="bg-white rounded-xl shadow-2xl overflow-hidden relative"
+                  style={{
+                    aspectRatio: '2/3',
+                    width: isMobile 
+                      ? `clamp(${EXPANDED_CARD_CONFIG.mobile.minWidth}, ${EXPANDED_CARD_CONFIG.mobile.viewportPercent}, ${EXPANDED_CARD_CONFIG.mobile.maxWidth})`
+                      : `clamp(${EXPANDED_CARD_CONFIG.desktop.minWidth}, ${EXPANDED_CARD_CONFIG.desktop.viewportPercent}, ${EXPANDED_CARD_CONFIG.desktop.maxWidth})`,
+                    maxHeight: '80vh'
+                  }}
+                >
+                  {/* Close button - always visible, high z-index */}
+                  <button
+                    onClick={handleCloseExpanded}
+                    className="absolute top-3 right-3 bg-white/90 hover:bg-white rounded-full p-2 transition-colors duration-200 z-50 shadow-md border border-neutral-border"
+                    style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+                    aria-label="Close expanded card"
+                  >
+                    <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                  <div className="w-full h-full flex flex-col">
+                    <div className="flex-1">
+                      <Card
+                        key={`expanded-${expandedCard}`}
+                        carouselContent={fullCardArray[expandedCard].carouselContent}
+                        expandedContent={fullCardArray[expandedCard].expandedContent}
+                        imageUrl={fullCardArray[expandedCard].imageUrl}
+                        isExpanded={true}
+                        products={products}
+                        addItem={addItem}
+                        imageContainerRef={imageContainerRef}
+                        textOverlayRef={textOverlayRef}
+                        tryItButtonRefs={tryItButtonRefs.current}
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          </motion.div>
+              </motion.div>,
+              document.body
+            )}
+          </>
         )}
       </AnimatePresence>
 

@@ -141,3 +141,22 @@ export const useSubscriptions = (customerId?: string) => {
     refetchOnWindowFocus: false,
   });
 }; 
+
+export function useBannerPromoQuery() {
+  return useQuery({
+    queryKey: ['bannerPromo'],
+    queryFn: async () => {
+      if (LOG_ENABLED) {
+        console.log('🔍 Fetching banner promo data...');
+      }
+      const res = await fetch('/api/current-banner-promo');
+      if (!res.ok) throw new Error('Failed to fetch banner promo');
+      const data = await res.json();
+      if (LOG_ENABLED) {
+        console.log('🔍 Banner promo data received:', data);
+      }
+      return data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+} 

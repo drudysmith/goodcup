@@ -9,8 +9,8 @@ const GRAPH_LAYOUT_CONFIG = {
     maxHeight: '90vh',
     paddingX: '3vw',
     scroll: {
-      start: 'bottom 110%',      // start animation trigger point
-      end: 'top 55%',            // end animation trigger point
+      start: 'bottom 105%',      // start animation trigger point
+      end: 'top 50%',            // end animation trigger point
       scrub: 3.3,                // scroll smoothness (lower = more responsive)
       markers: false,             // debug markers
     },

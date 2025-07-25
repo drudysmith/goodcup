@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyledText } from '../lib/textUtils';
 import { LOG_ENABLED } from '../lib/utils/log';
 import { findProductsForIngredient, extractIngredientFromTitle } from '../lib/productUtils';
+import { useBannerPromoQuery } from '../lib/queries/stripeQueries';
 
 interface CarouselContent {
   title: string;
@@ -41,6 +42,10 @@ interface CardProps {
   isExpanded?: boolean;
   products?: StripeProduct[];
   addItem?: (item: CartItem) => void;
+  // Refs for debugging computed styles
+  imageContainerRef?: React.RefObject<HTMLDivElement | null>;
+  textOverlayRef?: React.RefObject<HTMLDivElement | null>;
+  tryItButtonRefs?: React.RefObject<HTMLButtonElement | null>[];
 }
 
 const Card: React.FC<CardProps> = ({ 
@@ -51,7 +56,10 @@ const Card: React.FC<CardProps> = ({
   className = "",
   isExpanded = false,
   products = [],
-  addItem
+  addItem,
+  imageContainerRef,
+  textOverlayRef,
+  tryItButtonRefs = []
 }) => {
   const [imageScale, setImageScale] = useState<'normal' | 'expanded' | 'hover'>('normal');
   const [hasPlayedInitial, setHasPlayedInitial] = useState(false);
@@ -114,6 +122,7 @@ const Card: React.FC<CardProps> = ({
     // Find matching products for this ingredient
     const ingredientName = extractIngredientFromTitle(carouselContent.title);
     const matchingProducts = findProductsForIngredient(ingredientName, products, 2);
+    const { data: promo } = useBannerPromoQuery();
 
     return (
       <div className="h-3/5 bg-surface flex flex-col justify-start px-6 py-6 text-left overflow-y-visible">
@@ -124,94 +133,117 @@ const Card: React.FC<CardProps> = ({
         {/* Feel It buttons for matching products */}
         {matchingProducts.length > 0 && addItem && (
           <div className="flex flex-col gap-2 mt-auto">
-            {matchingProducts.map((product) => (
-              <button
-                key={product.id}
-                className="bg-brand-secondary text-white px-4 py-2 rounded-full font-medium text-base md:text-base
+            {matchingProducts.map((product, index) => {
+              const price = product.prices[0];
+              let displayPrice = price?.unit_amount || 0;
+              let promoPrice = null;
+              if (promo && (promo.percent_off || promo.amount_off)) {
+                if (promo.percent_off) {
+                  promoPrice = displayPrice * (1 - promo.percent_off / 100);
+                } else if (promo.amount_off) {
+                  promoPrice = displayPrice - promo.amount_off;
+                }
+              }
+              return (
+                <button
+                  key={product.id}
+                  ref={tryItButtonRefs[index]}
+                  className="bg-brand-secondary text-white px-4 py-2 rounded-full font-medium text-lg md:text-lg
                            transition-all duration-200 ease-in-out 
                            hover:scale-105 hover:shadow-lg 
                            active:scale-95"
-                onTouchStart={(e) => {
-                  console.log('[Modal Debug] Button onTouchStart event details:', {
-                    target: e.target,
-                    currentTarget: e.currentTarget,
-                    touches: e.touches.length,
-                    clientX: e.touches[0]?.clientX,
-                    clientY: e.touches[0]?.clientY,
-                    pageX: e.touches[0]?.pageX,
-                    pageY: e.touches[0]?.pageY,
-                    targetTagName: e.target instanceof Element ? e.target.tagName : 'unknown',
-                    targetClass: e.target instanceof Element ? e.target.className : 'unknown'
-                  });
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  console.log('[Modal Debug] ENTER onClick handler');
-                  console.log('[Modal Debug] Button onClick triggered');
-                  console.log('[Modal Debug] Button onClick event details:', {
-                    target: e.target,
-                    currentTarget: e.currentTarget,
-                    clientX: e.clientX,
-                    clientY: e.clientY,
-                    pageX: e.pageX,
-                    pageY: e.pageY,
-                    isTrusted: e.isTrusted,
-                    type: e.type,
-                    targetTagName: e.target instanceof Element ? e.target.tagName : 'unknown',
-                    targetClass: e.target instanceof Element ? e.target.className : 'unknown'
-                  });
-                  console.log('[Modal Debug] product object:', product);
-                  console.log('[Modal Debug] addItem function invoked');
-                  setTimeout(() => {
-                    console.log('[Modal Debug] Button click handler reached (delayed)');
-                  }, 0);
-                  if (product.prices[0]) {
-                    addItem({
-                      productId: product.id,
-                      priceId: product.prices[0].id,
-                      quantity: 1
+                  onTouchStart={(e) => {
+                    console.log('[Modal Debug] Button onTouchStart event details:', {
+                      target: e.target,
+                      currentTarget: e.currentTarget,
+                      touches: e.touches.length,
+                      clientX: e.touches[0]?.clientX,
+                      clientY: e.touches[0]?.clientY,
+                      pageX: e.touches[0]?.pageX,
+                      pageY: e.touches[0]?.pageY,
+                      targetTagName: e.target instanceof Element ? e.target.tagName : 'unknown',
+                      targetClass: e.target instanceof Element ? e.target.className : 'unknown'
                     });
-                    if (LOG_ENABLED) {
-                      console.log('Feel It clicked for:', product.name);
-                    }
-                  }
-                }}
-                onTouchEnd={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault(); // Prevent synthetic click from being generated
-                  console.log('[Modal Debug] ENTER onTouchEnd handler');
-                  console.log('[Modal Debug] Button onTouchEnd triggered');
-                  console.log('[Modal Debug] Button onTouchEnd event details:', {
-                    target: e.target,
-                    currentTarget: e.currentTarget,
-                    changedTouches: e.changedTouches.length,
-                    clientX: e.changedTouches[0]?.clientX,
-                    clientY: e.changedTouches[0]?.clientY,
-                    pageX: e.changedTouches[0]?.pageX,
-                    pageY: e.changedTouches[0]?.pageY,
-                    targetTagName: e.target instanceof Element ? e.target.tagName : 'unknown',
-                    targetClass: e.target instanceof Element ? e.target.className : 'unknown'
-                  });
-                  console.log('[Modal Debug] product object:', product);
-                  console.log('[Modal Debug] addItem function invoked');
-                  setTimeout(() => {
-                    console.log('[Modal Debug] Button click handler reached (delayed)');
-                  }, 0);
-                  if (product.prices[0]) {
-                    addItem({
-                      productId: product.id,
-                      priceId: product.prices[0].id,
-                      quantity: 1
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log('[Modal Debug] ENTER onClick handler');
+                    console.log('[Modal Debug] Button onClick triggered');
+                    console.log('[Modal Debug] Button onClick event details:', {
+                      target: e.target,
+                      currentTarget: e.currentTarget,
+                      clientX: e.clientX,
+                      clientY: e.clientY,
+                      pageX: e.pageX,
+                      pageY: e.pageY,
+                      isTrusted: e.isTrusted,
+                      type: e.type,
+                      targetTagName: e.target instanceof Element ? e.target.tagName : 'unknown',
+                      targetClass: e.target instanceof Element ? e.target.className : 'unknown'
                     });
-                    if (LOG_ENABLED) {
-                      console.log('Feel It touched for:', product.name);
+                    console.log('[Modal Debug] product object:', product);
+                    console.log('[Modal Debug] addItem function invoked');
+                    setTimeout(() => {
+                      console.log('[Modal Debug] Button click handler reached (delayed)');
+                    }, 0);
+                    if (product.prices[0]) {
+                      addItem({
+                        productId: product.id,
+                        priceId: product.prices[0].id,
+                        quantity: 1
+                      });
+                      if (LOG_ENABLED) {
+                        console.log('Feel It clicked for:', product.name);
+                      }
                     }
-                  }
-                }}
-              >
-                Feel It. Try {product.name}
-              </button>
-            ))}
+                  }}
+                  onTouchEnd={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault(); // Prevent synthetic click from being generated
+                    console.log('[Modal Debug] ENTER onTouchEnd handler');
+                    console.log('[Modal Debug] Button onTouchEnd triggered');
+                    console.log('[Modal Debug] Button onTouchEnd event details:', {
+                      target: e.target,
+                      currentTarget: e.currentTarget,
+                      changedTouches: e.changedTouches.length,
+                      clientX: e.changedTouches[0]?.clientX,
+                      clientY: e.changedTouches[0]?.clientY,
+                      pageX: e.changedTouches[0]?.pageX,
+                      pageY: e.changedTouches[0]?.pageY,
+                      targetTagName: e.target instanceof Element ? e.target.tagName : 'unknown',
+                      targetClass: e.target instanceof Element ? e.target.className : 'unknown'
+                    });
+                    console.log('[Modal Debug] product object:', product);
+                    console.log('[Modal Debug] addItem function invoked');
+                    setTimeout(() => {
+                      console.log('[Modal Debug] Button click handler reached (delayed)');
+                    }, 0);
+                    if (product.prices[0]) {
+                      addItem({
+                        productId: product.id,
+                        priceId: product.prices[0].id,
+                        quantity: 1
+                      });
+                      if (LOG_ENABLED) {
+                        console.log('Feel It touched for:', product.name);
+                      }
+                    }
+                  }}
+                >
+                  Try {product.name.split('(')[0].trim()}
+                  <span className="ml-2">
+                    {promoPrice && promoPrice < displayPrice ? (
+                      <>
+                        <span className="line-through text-lg opacity-60 mr-1">${(displayPrice / 100).toFixed(2)}</span>
+                        <span className="text-lg font-bold">${(promoPrice / 100).toFixed(2)}</span>
+                      </>
+                    ) : (
+                      <span className="text-lg font-bold">${(displayPrice / 100).toFixed(2)}</span>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -230,13 +262,14 @@ const Card: React.FC<CardProps> = ({
         onMouseLeave={handleMouseLeave}
       >
         <div 
+          ref={imageContainerRef}
           className={`relative z-0 w-full h-full bg-cover bg-center transition-transform duration-[4000ms] ease-out ${getImageTransform()}`}
           style={{ backgroundImage: `url(${imageUrl})` }}
         />
         
         {/* Text overlay - only visible when expanded */}
         {isExpanded && (
-          <div className="absolute top-4 left-4 z-20 pointer-events-none">
+          <div ref={textOverlayRef} className="absolute top-4 left-4 z-20 pointer-events-none">
             <h2 className="text-white font-light text-4xl md:text-5xl lg:text-6xl drop-shadow-lg leading-tight">
               {carouselContent.title.split(' ').map((word, index) => (
                 <div key={index}>{word}</div>

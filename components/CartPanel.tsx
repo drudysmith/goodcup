@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { LOG_ENABLED } from '../lib/utils/log';
+import { useBannerPromoQuery } from '../lib/queries/stripeQueries';
 
 interface CartItem {
   productId: string;
@@ -59,6 +60,8 @@ const CartPanel: React.FC<CartPanelProps> = ({
   // Calculate total items in cart
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
+  const { data: promo } = useBannerPromoQuery();
+
   return (
     <>
       {/* Backdrop - separate container */}
@@ -83,13 +86,13 @@ const CartPanel: React.FC<CartPanelProps> = ({
         } as React.CSSProperties}
       >
         {/* Header Banner */}
-        <div className="bg-brand-dark text-surface-background px-6 py-3 text-center text-sm">
-          "Wellness isn't a rush — but your order's almost ready."
+        <div className="bg-brand-dark text-surface-background px-6 py-3 text-center text-lg">
+          "Wellness isn't rushed — your order is!"
         </div>
 
         {/* Header with Close button */}
         <div className="flex justify-between items-center p-6 pb-4 border-b border-neutral-border/10">
-          <h3 className="text-xl font-medium text-text-primary">Your Experience</h3>
+          <h3 className="text-3xl font-medium text-text-primary">Your Experience</h3>
           <button 
             onClick={onClose}
             className="text-text-secondary hover:opacity-70 transition-opacity"
@@ -121,7 +124,7 @@ const CartPanel: React.FC<CartPanelProps> = ({
           <div className="pb-4">
             {items.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-text-secondary opacity-70">Your experience is empty</p>
+                <p className="text-text-secondary opacity-70 text-lg">Your experience is empty</p>
               </div>
             ) : (
               <>
@@ -143,7 +146,15 @@ const CartPanel: React.FC<CartPanelProps> = ({
                   {items.map((item, index) => {
                     const { product, price } = getProductAndPrice(item);
                     if (!product || !price) return null;
-
+                    const displayPrice = price.unit_amount || 0;
+                    let promoPrice = null;
+                    if (promo && (promo.percent_off || promo.amount_off)) {
+                      if (promo.percent_off) {
+                        promoPrice = displayPrice * (1 - promo.percent_off / 100);
+                      } else if (promo.amount_off) {
+                        promoPrice = displayPrice - promo.amount_off;
+                      }
+                    }
                     return (
                       <motion.div 
                         key={item.priceId} 
@@ -182,10 +193,10 @@ const CartPanel: React.FC<CartPanelProps> = ({
                           {/* Product Info - flex space */}
                           <div className="flex-1 flex flex-col justify-between h-20">
                             <div>
-                              <h4 className="text-text-primary text-sm leading-tight font-medium">
-                                {product.name}
+                              <h4 className="text-text-primary text-lg leading-tight font-medium">
+                              {product.name.split('(')[0].trim()}
                               </h4>
-                              <p className="text-xs text-text-tertiary mt-1">
+                              <p className="text-lg text-text-tertiary mt-1">
                                 {price.recurring ? `refill ships every 4 weeks` : product.description || '30 servings'}
                               </p>
                             </div>
@@ -195,7 +206,7 @@ const CartPanel: React.FC<CartPanelProps> = ({
                               {/* Quantity Controls */}
                               <div className="flex items-center gap-1">
                                 <button
-                                  className="w-6 h-6 rounded-full border border-neutral-border flex items-center justify-center hover:bg-surface transition-colors text-text-secondary text-xs"
+                                  className="w-6 h-6 rounded-full border border-neutral-border flex items-center justify-center hover:bg-surface transition-colors text-text-secondary text-sm"
                                   onClick={() => {
                                     if (item.quantity > 1) {
                                       cartActions.updateQuantity(item.priceId, item.quantity - 1);
@@ -206,11 +217,11 @@ const CartPanel: React.FC<CartPanelProps> = ({
                                 >
                                   −
                                 </button>
-                                <span className="w-6 text-center text-sm font-medium text-text-primary">
+                                <span className="w-6 text-center text-lg font-medium text-text-primary">
                                   {item.quantity}
                                 </span>
                                 <button
-                                  className="w-6 h-6 rounded-full border border-neutral-border flex items-center justify-center hover:bg-surface transition-colors text-text-secondary text-xs"
+                                  className="w-6 h-6 rounded-full border border-neutral-border flex items-center justify-center hover:bg-surface transition-colors text-text-secondary text-sm"
                                   onClick={() => cartActions.updateQuantity(item.priceId, item.quantity + 1)}
                                 >
                                   +
@@ -219,12 +230,14 @@ const CartPanel: React.FC<CartPanelProps> = ({
 
                               {/* Pricing */}
                               <div className="text-right">
-                                <span className="text-xs text-text-tertiary line-through">
-                                  {price.unit_amount !== null ? ((price.unit_amount * item.quantity * 1.15) / 100).toFixed(2) : 'N/A'}
-                                </span>
-                                <span className="text-sm text-text-primary font-medium">
-                                  {price.unit_amount !== null ? ((price.unit_amount * item.quantity) / 100).toFixed(2) : 'N/A'}
-                                </span>
+                                {promoPrice && promoPrice < displayPrice ? (
+                                  <>
+                                    <span className="line-through text-base opacity-60 text-text-secondary mr-1">${((displayPrice * item.quantity) / 100).toFixed(2)}</span>
+                                    <span className="text-lg text-green-600 font-medium">${((promoPrice * item.quantity) / 100).toFixed(2)}</span>
+                                  </>
+                                ) : (
+                                  <span className="text-lg text-text-primary font-medium">{displayPrice !== null ? ((displayPrice * item.quantity) / 100).toFixed(2) : 'N/A'}</span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -243,6 +256,33 @@ const CartPanel: React.FC<CartPanelProps> = ({
                     );
                   })}
                 </motion.div>
+                {/* Promo code reminder note */}
+		{promo && promo.code && (
+		  <div className="text-lg text-brand-secondary bg-brand-secondary/10 rounded px-3 py-2 mb-2 text-center font-medium">
+		    <div className="space-y-1">
+		      <p>
+			   Use coupon code <span className="font-bold">{promo.code}</span> at checkout.
+		      </p>
+		      {promo.duration && (
+		        <p>
+			  {promo.duration === 'once' 
+			    ? 'Applies to first month.'
+			    : promo.duration === 'forever'
+			    ? 'Good forever.'
+			    : promo.duration === 'repeating' && promo.duration_in_months
+			    ? `Good for ${promo.duration_in_months} months of subscription.`
+			    : null
+			  }
+		        </p>
+		      )}
+		      {promo.first_time_transaction && (
+		        <p>
+			  Good for first time orders.
+		        </p>
+		      )}
+		    </div>
+		  </div>
+		)}
               </>
             )}
           </div>
@@ -259,25 +299,35 @@ const CartPanel: React.FC<CartPanelProps> = ({
             {/* Subtotal and Shipping */}
             <div className="space-y-2 mb-4">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-text-secondary">Subtotal</span>
+                <span className="text-lg text-text-secondary">Subtotal</span>
                 <div className="text-right">
-                  <span className="text-sm text-text-tertiary line-through mr-2">
-                    {totalItems > 0 ? ((items.reduce((sum, item) => {
+                  {(() => {
+                    const subtotal = items.reduce((sum, item) => {
                       const { price } = getProductAndPrice(item);
                       return sum + ((price?.unit_amount || 0) * item.quantity);
-                    }, 0) * 1.15) / 100).toFixed(2) : '0.00'}
-                  </span>
-                  <span className="text-sm font-medium text-text-primary">
-                    {totalItems > 0 ? (items.reduce((sum, item) => {
-                      const { price } = getProductAndPrice(item);
-                      return sum + ((price?.unit_amount || 0) * item.quantity);
-                    }, 0) / 100).toFixed(2) : '0.00'}
-                  </span>
+                    }, 0);
+                    let promoSubtotal = null;
+                    if (promo && (promo.percent_off || promo.amount_off)) {
+                      if (promo.percent_off) {
+                        promoSubtotal = subtotal * (1 - promo.percent_off / 100);
+                      } else if (promo.amount_off) {
+                        promoSubtotal = subtotal - promo.amount_off * items.length;
+                      }
+                    }
+                    return promoSubtotal && promoSubtotal < subtotal ? (
+                      <>
+                        <span className="text-lg text-text-secondary line-through mr-2">${(subtotal / 100).toFixed(2)}</span>
+                        <span className="text-lg font-medium text-green-600">${(promoSubtotal / 100).toFixed(2)}</span>
+                      </>
+                    ) : (
+                      <span className="text-lg font-medium text-text-primary">{(subtotal / 100).toFixed(2)}</span>
+                    );
+                  })()}
                 </div>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-text-secondary">Shipping</span>
-                <span className="text-sm font-medium text-text-primary">Free</span>
+                <span className="text-lg text-text-secondary">Shipping</span>
+                <span className="text-lg font-medium text-text-primary">Free within USA</span>
               </div>
             </div>
 
@@ -286,7 +336,7 @@ const CartPanel: React.FC<CartPanelProps> = ({
             {/* Checkout Button */}
             <div className="flex justify-center mb-3">
               <button 
-                className="cupgrade-button px-8 py-2 text-sm"
+                className="cupgrade-button px-8 py-2 text-lg"
                 style={{ 
                   width: 'auto',
                   minWidth: '180px',
@@ -306,7 +356,7 @@ const CartPanel: React.FC<CartPanelProps> = ({
             </div>
 
             {/* Microcopy */}
-            <p className="text-xs text-center text-text-secondary opacity-60">
+            <p className="text-lg text-center text-text-secondary opacity-60">
               handmade love in your life
             </p>
           </div>

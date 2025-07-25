@@ -8,6 +8,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { useCartStore } from '../store/cartStore';
+import TryGoodcupModal from '../components/TryGoodcupModal';
 
 // Query function for products
 const fetchProducts = async (): Promise<{ products: Array<any> }> => {
@@ -121,7 +122,7 @@ export default function Home() {
 
   // ===== TEXT OVERLAY CONTROLS CONSOLIDATED =====
   const carouselRef = useRef(null);
-  const scrollTimeGraphRef = useRef(null);
+  const scrollTimeGraphRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
   
   // ==== Page Load Animation =====
@@ -212,6 +213,14 @@ export default function Home() {
       setCtaPhrase(null);
     }
   };
+
+  // Detect when the top of the graph is number of pixels down the viewport (mobile: 400px, desktop: 600px)
+  const isGraphTrigger = useInView(scrollTimeGraphRef, { 
+    amount: 0, 
+    margin: isMobile ? '-730px 0px 0px 0px' : '-740px 0px 0px 0px' 
+  });
+
+  const [showTryModal, setShowTryModal] = useState(false);
 
   return (
     <Layout>
@@ -378,7 +387,24 @@ export default function Home() {
       {/* Fixed positioned ScrollTimeEffectGraph */}
       <div ref={scrollTimeGraphRef} className="relative z-[5]">
         <ScrollTimeEffectGraph />
+        {/* Try Goodcup Button */}
+        <motion.button
+          initial={{ opacity: 0, y: 20 }}
+          animate={!isGraphTrigger ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className="absolute bottom-[-1.5rem] md:bottom-[-.5rem] right-4 md:left-1/2 md:-translate-x-[40%] z-30 px-7 py-2 md:py-3 rounded-full text-white text-lg font-semibold bg-neutral-700/30 shadow-lg backdrop-blur-sm select-none pointer-events-auto max-w-xs"
+          style={{ pointerEvents: !isGraphTrigger ? 'auto' : 'none' }}
+          onClick={() => setShowTryModal(true)}
+        >
+          Try Goodcup
+        </motion.button>
       </div>
+      {/* Try Goodcup Modal (root level, z-10) */}
+      <TryGoodcupModal
+        open={showTryModal}
+        onClose={() => setShowTryModal(false)}
+        products={productsQuery.data?.products || []}
+      />
 
       {/* Carousel text overlay rendering - permanently mounted, opacity controlled to prevent layout shifts */}
       <div className="relative w-full mt-10 mb-0 md:-mt-0 md:mb-0"> {/* mb-16/mb-24: spacing below overlay - increase for more gap, decrease for less */}
