@@ -41,7 +41,7 @@ interface CardProps {
   className?: string;
   isExpanded?: boolean;
   products?: StripeProduct[];
-  addItem?: (item: CartItem) => void;
+  addItem?: (item: CartItem, clickPosition?: { x: number; y: number }) => void;
   // Refs for debugging computed styles
   imageContainerRef?: React.RefObject<HTMLDivElement | null>;
   textOverlayRef?: React.RefObject<HTMLDivElement | null>;
@@ -191,6 +191,9 @@ const Card: React.FC<CardProps> = ({
                         productId: product.id,
                         priceId: product.prices[0].id,
                         quantity: 1
+                      }, {
+                        x: e.clientX,
+                        y: e.clientY
                       });
                       if (LOG_ENABLED) {
                         console.log('Feel It clicked for:', product.name);
@@ -223,6 +226,9 @@ const Card: React.FC<CardProps> = ({
                         productId: product.id,
                         priceId: product.prices[0].id,
                         quantity: 1
+                      }, {
+                        x: e.changedTouches[0]?.clientX || 0,
+                        y: e.changedTouches[0]?.clientY || 0
                       });
                       if (LOG_ENABLED) {
                         console.log('Feel It touched for:', product.name);

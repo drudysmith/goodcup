@@ -404,6 +404,7 @@ export default function Home() {
         open={showTryModal}
         onClose={() => setShowTryModal(false)}
         products={productsQuery.data?.products || []}
+        addItem={addItem}
       />
 
       {/* Carousel text overlay rendering - permanently mounted, opacity controlled to prevent layout shifts */}

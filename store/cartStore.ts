@@ -2,6 +2,13 @@ import { Store } from '@tanstack/store';
 import { useStore } from '@tanstack/react-store';
 import { LOG_ENABLED } from '../lib/utils/log';
 
+// Global animation trigger function - will be set by the provider
+let triggerCartAnimation: ((startPos: { x: number; y: number }, endPos: { x: number; y: number }) => void) | null = null;
+
+export const setCartAnimationTrigger = (trigger: (startPos: { x: number; y: number }, endPos: { x: number; y: number }) => void) => {
+  triggerCartAnimation = trigger;
+};
+
 export type CartItem = {
   productId: string;
   priceId: string;
@@ -111,21 +118,70 @@ const cartStore = new Store({
 });
 
 // Action functions that manipulate the store
-const addItem = (item: CartItem) => {
-  cartStore.setState((state) => {
-    // If item with same priceId exists, update quantity
-    const existing = state.items.find((i) => i.priceId === item.priceId);
-    if (existing) {
-      return {
-        items: state.items.map((i) =>
-          i.priceId === item.priceId
-            ? { ...i, quantity: i.quantity + item.quantity }
-            : i
-        ),
+const addItem = (item: CartItem, clickPosition?: { x: number; y: number }) => {
+  // Trigger animation if click position is provided
+  if (clickPosition && triggerCartAnimation) {
+    // Calculate end position (cart icon position)
+    const cartIcon = document.querySelector('[aria-label="Cart"]') as HTMLElement;
+    if (cartIcon) {
+      const cartRect = cartIcon.getBoundingClientRect();
+      const endPos = {
+        x: cartRect.left + cartRect.width / 2,
+        y: cartRect.top + cartRect.height / 2
       };
+      triggerCartAnimation(clickPosition, endPos);
+      
+      // Delay the cart update until animation completes (0.8 seconds)
+      setTimeout(() => {
+        cartStore.setState((state) => {
+          // If item with same priceId exists, update quantity
+          const existing = state.items.find((i) => i.priceId === item.priceId);
+          if (existing) {
+            return {
+              items: state.items.map((i) =>
+                i.priceId === item.priceId
+                  ? { ...i, quantity: i.quantity + item.quantity }
+                  : i
+              ),
+            };
+          }
+          return { items: [...state.items, item] };
+        });
+      }, 800); // Match the animation duration
+    } else {
+      // If no cart icon found, update immediately
+      cartStore.setState((state) => {
+        // If item with same priceId exists, update quantity
+        const existing = state.items.find((i) => i.priceId === item.priceId);
+        if (existing) {
+          return {
+            items: state.items.map((i) =>
+              i.priceId === item.priceId
+                ? { ...i, quantity: i.quantity + item.quantity }
+                : i
+            ),
+          };
+        }
+        return { items: [...state.items, item] };
+      });
     }
-    return { items: [...state.items, item] };
-  });
+  } else {
+    // No animation, update immediately
+    cartStore.setState((state) => {
+      // If item with same priceId exists, update quantity
+      const existing = state.items.find((i) => i.priceId === item.priceId);
+      if (existing) {
+        return {
+          items: state.items.map((i) =>
+            i.priceId === item.priceId
+              ? { ...i, quantity: i.quantity + item.quantity }
+              : i
+          ),
+        };
+      }
+      return { items: [...state.items, item] };
+    });
+  }
 };
 
 const removeItem = (priceId: string) => {

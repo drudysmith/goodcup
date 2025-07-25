@@ -29,7 +29,7 @@ interface CupgradesPanelProps {
   products: StripeProduct[];
   cupgradesClosing: boolean;
   onClose: () => void;
-  addItem: (item: CartItem) => void;
+  addItem: (item: CartItem, clickPosition?: { x: number; y: number }) => void;
 }
 
 const CupgradesPanel: React.FC<CupgradesPanelProps> = ({ 
@@ -328,11 +328,14 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
                         {/* Font change here - featured product button */}
                         <button
                           className={`ml-auto ${badgeColor} text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-opacity`}
-                          onClick={() => {
+                          onClick={(e) => {
                             addItem({
                               productId: featuredProduct.id,
                               priceId: featuredProduct.prices[0].id,
                               quantity: 1
+                            }, {
+                              x: e.clientX,
+                              y: e.clientY
                             });
                           }}
                         >
@@ -398,11 +401,14 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
                       {/* Font change here - regular product card button */}
                       <button
                         className="ml-auto bg-brand-secondary text-white px-3 py-1 rounded text-base hover:opacity-90 transition-opacity"
-                        onClick={() => {
+                        onClick={(e) => {
                           addItem({
                             productId: product.id,
                             priceId: product.prices[0].id,
                             quantity: 1
+                          }, {
+                            x: e.clientX,
+                            y: e.clientY
                           });
                         }}
                       >

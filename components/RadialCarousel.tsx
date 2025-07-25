@@ -109,7 +109,7 @@ interface RadialCarouselProps {
   className?: string;
   cardData?: CardData[];
   products?: StripeProduct[];
-  addItem?: (item: CartItem) => void;
+  addItem?: (item: CartItem, clickPosition?: { x: number; y: number }) => void;
 }
 
 const RadialCarousel: React.FC<RadialCarouselProps> = ({ 
@@ -432,7 +432,7 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
   // Additional refs for Card internal elements
   const imageContainerRef = useRef<HTMLDivElement | null>(null);
   const textOverlayRef = useRef<HTMLDivElement | null>(null);
-  const tryItButtonRefs = useRef<React.RefObject<HTMLButtonElement>[]>([]);
+  const tryItButtonRefs = useRef<React.RefObject<HTMLButtonElement | null>[]>([]);
 
   // Initialize button refs for the expanded card
   useEffect(() => {
@@ -616,7 +616,7 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
                         addItem={addItem}
                         imageContainerRef={imageContainerRef}
                         textOverlayRef={textOverlayRef}
-                        tryItButtonRefs={tryItButtonRefs.current}
+                        tryItButtonRefs={tryItButtonRefs.current as React.RefObject<HTMLButtonElement>[]}
                       />
                     </div>
                   </div>

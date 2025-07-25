@@ -7,8 +7,10 @@ import { useWebhookSync } from '../lib/queries/webhookQueries';
 import LogoAnimated from "./LogoAnimated";
 import Link from 'next/link';
 import { UserIcon, ShoppingBagIcon } from '@heroicons/react/24/outline';
-import { useCartStore } from '../store/cartStore';
+import { useCartStore, setCartAnimationTrigger } from '../store/cartStore';
 import { useVisitor } from '../lib/contexts/VisitorContext';
+import { CartAnimationProvider, useCartAnimation } from '../lib/contexts/CartAnimationContext';
+import CartFlyingAnimation from './CartFlyingAnimation';
 // @ts-expect-error: No types for flubber
 import * as flubber from "flubber";
 
@@ -146,7 +148,7 @@ const submitContactInfo = async ({
   return response.json();
 };
 
-const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
+const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuClosing, setMenuClosing] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -249,6 +251,14 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
   const removeItem = useCartStore((state) => state.removeItem);
   const addItem = useCartStore((state) => state.addItem);
   const validateAndCleanCart = useCartStore((state) => state.validateAndCleanCart);
+
+  // Cart animation context
+  const { animationState, hideAnimation, triggerAnimation } = useCartAnimation();
+
+  // Set up animation trigger in cart store
+  useEffect(() => {
+    setCartAnimationTrigger(triggerAnimation);
+  }, [triggerAnimation]);
 
   // Visitor context for contact info popup
   const { visitorId, jwt, visitorData, isReady: visitorReady, updateVisitorIdentity, syncCartToDatabase } = useVisitor();
@@ -1108,6 +1118,14 @@ const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
         showBanner={showBanner}
         isScrolled={isScrolled}
       />
+
+      {/* Cart Flying Animation */}
+      <CartFlyingAnimation
+        isVisible={animationState.isVisible}
+        startPosition={animationState.startPosition}
+        endPosition={animationState.endPosition}
+        onComplete={hideAnimation}
+      />
     </div>
   );
 };
@@ -1118,5 +1136,14 @@ declare global {
     resetNotificationBanner?: () => void;
   }
 }
+
+// Wrapper component that provides the animation context
+const Layout: React.FC<LayoutProps> = ({ children, overlay }) => {
+  return (
+    <CartAnimationProvider>
+      <LayoutContent children={children} overlay={overlay} />
+    </CartAnimationProvider>
+  );
+};
 
 export default Layout; 

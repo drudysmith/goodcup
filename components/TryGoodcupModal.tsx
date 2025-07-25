@@ -19,9 +19,10 @@ interface TryGoodcupModalProps {
   open: boolean;
   onClose: () => void;
   products: StripeProduct[];
+  addItem: (item: { productId: string; priceId: string; quantity: number }, clickPosition?: { x: number; y: number }) => void;
 }
 
-const TryGoodcupModal: React.FC<TryGoodcupModalProps> = ({ open, onClose, products }) => {
+const TryGoodcupModal: React.FC<TryGoodcupModalProps> = ({ open, onClose, products, addItem }) => {
   // Filter and sort featured products
   const featured = (products || [])
     .filter(p => {
@@ -60,24 +61,38 @@ const TryGoodcupModal: React.FC<TryGoodcupModalProps> = ({ open, onClose, produc
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 30 }}
                 transition={{ delay: 0.1 * idx, duration: 0.4, type: 'spring', bounce: 0.2 }}
-                className="w-[340px] md:w-[440px] bg-white rounded-xl shadow-xl flex flex-row items-center gap-3 md:gap-4 p-3 border border-neutral-200 min-h-[80px]"
+                className="w-[340px] md:w-[400px] bg-white/90 rounded-xl shadow-xl flex flex-row items-center gap-3 md:gap-4 p-3 border border-neutral-200 min-h-[80px]"
               >
                 {/* Image left */}
-                <img src={product.images?.[0]} alt={product.name} className="w-20 h-20 md:w-24 md:h-24 object-cover rounded-lg flex-shrink-0" />
+                <img src={product.images?.[0]} alt={product.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                 {/* Middle: name, short-copy, price */}
-                <div className="flex-1 flex flex-col justify-center min-w-0 pr-0 md:pr-0 -mr-1 ">
+                <div className="flex-1 flex flex-col justify-center min-w-0 pr-1 md:pr-0">
                   <div className="text-base font-semibold text-neutral-900 truncate">{product.name.split('(')[0].trim()}</div>
-                  <div className="text-base text-neutral-600 mb-1 whitespace-pre-line">
+                  <div className="text-xs text-neutral-600 mb-1 whitespace-pre-line">
                     {product.metadata?.['short-copy'] || ''}
                   </div>
                   <div className="text-sm font-bold text-brand-secondary">
-                    {product.prices?.[0] ? `$${(product.prices[0].unit_amount / 100).toFixed(2)}` : ''}
+                    {product.prices?.[0]?.unit_amount ? `$${(product.prices[0].unit_amount / 100).toFixed(2)}` : ''}
                   </div>
                 </div>
                 {/* Button right */}
-                <button className="bg-brand-secondary text-white px-3 py-2 rounded-full font-medium text-sm shadow hover:bg-brand-secondary/90 transition flex-shrink-0 -mr-0 md:mr-2">
+                <button 
+                  onClick={(e) => {
+                    if (product.prices?.[0]) {
+                      addItem({
+                        productId: product.id,
+                        priceId: product.prices[0].id,
+                        quantity: 1
+                      }, {
+                        x: e.clientX,
+                        y: e.clientY
+                      });
+                    }
+                  }}
+                  className="bg-brand-secondary text-white px-4 py-2 rounded-full font-medium text-sm shadow hover:bg-brand-secondary/90 transition flex-shrink-0 -mr-2 md:mr-0"
+                >
                   <span className="block md:hidden">Try It</span>
-                  <span className="hidden md:block">Try It</span>
+                  <span className="hidden md:block">Add to Cart</span>
                 </button>
               </motion.div>
             ))}
