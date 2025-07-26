@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-import { LOG_ENABLED } from '../utils/log';
 
 // Types for Stripe data
 interface StripeOrder {
@@ -46,9 +45,7 @@ export const fetchOrders = async (customerId?: string): Promise<StripeOrder[]> =
     }
     return await response.json();
   } catch (error) {
-    if (LOG_ENABLED) {
     console.error('Error fetching orders from Stripe:', error);
-    }
     // Return placeholder data on error
     return [
       { 
@@ -98,9 +95,7 @@ export const fetchSubscriptions = async (customerId?: string): Promise<StripeSub
     }
     return await response.json();
   } catch (error) {
-    if (LOG_ENABLED) {
     console.error('Error fetching subscriptions from Stripe:', error);
-    }
     // Return placeholder data on error
     return [
       { 
@@ -146,15 +141,9 @@ export function useBannerPromoQuery() {
   return useQuery({
     queryKey: ['bannerPromo'],
     queryFn: async () => {
-      if (LOG_ENABLED) {
-        console.log('🔍 Fetching banner promo data...');
-      }
       const res = await fetch('/api/current-banner-promo');
       if (!res.ok) throw new Error('Failed to fetch banner promo');
       const data = await res.json();
-      if (LOG_ENABLED) {
-        console.log('🔍 Banner promo data received:', data);
-      }
       return data;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes

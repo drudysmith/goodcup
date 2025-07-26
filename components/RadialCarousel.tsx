@@ -447,44 +447,7 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
   }, [expandedCard, products]);
 
   useEffect(() => {
-    if (expandedCardRef.current) {
-      // const cardStyles = window.getComputedStyle(expandedCardRef.current);
-      // console.log('[Modal Debug] Expanded card (mount) computed styles:', {
-      //   position: cardStyles.position,
-      //   zIndex: cardStyles.zIndex,
-      //   pointerEvents: cardStyles.pointerEvents,
-      //   transform: cardStyles.transform
-      // });
-    }
-    if (imageContainerRef.current) {
-      // const imageStyles = window.getComputedStyle(imageContainerRef.current);
-      // console.log('[Modal Debug] Image container (mount) computed styles:', {
-      //   position: imageStyles.position,
-      //   zIndex: imageStyles.zIndex,
-      //   pointerEvents: imageStyles.pointerEvents,
-      //   transform: imageStyles.transform
-      // });
-    }
-    if (textOverlayRef.current) {
-      // const textStyles = window.getComputedStyle(textOverlayRef.current);
-      // console.log('[Modal Debug] Text overlay (mount) computed styles:', {
-      //   position: textStyles.position,
-      //   zIndex: textStyles.zIndex,
-      //   pointerEvents: textStyles.pointerEvents,
-      //   transform: textStyles.transform
-      // });
-    }
-    tryItButtonRefs.current.forEach((ref, index) => {
-      if (ref.current) {
-        // const btnStyles = window.getComputedStyle(ref.current);
-        // console.log(`[Modal Debug] Try It button ${index} (mount) computed styles:`, {
-        //   position: btnStyles.position,
-        //   zIndex: btnStyles.zIndex,
-        //   pointerEvents: btnStyles.pointerEvents,
-        //   transform: btnStyles.transform
-        // });
-      }
-    });
+
   }, [expandedCard]);
 
   return (

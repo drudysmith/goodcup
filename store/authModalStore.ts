@@ -1,6 +1,5 @@
 import { Store } from '@tanstack/store';
 import { useStore } from '@tanstack/react-store';
-import { LOG_ENABLED } from '../lib/utils/log';
 
 // UxAuth 1: Auth modal state interface
 interface AuthModalState {
@@ -53,12 +52,7 @@ export const openAuthModal = (email?: string, password?: string) => {
     password: finalPassword,
   }));
 
-  if (LOG_ENABLED) {
-  console.log('🔐 UxAuth 1: Opening universal auth modal', {
-    email: finalEmail ? '***' + finalEmail.slice(-8) : undefined,
-    hasPassword: !!finalPassword,
-  });
-  }
+
 };
 
 // UxAuth 1: Global method to close auth modal
@@ -69,17 +63,12 @@ export const closeAuthModal = () => {
     password: undefined,
   }));
 
-  if (LOG_ENABLED) {
-  console.log('🔐 UxAuth 1: Closing universal auth modal');
-  }
+
 };
 
 // UxAuth 1: Method to update cached credentials
 export const updateCachedCredentials = (email?: string, password?: string) => {
   saveCachedCredentials(email, password);
-  if (LOG_ENABLED) {
-  console.log('💾 UxAuth 1: Updated cached credentials');
-  }
 };
 
 // UxAuth 1: Hook to get auth modal state

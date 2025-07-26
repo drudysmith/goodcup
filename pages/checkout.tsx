@@ -16,7 +16,6 @@ import { openAuthModal } from '../store/authModalStore';
 import { useVisitor } from '../lib/contexts/VisitorContext';
 import { useAuthActions } from '../lib/hooks/useAuthActions';
 import { supabaseAnon } from '../lib/supabaseClient';
-import { LOG_ENABLED } from '../lib/utils/log';
 
 interface StripePrice {
   id: string;
@@ -143,27 +142,16 @@ const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promi
   if (!response.ok) {
     // Module 8: Handle session expiry (401/403 errors)
     if ((response.status === 401 || response.status === 403) && sessionExpiryHandler) {
-      if (LOG_ENABLED) {
-      console.log('⏰ User session expired — prompting re-auth');
-      }
       const refreshed = await sessionExpiryHandler();
       if (refreshed) {
         // Retry the request with the refreshed session
         return fetchUserProfile(session, sessionExpiryHandler);
       }
     }
-    if (LOG_ENABLED) {
-    console.log('⚠️ No profile data found for user:', session.user.id);
-    }
     return null;
   }
 
   const profileData = await response.json();
-  
-  // SMU 4.3b: Log the Stripe customer ID from client
-  if (LOG_ENABLED) {
-  console.log('🔄 SMU 4.3b: Stripe customer ID loaded:', profileData.stripe_customer_id);
-  }
   
   return profileData;
 };
@@ -246,9 +234,6 @@ export default function Checkout() {
   // Module 6b.3.1: Confirm inline form display
   useEffect(() => {
     if (showInlineLogin) {
-      if (LOG_ENABLED) {
-      console.log('✅ Inline login form is now displayed');
-      }
       // Reset error state when form is shown
       setLoginError(null);
     }
@@ -289,9 +274,6 @@ export default function Checkout() {
     
     if (userSession && profileData) {
       // Prefill from user profile data
-      if (LOG_ENABLED) {
-      console.log('🔄 Module 6e: Prefilling checkout fields from user profile');
-      }
       const nameParts = profileData.name ? profileData.name.split(' ') : ['', ''];
       setCustomerInfo({
         email: userSession.user.email || profileData.email || '',
@@ -307,9 +289,6 @@ export default function Checkout() {
       });
     } else if (visitorData && !userSession) {
       // Prefill from visitor data
-      if (LOG_ENABLED) {
-      console.log('🔄 Module 6e: Prefilling checkout fields from visitor data');
-      }
       const nameParts = visitorData.name ? visitorData.name.split(' ') : ['', ''];
       setCustomerInfo(prev => ({
         ...prev,
@@ -332,21 +311,12 @@ export default function Checkout() {
   const visitorMergeMutation = useMutation({
     mutationFn: mergeVisitor,
     onSuccess: (mergeData) => {
-      if (LOG_ENABLED) {
-      console.log('✅ Module 6b.2: Visitor merge successful:', mergeData);
-      }
-      
       // Clear visitor tokens from localStorage
-      if (LOG_ENABLED) {
-      console.log('🧹 Module 6b.2: Clearing visitor tokens from localStorage');
-      }
       localStorage.removeItem('visitor_id');
       localStorage.removeItem('visitor_jwt');
     },
     onError: (error) => {
-      if (LOG_ENABLED) {
       console.error('Module 6b.2: Visitor merge failed:', error);
-      }
       alert('Failed to merge visitor data. Please try again.');
     },
   });
@@ -356,22 +326,14 @@ export default function Checkout() {
     mutationFn: createCheckoutSession,
     onSuccess: (checkoutData) => {
       if (checkoutData.url) {
-        if (LOG_ENABLED) {
-        console.log('✅ Module 6d: Checkout session finalized — redirecting to Stripe');
-        console.log('✅ Redirecting to Stripe checkout session');
-        }
         window.location.assign(checkoutData.url);
       } else {
-        if (LOG_ENABLED) {
         console.error('Checkout session creation failed:', checkoutData.error);
-        }
         alert(checkoutData.error || 'Checkout failed');
       }
     },
     onError: (error) => {
-      if (LOG_ENABLED) {
       console.error('Error creating checkout session:', error);
-      }
       alert('Checkout failed');
     },
   });
@@ -380,9 +342,6 @@ export default function Checkout() {
   const saveContactMutation = useMutation({
     mutationFn: ({ contactData, token }: { contactData: any; token: string }) => saveContact(contactData, token),
     onSuccess: (data) => {
-      if (LOG_ENABLED) {
-        console.log('✅ Bug 9A: Contact info saved successfully:', data);
-      }
       // Invalidate visitor query to refresh data with saved contact info
       queryClient.invalidateQueries({ queryKey: ['visitor', visitorId] });
       if (userSession) {
@@ -391,9 +350,7 @@ export default function Checkout() {
       }
     },
     onError: (error) => {
-      if (LOG_ENABLED) {
-        console.error('Bug 9A: Error saving contact:', error);
-      }
+      console.error('Bug 9A: Error saving contact:', error);
       alert('Failed to save contact info. Please try again.');
     },
   });
@@ -404,9 +361,6 @@ export default function Checkout() {
     const { data: { subscription } } = supabaseAnon.auth.onAuthStateChange(async (event, session) => {
       setSessionData(session);
       if (event === 'SIGNED_IN' && session && checkoutMode === 'user' && visitorId && !isProcessingMerge) {
-        if (LOG_ENABLED) {
-        console.log('✅ User authentication successful');
-        }
         setShowInlineLogin(false);
         
         // Module 6b.2: Post-Merge Cleanup and Checkout
@@ -414,10 +368,6 @@ export default function Checkout() {
         setCheckoutLoading(true);
         
         try {
-          if (LOG_ENABLED) {
-          console.log('🔄 Module 6b.2: Merging visitor with authenticated user');
-          }
-          
           // Call merge mutation
           const mergeData = await visitorMergeMutation.mutateAsync({
             visitorId,
@@ -425,10 +375,6 @@ export default function Checkout() {
           });
           
           // Create checkout session with user ID
-          if (LOG_ENABLED) {
-          console.log('🔄 Module 6b.2: Creating Stripe checkout session with user ID:', session.user.id);
-          }
-          
           await checkoutSessionMutation.mutateAsync({
             items,
             customerEmail: session.user.email || customerInfo.email,
@@ -436,9 +382,7 @@ export default function Checkout() {
             checkoutMode: 'user'
           });
         } catch (error) {
-          if (LOG_ENABLED) {
           console.error('Module 6b.2: Error during merge and checkout:', error);
-          }
           alert('An error occurred during checkout. Please try again.');
         } finally {
           setIsProcessingMerge(false);
@@ -486,10 +430,6 @@ export default function Checkout() {
     }
 
     // Bug 9A: Save contact info before proceeding to shipping
-    if (LOG_ENABLED) {
-      console.log('📇 Bug 9A: Saving contact information');
-    }
-    
     const contactPayload = {
       email: customerInfo.email,
       phone: customerInfo.phone || '',
@@ -509,9 +449,7 @@ export default function Checkout() {
       const token = userSession?.access_token || jwt;
       
       if (!token) {
-        if (LOG_ENABLED) {
-          console.error('⚠️ Bug 9A: No authentication token available');
-        }
+        console.error('⚠️ Bug 9A: No authentication token available');
         alert('Authentication required to save contact info');
         return;
       }
@@ -521,9 +459,7 @@ export default function Checkout() {
       // Proceed to shipping stage after successful save
       setCurrentStage('shipping');
     } catch (error) {
-      if (LOG_ENABLED) {
-        console.error('Bug 9A: Failed to save contact:', error);
-      }
+      console.error('Bug 9A: Failed to save contact:', error);
       // Still allow proceeding to shipping even if save fails
       setCurrentStage('shipping');
     }
@@ -540,11 +476,6 @@ export default function Checkout() {
       // Module 5: User Auth Trigger
       if (userSession) {
         // Module 6a: Session Short-Circuit
-        if (LOG_ENABLED) {
-        console.log('✅ User already authed — skipping sign-in flow');
-        console.log('🔄 Module 6a: Creating Stripe checkout session with user ID:', userSession.user.id);
-        }
-        
         try {
           await checkoutSessionMutation.mutateAsync({
             items,
@@ -558,9 +489,6 @@ export default function Checkout() {
         return;
       } else {
         // User not signed in - show inline login
-        if (LOG_ENABLED) {
-        console.log('🔐 User opted for full auth — will display inline login form');
-        }
         setShowInlineLogin(true);
         setCheckoutLoading(false);
         return;
@@ -572,9 +500,6 @@ export default function Checkout() {
     
     if (hasVisitorContactInfo && !showGuestConfirmation) {
       // Show confirmation dialog for guests with saved contact info
-      if (LOG_ENABLED) {
-      console.log('🧭 Guest checkout with saved contact info — showing confirmation dialog');
-      }
       setShowGuestConfirmation(true);
       setCheckoutLoading(false);
       return;
@@ -582,9 +507,6 @@ export default function Checkout() {
 
     // Guest checkout flow using visitor context
     try {
-      if (LOG_ENABLED) {
-      console.log('🧭 Proceeding with guest checkout');
-      }
       await checkoutSessionMutation.mutateAsync({
         items,
         customerEmail: visitorData?.email || customerInfo.email,
@@ -608,7 +530,7 @@ export default function Checkout() {
           {/* Order Summary Toggle (Mobile) */}
           <div className="lg:hidden mb-4">
             <button onClick={() => setOrderSummaryExpanded(!orderSummaryExpanded)} className="w-full flex justify-between p-4 border rounded">
-              <span>{orderSummaryExpanded ? 'Hide order summary' : 'Show order summary'}</span>
+              <span className="text-2xl font-bold text-orange-600">{orderSummaryExpanded ? 'Hide order summary' : 'Show order summary'}</span>
               <span>${(cartTotal / 100).toFixed(2)}</span>
             </button>
             {orderSummaryExpanded && (
@@ -752,10 +674,6 @@ export default function Checkout() {
                           });
                           const redirectUrl = `${window.location.origin}/checkout?${redirectParams.toString()}`;
                           
-                                if (LOG_ENABLED) {
-                          console.log('🔄 Checkout magic link will redirect to:', redirectUrl);
-                                }
-                          
                           const { error } = await supabaseAnon.auth.signInWithOtp({
                             email: emailToUse.trim(),
                             options: {
@@ -767,9 +685,6 @@ export default function Checkout() {
                             setLoginError(error.message);
                           } else {
                             setLoginLinkSent(true);
-                                  if (LOG_ENABLED) {
-                            console.log('📧 Magic link sent to:', emailToUse);
-                                  }
                           }
                         } catch (err) {
                           setLoginError('Failed to send magic link');
@@ -909,9 +824,6 @@ export default function Checkout() {
               <div className="flex space-x-3">
                 <button
                   onClick={() => {
-                    if (LOG_ENABLED) {
-                    console.log('🧭 Guest accepted account creation — switching to user mode');
-                    }
                     setShowGuestConfirmation(false);
                     setCheckoutMode('user');
                     setShowInlineLogin(true);
@@ -923,16 +835,10 @@ export default function Checkout() {
                 </button>
                 <button
                   onClick={async () => {
-                    if (LOG_ENABLED) {
-                    console.log('🧭 Guest declined account creation — continuing as guest');
-                    }
                     setShowGuestConfirmation(false);
                     setCheckoutLoading(true);
                     
                     try {
-                      if (LOG_ENABLED) {
-                      console.log('🧭 Proceeding with guest checkout');
-                      }
                       await checkoutSessionMutation.mutateAsync({
                         items,
                         customerEmail: visitorData?.email || customerInfo.email,

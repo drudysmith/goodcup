@@ -28,7 +28,6 @@ import EmailSignup from './EmailSignup';
 import { navLinks } from '../lib/constants';
 import { findMostPopularProduct, findSuperHealingProduct } from '../lib/productUtils';
 import { getHeaderTextClasses } from '../lib/styleUtils';
-import { LOG_ENABLED } from '../lib/utils/log';
 
 interface LayoutProps {
   children: ReactNode;
@@ -89,9 +88,6 @@ const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promi
   if (!response.ok) {
     // Module 8: Handle session expiry (401/403 errors)
     if ((response.status === 401 || response.status === 403) && sessionExpiryHandler) {
-      if (LOG_ENABLED) {
-        console.log('⏰ User session expired — prompting re-auth');
-      }
       const refreshed = await sessionExpiryHandler();
       if (refreshed) {
         // Retry the request with the refreshed session
@@ -102,11 +98,6 @@ const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promi
   }
 
   const profileData = await response.json();
-  
-  // SMU 4.3b: Log the Stripe customer ID from client
-  if (LOG_ENABLED) {
-    console.log('🔄 SMU 4.3b: Stripe customer ID loaded:', profileData.stripe_customer_id);
-  }
   
   return profileData;
 };
@@ -123,10 +114,6 @@ const submitContactInfo = async ({
   phone?: string; 
   name?: string; 
 }) => {
-  if (LOG_ENABLED) {
-    console.log('📡 Submitting contact info to Module 4 API:', { email, phone, name });
-  }
-  
   const response = await fetch('/api/visitor/identify', {
     method: 'POST',
     headers: {
@@ -162,6 +149,7 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
   const [cupgradesClosing, setCupgradesClosing] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showContactPopup, setShowContactPopup] = useState(false);
+  const [cartOpenedThisSession, setCartOpenedThisSession] = useState(false);
   
   // Module 7.5: Session status popup state
   const [showSessionPopup, setShowSessionPopup] = useState(false);
@@ -209,9 +197,6 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
   } : null;
 
   const signOut = async () => {
-    if (LOG_ENABLED) {
-      console.log('🚪 User signing out');
-    }
     if (userSession) {
       const { supabaseAnon } = await import('../lib/supabaseClient');
       await supabaseAnon.auth.signOut();
@@ -229,9 +214,6 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
     const observer = new IntersectionObserver(entries => {
       entries.forEach(entry => {
 	if (entry.isIntersecting) {
-	  if (LOG_ENABLED) {
-	    console.log('Animating:', entry.target); //test the listener
-	  }
           const el = entry.target as HTMLElement;
           el.classList.remove('reveal-init');
           el.classList.add(`animate-${el.dataset.reveal}`);
@@ -267,13 +249,9 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
   useEffect(() => {
     if (sessionQuery.isSuccess) {
       if (userSession) {
-        if (LOG_ENABLED) {
-          console.log('✅ Module 7: User session active - user data hydration in progress');
-        }
+        // User session active - user data hydration in progress
       } else if (visitorReady) {
-        if (LOG_ENABLED) {
-          console.log('✅ Module 7: No user session - falling back to visitor auth');
-        }
+        // No user session - falling back to visitor auth
       }
     }
   }, [sessionQuery.isSuccess, userSession, visitorReady]);
@@ -309,15 +287,9 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
       if (!hasInitialLoad) {
         setHasInitialLoad(true);
         if (currentUserId) {
-          if (LOG_ENABLED) {
-            console.log('✅ Session status popup: user logged in');
-          }
           showSessionStatusPopup("You're logged in.");
         }
       } else if (currentUserId && currentUserId !== prevUserSessionId) {
-        if (LOG_ENABLED) {
-          console.log('✅ Session status popup: user logged in');
-        }
         showSessionStatusPopup("You're logged in.");
       }
 
@@ -327,9 +299,6 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
     if (sessionQuery.isError) {
       // Show session expired message for actual errors
       if (hasInitialLoad && prevUserSessionId) {
-        if (LOG_ENABLED) {
-          console.log('⚠️ Session status popup: session expired');
-        }
         showSessionStatusPopup('Session expired — please log in again.');
       }
     }
@@ -368,9 +337,6 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
   // Cart validation effect: Clean up invalid items when products are loaded
   useEffect(() => {
     if (productsQuery.isSuccess && productsQuery.data?.products) {
-      if (LOG_ENABLED) {
-        console.log('🧹 Validating cart against current product catalog...');
-      }
       validateAndCleanCart(productsQuery.data.products);
     }
   }, [productsQuery.isSuccess, productsQuery.data?.products, validateAndCleanCart]);
@@ -380,13 +346,9 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
     mutationFn: submitContactInfo,
     onSuccess: (data) => {
       if (data.merged) {
-        if (LOG_ENABLED) {
-          console.log(`🔁 Merge result: updated visitor_id ${data.visitor_id} and JWT`);
-        }
+        // Merge result: updated visitor_id and JWT
       } else {
-        if (LOG_ENABLED) {
-          console.log(`📝 Enriched visitor_id ${data.visitor_id} with contact info`);
-        }
+        // Enriched visitor_id with contact info
       }
 
       // Update visitor identity in context and localStorage
@@ -404,14 +366,9 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
       });
 
       setShowContactPopup(false);
-      if (LOG_ENABLED) {
-        console.log('✅ Contact info merge completed successfully');
-      }
     },
     onError: (error) => {
-      if (LOG_ENABLED) {
-        console.error('Failed to submit contact info:', error.message);
-      }
+      console.error('Failed to submit contact info:', error.message);
       // Could show user-facing error here
     },
   });
@@ -485,9 +442,6 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
     window.resetNotificationBanner = () => {
       localStorage.removeItem('bannerDismissedAt');
       setShowBanner(true);
-      if (LOG_ENABLED) {
-        console.log('Notification banner has been reset');
-      }
     };
     
     return () => {
@@ -585,40 +539,33 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
     }
   }, [cartHovered, cartClosing]);
 
+  // Track when cart is first opened this session
+  useEffect(() => {
+    if (cartHovered && !cartOpenedThisSession) {
+      setCartOpenedThisSession(true);
+    }
+  }, [cartHovered, cartOpenedThisSession]);
+
   // Check if contact info popup should be shown when cart opens
   useEffect(() => {
-    if (cartHovered && visitorReady && !userSession) {
+    if (cartHovered && !cartOpenedThisSession && visitorReady && !userSession) {
       // Check if visitor is missing contact info
       const hasContactInfo = visitorData?.email || visitorData?.phone || visitorData?.name;
-      if (LOG_ENABLED) {
-        console.log('🔍 Visitor data:', visitorData);
-      }
       if (!hasContactInfo) {
-        if (LOG_ENABLED) {
-          console.log('🛒 User triggered contact info collection');
-        }
         setShowContactPopup(true);
       }
     }
-  }, [cartHovered, visitorReady, visitorData, userSession]);
+  }, [cartHovered, cartOpenedThisSession, visitorReady, visitorData, userSession]);
 
   const handleContactInfoSubmit = async (contactInfo: { email: string; phone?: string; name?: string }) => {
     if (!visitorId || !jwt) {
-      if (LOG_ENABLED) {
-        console.error('Cannot submit contact info: missing visitor ID or JWT');
-      }
+      console.error('Cannot submit contact info: missing visitor ID or JWT');
       return;
     }
 
     try {
       // Ensure cart is synced to database before merge
-      if (LOG_ENABLED) {
-        console.log('🔄 Flushing cart updates before identity merge...');
-      }
       await syncCartToDatabase(items, jwt);
-      if (LOG_ENABLED) {
-        console.log('✅ Cart flushed - proceeding with identity merge');
-      }
       
       // Use mutation instead of direct fetch
       contactInfoMutation.mutate({
@@ -628,9 +575,7 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
         name: contactInfo.name
       });
     } catch (error) {
-      if (LOG_ENABLED) {
-        console.error('Error syncing cart before contact info submission:', error);
-      }
+      console.error('Error syncing cart before contact info submission:', error);
       // Could show user-facing error here
     }
   };
@@ -645,20 +590,7 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
     const noUserSession = !userSession;
     const loginOffered = sessionStorage.getItem('loginOffered') === 'true';
 
-    if (LOG_ENABLED) {
-      console.log('🔄 UxAuth 2: Checking auto-login conditions:', {
-        hasAccount,
-        noUserSession,
-        loginOffered: !loginOffered,
-        visitorEmail: visitorData?.email ? '***' + visitorData.email.slice(-8) : undefined
-      });
-    }
-
     if (hasAccount && noUserSession && !loginOffered) {
-      if (LOG_ENABLED) {
-        console.log('🔐 UxAuth 2: Triggering auto-login prompt for returning visitor');
-      }
-      
       // Get cached password if available
       const cachedCredentials = (() => {
         try {
@@ -680,9 +612,6 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
   // UxAuth 2: Clear loginOffered flag when user signs in
   useEffect(() => {
     if (userSession) {
-      if (LOG_ENABLED) {
-        console.log('🔄 UxAuth 2: User signed in, clearing loginOffered flag');
-      }
       sessionStorage.removeItem('loginOffered');
     }
   }, [userSession]);
@@ -764,17 +693,17 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
     const clickListener = (e: Event) => {
       try {
         const target = e.target instanceof HTMLElement ? e.target.outerHTML.slice(0, 200) : 'non-HTMLElement';
-        console.log('[Global Event] click fired on:', target);
+        // Debug logging removed
       } catch (err) {
-        console.log('[Global Event] click error:', err);
+        // Debug error logging removed
       }
     };
     const touchendListener = (e: Event) => {
       try {
         const target = e.target instanceof HTMLElement ? e.target.outerHTML.slice(0, 200) : 'non-HTMLElement';
-        console.log('[Global Event] touchend fired on:', target);
+        // Debug logging removed
       } catch (err) {
-        console.log('[Global Event] touchend error:', err);
+        // Debug error logging removed
       }
     };
     document.addEventListener('click', clickListener);

@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useBannerPromoQuery } from '../lib/queries/stripeQueries';
 
 interface StripeProduct {
   id: string;
@@ -23,6 +24,9 @@ interface TryGoodcupModalProps {
 }
 
 const TryGoodcupModal: React.FC<TryGoodcupModalProps> = ({ open, onClose, products, addItem }) => {
+  const { data: promo } = useBannerPromoQuery();
+  const [expandedDescription, setExpandedDescription] = React.useState<{ description: string; productName: string } | null>(null);
+  
   // Filter and sort featured products
   const featured = (products || [])
     .filter(p => {
@@ -53,6 +57,42 @@ const TryGoodcupModal: React.FC<TryGoodcupModalProps> = ({ open, onClose, produc
             >
               ×
             </button>
+            
+            {/* Description overlay */}
+            {expandedDescription && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.2 }}
+                className="absolute inset-0 flex items-center justify-center z-20"
+                onClick={() => setExpandedDescription(null)}
+              >
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 20 }}
+                  transition={{ duration: 0.3 }}
+                  className="bg-[#fdf8ea] rounded-lg p-6 max-w-sm mx-4 max-h-96 overflow-y-auto shadow-xl border border-neutral-200 relative"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Close button */}
+                  <button
+                    onClick={() => setExpandedDescription(null)}
+                    className="absolute top-4 right-4 w-10 h-10 bg-neutral-200 hover:bg-neutral-300 rounded-full flex items-center justify-center transition-colors"
+                    aria-label="Close description"
+                  >
+                    <span className="text-2xl font-bold text-neutral-600">×</span>
+                  </button>
+                  <div className="text-lg text-neutral-700 leading-relaxed pr-10">
+                    <div className="font-semibold text-neutral-900 mb-3 text-xl">
+                      {expandedDescription.productName}
+                    </div>
+                    {expandedDescription.description}
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
             {/* Product cards */}
             {featured.map((product, idx) => (
               <motion.div
@@ -61,18 +101,41 @@ const TryGoodcupModal: React.FC<TryGoodcupModalProps> = ({ open, onClose, produc
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 30 }}
                 transition={{ delay: 0.1 * idx, duration: 0.4, type: 'spring', bounce: 0.2 }}
-                className="w-[340px] md:w-[400px] bg-white/90 rounded-xl shadow-xl flex flex-row items-center gap-3 md:gap-4 p-3 border border-neutral-200 min-h-[80px]"
+                                className="w-[380px] md:w-[480px] bg-white/100 rounded-xl shadow-xl flex flex-row items-center gap-3 md:gap-4 p-3 border border-neutral-200 min-h-[80px] relative"
               >
                 {/* Image left */}
-                <img src={product.images?.[0]} alt={product.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
+                <img src={product.images?.[0]} alt={product.name} className="w-20 md:w-24 h-20 md:h-24 object-cover rounded-lg flex-shrink-0" />
                 {/* Middle: name, short-copy, price */}
-                <div className="flex-1 flex flex-col justify-center min-w-0 pr-1 md:pr-0">
-                  <div className="text-base font-semibold text-neutral-900 truncate">{product.name.split('(')[0].trim()}</div>
-                  <div className="text-xs text-neutral-600 mb-1 whitespace-pre-line">
+                <div className="flex-1 flex flex-col justify-center min-w-0 pr-0 md:pr-0 -mr-5">
+                  <div className="text-lg font-semibold text-neutral-900 truncate">{product.name.split('(')[0].trim()}</div>
+                  <div className="text-base text-neutral-600 mb-1 whitespace-pre-line">
                     {product.metadata?.['short-copy'] || ''}
                   </div>
-                  <div className="text-sm font-bold text-brand-secondary">
-                    {product.prices?.[0]?.unit_amount ? `$${(product.prices[0].unit_amount / 100).toFixed(2)}` : ''}
+                  <div className="text-lg font-bold text-brand-secondary">
+                    {(() => {
+                      const price = product.prices?.[0];
+                      const displayPrice = price?.unit_amount || 0;
+                      let promoPrice = null;
+                      
+                      if (promo && (promo.percent_off || promo.amount_off)) {
+                        if (promo.percent_off) {
+                          promoPrice = displayPrice * (1 - promo.percent_off / 100);
+                        } else if (promo.amount_off) {
+                          promoPrice = displayPrice - promo.amount_off;
+                        }
+                      }
+                      
+                                              if (promoPrice && promoPrice < displayPrice) {
+                        return (
+                          <>
+                            <span className="line-through text-base text-text-secondary mr-1">${(displayPrice / 100).toFixed(2)}</span>
+                            <span className="text-lg font-bold text-brand-secondary">${(promoPrice / 100).toFixed(2)}</span>
+                          </>
+                        );
+                      } else {
+                        return price ? `$${(displayPrice / 100).toFixed(2)}` : '';
+                      }
+                    })()}
                   </div>
                 </div>
                 {/* Button right */}
@@ -89,10 +152,22 @@ const TryGoodcupModal: React.FC<TryGoodcupModalProps> = ({ open, onClose, produc
                       });
                     }
                   }}
-                  className="bg-brand-secondary text-white px-4 py-2 rounded-full font-medium text-sm shadow hover:bg-brand-secondary/90 transition flex-shrink-0 -mr-2 md:mr-0"
+                  className="bg-brand-secondary text-white px-4 py-2 rounded-full font-medium text-base shadow hover:bg-brand-secondary/90 transition flex-shrink-0 -mr-4 md:mr-0 mt-12"
                 >
                   <span className="block md:hidden">Try It</span>
-                  <span className="hidden md:block">Add to Cart</span>
+                  <span className="hidden md:block">Try It</span>
+                </button>
+                
+                {/* Info button */}
+                <button
+                  onClick={() => setExpandedDescription({
+                    description: product.description || 'No description available.',
+                    productName: product.name.split('(')[0].trim()
+                  })}
+                  className="absolute top-3 right-20 w-8 h-8 mt-20 bg-neutral-400 hover:bg-neutral-300 rounded-full flex items-center justify-center transition-colors z-10"
+                  aria-label="View product description"
+                >
+                  <span className="text-lg font-bold text-neutral-100 font-serif">i</span>
                 </button>
               </motion.div>
             ))}

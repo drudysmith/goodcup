@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { LOG_ENABLED } from '../lib/utils/log';
 
 interface EmailSignupProps {
   user: any;
@@ -17,7 +16,6 @@ const EmailSignup: React.FC<EmailSignupProps> = ({ user, visitorId, jwt, updateV
   const newsletterMutation = useMutation({
     mutationFn: async (email: string) => {
       if (!visitorId || !jwt) throw new Error('Missing visitor ID or JWT');
-      if (LOG_ENABLED) console.log('📧 Submitting newsletter email:', email);
       const response = await fetch('/api/visitor/identify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -33,7 +31,6 @@ const EmailSignup: React.FC<EmailSignupProps> = ({ user, visitorId, jwt, updateV
       setNewsletterSuccess(true);
       setNewsletterError('');
       setNewsletterEmail('');
-      if (LOG_ENABLED) console.log('✅ Newsletter email saved:', data);
       if (data.visitor_id && data.jwt && data.visitor) {
         updateVisitorIdentity(data.visitor_id, data.jwt, data.visitor);
       }
@@ -41,7 +38,6 @@ const EmailSignup: React.FC<EmailSignupProps> = ({ user, visitorId, jwt, updateV
     onError: (error: any) => {
       setNewsletterError(error.message || 'Failed to subscribe');
       setNewsletterSuccess(false);
-      if (LOG_ENABLED) console.error('Newsletter signup error:', error);
     },
   });
 

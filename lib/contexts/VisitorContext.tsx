@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCartStore, validateCartItems } from '../../store/cartStore';
 import { supabaseAnon } from '../supabaseClient';
-import { LOG_ENABLED } from '../utils/log';
+
 interface VisitorData {
   name: string | null;
   email: string | null;
@@ -49,9 +49,6 @@ const fetchVisitorInit = async (visitorId: string) => {
   }
 
   const data = await response.json();
-  if (LOG_ENABLED) {
-    console.log('✅ Bug 10: Visitor registered with JWT');
-  }
   return data;
 };
 
@@ -69,9 +66,6 @@ const fetchVisitorValidate = async (jwt: string) => {
   }
 
   const data = await response.json();
-  if (LOG_ENABLED) {
-    console.log('✅ Bug 10: Visitor JWT validated');
-  }
   return data;
 };
 
@@ -87,9 +81,6 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
     const init = async () => {
       const { data: { session } } = await supabaseAnon.auth.getSession();
       if (session) {
-        if (LOG_ENABLED) {
-        console.log('🔒 User session detected — skipping visitor auth');
-        }
         setSkipVisitor(true);
         return;
       }
@@ -103,9 +94,6 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
         setVisitorId(existingVisitorId);
       } else {
         const newVisitorId = uuidv4();
-        if (LOG_ENABLED) {
-          console.log('🆕 Bug 10: New visitor initialized:', newVisitorId);
-        }
         localStorage.setItem('visitor_id', newVisitorId);
         setVisitorId(newVisitorId);
       }
@@ -165,17 +153,11 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
           };
         } catch (error) {
           // Invalid JWT - clear and restart
-          if (LOG_ENABLED) {
-          console.log('⚠️ Invalid JWT — clearing localStorage, restarting auth');
-          }
           localStorage.removeItem('visitor_id');
           localStorage.removeItem('visitor_jwt');
           
           // Generate new visitor and restart flow
           const newVisitorId = uuidv4();
-          if (LOG_ENABLED) {
-            console.log('🆕 Bug 10: Restarting with new visitor:', newVisitorId);
-          }
           localStorage.setItem('visitor_id', newVisitorId);
           
           return {
@@ -229,9 +211,7 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
       queryClient.invalidateQueries({ queryKey: ['visitor', visitorId] });
     },
     onError: (error) => {
-      if (LOG_ENABLED) {
-      console.error('Error syncing cart:', error);
-      }
+      // Error handling without logging
     },
   });
 
@@ -241,9 +221,7 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
       return;
     }
 
-    if (LOG_ENABLED) {
-      console.log('🛒 Cart hydrating with', cartData.length, 'items from database');
-    }
+
     
     // Clear current cart first to avoid duplicates
     cartActions.clearCart();
@@ -262,11 +240,7 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
       const { validItems, invalidItems } = validateCartItems(cartItems, products);
       
       if (invalidItems.length > 0) {
-        if (LOG_ENABLED) {
-          console.log(`🧹 Database hydration: Filtering out ${invalidItems.length} invalid items:`, 
-            invalidItems.map(item => ({ productId: item.productId, priceId: item.priceId }))
-          );
-        }
+        // Invalid items filtered out silently
       }
       
       // Add only valid items
@@ -274,18 +248,14 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
         cartActions.addItem(item);
       });
       
-      if (LOG_ENABLED) {
-        console.log(`✅ Cart hydrated with ${validItems.length} valid items`);
-      }
+
     } else {
       // No products available for validation, add all items (will be validated later)
       cartItems.forEach((item) => {
         cartActions.addItem(item);
       });
       
-      if (LOG_ENABLED) {
-        console.log(`⚠️ Cart hydrated with ${cartItems.length} items (validation pending)`);
-      }
+
     }
   };
 
@@ -299,9 +269,6 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
 
   // Function to update visitor identity after merge/identify
   const updateVisitorIdentity = (newVisitorId: string, newJwt: string, newVisitorData: VisitorData) => {
-    if (LOG_ENABLED) {
-      console.log('🔁 Bug 10: Visitor identity updated:', newVisitorId);
-    }
 
     // Update localStorage
     localStorage.setItem('visitor_id', newVisitorId);
@@ -395,10 +362,7 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
   );
 };
 
-// Log completion of auth log cleanup
-if (LOG_ENABLED) {
-  console.log('🧼 Bug 10: Auth log cleanup complete');
-}
+
 
 export const useVisitor = () => {
   const context = useContext(VisitorContext);

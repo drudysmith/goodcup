@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { StyledText } from '../lib/textUtils';
-import { LOG_ENABLED } from '../lib/utils/log';
 import { findProductsForIngredient, extractIngredientFromTitle } from '../lib/productUtils';
 import { useBannerPromoQuery } from '../lib/queries/stripeQueries';
 
@@ -153,44 +152,12 @@ const Card: React.FC<CardProps> = ({
                            hover:scale-105 hover:shadow-lg 
                            active:scale-95"
                   onTouchStart={(e) => {
-                    if (LOG_ENABLED) {
-                      console.log('[Modal Debug] Button onTouchStart event details:', {
-                        target: e.target,
-                        currentTarget: e.currentTarget,
-                        touches: e.touches.length,
-                        clientX: e.touches[0]?.clientX,
-                        clientY: e.touches[0]?.clientY,
-                        pageX: e.touches[0]?.pageX,
-                        pageY: e.touches[0]?.pageY,
-                        targetTagName: e.target instanceof Element ? e.target.tagName : 'unknown',
-                        targetClass: e.target instanceof Element ? e.target.className : 'unknown'
-                      });
-                    }
+                    // Touch start handler - no logging needed
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (LOG_ENABLED) {
-                      console.log('[Modal Debug] ENTER onClick handler');
-                      console.log('[Modal Debug] Button onClick triggered');
-                      console.log('[Modal Debug] Button onClick event details:', {
-                        target: e.target,
-                        currentTarget: e.currentTarget,
-                        clientX: e.clientX,
-                        clientY: e.clientY,
-                        pageX: e.pageX,
-                        pageY: e.pageY,
-                        isTrusted: e.isTrusted,
-                        type: e.type,
-                        targetTagName: e.target instanceof Element ? e.target.tagName : 'unknown',
-                        targetClass: e.target instanceof Element ? e.target.className : 'unknown'
-                      });
-                      console.log('[Modal Debug] product object:', product);
-                      console.log('[Modal Debug] addItem function invoked');
-                    }
                     setTimeout(() => {
-                      if (LOG_ENABLED) {
-                        console.log('[Modal Debug] Button click handler reached (delayed)');
-                      }
+                      // Delayed handler - no logging needed
                     }, 0);
                     if (product.prices[0]) {
                       addItem({
@@ -201,35 +168,13 @@ const Card: React.FC<CardProps> = ({
                         x: e.clientX,
                         y: e.clientY
                       });
-                      if (LOG_ENABLED) {
-                        console.log('Feel It clicked for:', product.name);
-                      }
                     }
                   }}
                   onTouchEnd={(e) => {
                     e.stopPropagation();
                     e.preventDefault(); // Prevent synthetic click from being generated
-                    if (LOG_ENABLED) {
-                      console.log('[Modal Debug] ENTER onTouchEnd handler');
-                      console.log('[Modal Debug] Button onTouchEnd triggered');
-                      console.log('[Modal Debug] Button onTouchEnd event details:', {
-                        target: e.target,
-                        currentTarget: e.currentTarget,
-                        changedTouches: e.changedTouches.length,
-                        clientX: e.changedTouches[0]?.clientX,
-                        clientY: e.changedTouches[0]?.clientY,
-                        pageX: e.changedTouches[0]?.pageX,
-                        pageY: e.changedTouches[0]?.pageY,
-                        targetTagName: e.target instanceof Element ? e.target.tagName : 'unknown',
-                        targetClass: e.target instanceof Element ? e.target.className : 'unknown'
-                      });
-                      console.log('[Modal Debug] product object:', product);
-                      console.log('[Modal Debug] addItem function invoked');
-                    }
                     setTimeout(() => {
-                      if (LOG_ENABLED) {
-                        console.log('[Modal Debug] Button click handler reached (delayed)');
-                      }
+                      // Delayed handler - no logging needed
                     }, 0);
                     if (product.prices[0]) {
                       addItem({
@@ -240,13 +185,10 @@ const Card: React.FC<CardProps> = ({
                         x: e.changedTouches[0]?.clientX || 0,
                         y: e.changedTouches[0]?.clientY || 0
                       });
-                      if (LOG_ENABLED) {
-                        console.log('Feel It touched for:', product.name);
-                      }
                     }
                   }}
                 >
-                  Try {product.name.split('(')[0].trim()}
+                  It's in {product.name.split('(')[0].trim()}
                   <span className="ml-2">
                     {promoPrice && promoPrice < displayPrice ? (
                       <>

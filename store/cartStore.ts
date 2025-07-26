@@ -208,11 +208,7 @@ const validateAndCleanCart = (products: StripeProduct[]) => {
     const { validItems, invalidItems } = validateCartItems(state.items, products);
     
     if (invalidItems.length > 0) {
-      if (LOG_ENABLED) {
-        console.log(`🧹 Cart validation: Removing ${invalidItems.length} invalid items:`, 
-          invalidItems.map(item => ({ productId: item.productId, priceId: item.priceId }))
-        );
-      }
+      // Invalid items removed silently
     }
     
     return { items: validItems };

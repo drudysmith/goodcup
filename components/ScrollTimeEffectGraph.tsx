@@ -1,5 +1,4 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { LOG_ENABLED } from '../lib/utils/log';
 
 // Responsive layout config
 const GRAPH_LAYOUT_CONFIG = {
@@ -134,33 +133,25 @@ const ScrollTimeEffectGraph = () => {
                 const progressPercentage =
                   Math.floor(animationProgress * 100);
 
-                // Log start of scroll
+                // Track scroll progress without logging
                 if (!hasLoggedStart.current && self.progress > 0) {
-                  if (LOG_ENABLED) {
-                    console.log('start scroll');
-                  }
                   hasLoggedStart.current = true;
                 }
 
-                // Log percentage increments
+                // Track percentage increments without logging
                 if (
                   progressPercentage !== lastLoggedPercentage.current &&
                   progressPercentage >= 0 &&
                   progressPercentage <= 100
                 ) {
                   if (progressPercentage > 0) {
-                    if (LOG_ENABLED) {
-                      console.log(`${progressPercentage}% scroll`);
-                    }
+                    // Track progress without logging
                   }
                   lastLoggedPercentage.current = progressPercentage;
                 }
 
-                // Log end of scroll
+                // Track end of scroll without logging
                 if (!hasLoggedEnd.current && progressPercentage >= 100) {
-                  if (LOG_ENABLED) {
-                    console.log('end scroll');
-                  }
                   hasLoggedEnd.current = true;
                 }
               }

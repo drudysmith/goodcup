@@ -4,7 +4,7 @@ import { useAuthActions } from '../lib/hooks/useAuthActions';
 import { useVisitorMerge } from '../lib/hooks/useVisitorMerge';
 import { useSupabaseSession } from '../lib/queries/sessionQueries';
 import { useVisitor } from '../lib/contexts/VisitorContext';
-import { LOG_ENABLED } from '../lib/utils/log';
+import { LOG_ENABLED, log } from '../lib/utils/log';
 
 // Module 7: Magic Link Sent subcomponent
 interface MagicLinkSentViewProps {
@@ -102,7 +102,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
       setAwaitingEmailConfirmation(false);
       setSignUpEmail('');
       if (LOG_ENABLED) {
-        console.log('🎯 Module 7: Modal opened with prefilled data', {
+        log('🎯 Module 7: Modal opened with prefilled data', {
           email: modalState.email ? '***' + modalState.email.slice(-8) : undefined,
           hasPassword: !!modalState.password,
         });
@@ -116,7 +116,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
       setAwaitingEmailConfirmation(true);
       setSignUpEmail(modalState.email || email);
       if (LOG_ENABLED) {
-        console.log('📧 Bug 8A: Email confirmation required – merge paused');
+        log('📧 Bug 8A: Email confirmation required – merge paused');
       }
     }
   }, [authActions.requiresConfirmation, awaitingEmailConfirmation, modalState.email, email]);
@@ -125,7 +125,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   useEffect(() => {
     if (awaitingEmailConfirmation && sessionQuery.data && visitorId) {
       if (LOG_ENABLED) {
-        console.log('✅ Bug 8A: Session verified after email confirmation – triggering merge');
+        log('✅ Bug 8A: Session verified after email confirmation – triggering merge');
       }
       
       // Trigger visitor merge with session verification
@@ -150,7 +150,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   useEffect(() => {
     if (!visitorMerge.isLoading && !authActions.isLoading && !authActions.requiresConfirmation && !awaitingEmailConfirmation && !authActions.error && sessionQuery.data) {
       if (LOG_ENABLED) {
-        console.log('✅ Bug 8B: Visitor merge completed – closing modal');
+        log('✅ Bug 8B: Visitor merge completed – closing modal');
       }
       
       // Update cached credentials
@@ -185,7 +185,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     const redirectUrl = `${window.location.origin}${currentPath}${currentSearch}`;
     
     if (LOG_ENABLED) {
-      console.log('🎯 Module 7: Magic link redirect:', redirectUrl);
+      log('🎯 Module 7: Magic link redirect:', redirectUrl);
     }
     authActions.signInWithOtp(emailToUse, redirectUrl);
   };
@@ -201,7 +201,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     }
 
     if (LOG_ENABLED) {
-      console.log('🎯 Module 7: Password auth attempted');
+      log('🎯 Module 7: Password auth attempted');
     }
 
     // Bug Module 7A: Auth redirect - prioritize dashboard paths, fallback to dashboard
@@ -218,7 +218,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     }
 
     if (LOG_ENABLED) {
-      console.log('🎯 Bug Module 7A: Auth redirect URL:', redirectUrl);
+      log('🎯 Bug Module 7A: Auth redirect URL:', redirectUrl);
     }
 
     // Module 7: Call hook methods directly
@@ -250,7 +250,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 ease-out" onClick={() => { console.log('[Modal Debug] Overlay onClick — attempting to close modal'); handleClose(); }} />
+      <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 ease-out" onClick={() => { if (LOG_ENABLED) log('[Modal Debug] Overlay onClick — attempting to close modal'); handleClose(); }} />
       
       <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 ease-out animate-in zoom-in-95">
         {/* Header */}

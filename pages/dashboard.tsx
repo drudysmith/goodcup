@@ -15,7 +15,6 @@ import { openAuthModal, updateCachedCredentials } from '../store/authModalStore'
 import { useVisitor } from '../lib/contexts/VisitorContext';
 import { supabaseAnon } from '../lib/supabaseClient';
 import { useMutation } from '@tanstack/react-query';
-import { LOG_ENABLED } from '../lib/utils/log';
 
 // SMU 4.3c: User profile response interface
 interface UserProfileResponse {
@@ -47,9 +46,6 @@ const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promi
   if (!response.ok) {
     // Handle session expiry (401/403 errors)
     if ((response.status === 401 || response.status === 403) && sessionExpiryHandler) {
-      if (LOG_ENABLED) {
-        console.log('⏰ User session expired — prompting re-auth');
-      }
       const refreshed = await sessionExpiryHandler();
       if (refreshed) {
         // Retry the request with the refreshed session
@@ -60,11 +56,6 @@ const fetchUserProfile = async (session: any, sessionExpiryHandler?: () => Promi
   }
 
   const profileData = await response.json();
-  
-  // SMU 4.3c: Log the Stripe customer ID from client
-  if (LOG_ENABLED) {
-    console.log('🔄 SMU 4.3c: Stripe customer ID loaded in dashboard:', profileData.stripe_customer_id);
-  }
   
   return profileData;
 };
@@ -112,24 +103,7 @@ export default function Dashboard() {
 
   // SMU 4.3c: Console logging for user identification and authentication
   useEffect(() => {
-    if (userSession && user) {
-      if (LOG_ENABLED) {
-        console.log('🔄 SMU 4.3c: User identified as authenticated:', {
-          userId: user.id,
-          email: user.email,
-          stripeCustomerId: user.stripeCustomerId
-        });
-      }
-    } else {
-      if (LOG_ENABLED) {
-        console.log('🔄 SMU 4.3c: User in visitor mode - not authenticated');
-      }
-      if (visitorData?.email) {
-        if (LOG_ENABLED) {
-          console.log('🔄 UxAuth 1: Visitor email available for auth modal:', visitorData.email);
-        }
-      }
-    }
+    // Track user authentication state without logging
   }, [userSession, user, visitorData?.email]);
 
   // SMU 4.3c: Use TanStack Query hooks with customer ID
@@ -138,13 +112,7 @@ export default function Dashboard() {
 
   // SMU 4.3c: Console logging for Stripe history loading
   useEffect(() => {
-    if (user?.stripeCustomerId) {
-      if (LOG_ENABLED) {
-        console.log('🔄 SMU 4.3c: Loading Stripe history for customer:', user.stripeCustomerId);
-        console.log('🔄 SMU 4.3c: Orders loaded:', orders.length);
-        console.log('🔄 SMU 4.3c: Subscriptions loaded:', subs.length);
-      }
-    }
+    // Track Stripe history loading without logging
   }, [user?.stripeCustomerId, orders, subs]);
 
   // SMU 4.3d: Cache invalidation when user changes
@@ -156,12 +124,6 @@ export default function Dashboard() {
     
     // Only invalidate if the customer ID has actually changed (not on initial load)
     if (prevCustomerId !== undefined && prevCustomerId !== currentCustomerId) {
-      if (LOG_ENABLED) {
-        console.log('🔄 SMU 4.3d: User customer ID changed, invalidating caches:', {
-          from: prevCustomerId,
-          to: currentCustomerId
-        });
-      }
       queryClient.invalidateQueries({ queryKey: ['orders'], exact: false });
       queryClient.invalidateQueries({ queryKey: ['subscriptions'], exact: false });
     }
@@ -181,17 +143,11 @@ export default function Dashboard() {
       return { success: true };
     },
     onSuccess: () => {
-      if (LOG_ENABLED) {
-        console.log('✅ Password updated successfully');
-      }
       setPasswordUpdateStatus('success');
       
       // Cache the new password for future auto-login prompts
       if (user?.email) {
         updateCachedCredentials(user.email, newPassword);
-        if (LOG_ENABLED) {
-          console.log('💾 Cached new password for future auto-login');
-        }
       }
       
       setNewPassword('');
@@ -228,16 +184,11 @@ export default function Dashboard() {
       return data;
     },
     onSuccess: (data) => {
-      if (LOG_ENABLED) {
-        console.log('🛠️ Opening customer portal:', data.url);
-      }
       // Redirect to customer portal
       window.location.href = data.url;
     },
     onError: (error: any) => {
-      if (LOG_ENABLED) {
-        console.error('❌ Customer portal creation failed:', error);
-      }
+      console.error('❌ Customer portal creation failed:', error);
     },
   });
 
@@ -265,10 +216,6 @@ export default function Dashboard() {
   // Sign out functionality
   const handleSignOut = async () => {
     try {
-      if (LOG_ENABLED) {
-        console.log('🚪 User signing out from dashboard');
-      }
-      
       // Clear all user-specific caches
       queryClient.clear();
       
@@ -282,9 +229,7 @@ export default function Dashboard() {
       router.push('/');
       
     } catch (error) {
-      if (LOG_ENABLED) {
-        console.error('❌ Sign out failed:', error);
-      }
+      console.error('❌ Sign out failed:', error);
     }
   };
 
@@ -300,19 +245,9 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ['orders'], exact: false });
       queryClient.invalidateQueries({ queryKey: ['subscriptions'], exact: false });
       
-      // Log success
-      if (LOG_ENABLED) {
-        console.log('🏁 Checkout result: success');
-      }
-      
       // Remove query parameter from URL
       router.replace('/dashboard', undefined, { shallow: true });
     } else if (canceled === '1') {
-      // Log cancellation
-      if (LOG_ENABLED) {
-        console.log('🏁 Checkout result: canceled');
-      }
-      
       // Remove query parameter from URL
       router.replace('/dashboard', undefined, { shallow: true });
     }
@@ -323,12 +258,9 @@ export default function Dashboard() {
     // Check if we just returned from customer portal (no specific query param needed)
     // Always invalidate subscription data when dashboard loads to ensure fresh data
     if (user?.stripeCustomerId && router.isReady) {
-      if (LOG_ENABLED) {
-        console.log('🔄 Module D: Dashboard loaded - refreshing subscription data');
-      }
       queryClient.invalidateQueries({ queryKey: ['subscriptions'], exact: false });
     }
-  }, [router.isReady, user?.stripeCustomerId, queryClient]);
+  }, [user?.stripeCustomerId, router.isReady, queryClient]);
 
   const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', {
     year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -424,8 +356,8 @@ export default function Dashboard() {
               {settingsExpanded && (
                 <div className="mt-4 p-4 border border-neutral-border rounded">
                   <div className="max-w-md">
-                    <h3 className="text-sm font-medium text-text-primary mb-4">Set/Update Password</h3>
-                    <p className="text-xs text-text-secondary mb-4">
+                    <h3 className="text-base font-medium text-text-primary mb-4">Set/Update Password</h3>
+                    <p className="text-base text-text-secondary mb-4">
                       {user?.email?.includes('@') ? 
                         "Set a password to use email/password login in addition to magic links." :
                         "Set a password for your account."
@@ -434,7 +366,7 @@ export default function Dashboard() {
                     
                     <form onSubmit={handlePasswordUpdate} className="space-y-3">
                       <div>
-                        <label htmlFor="new-password" className="block text-sm font-medium text-text-primary mb-1">
+                        <label htmlFor="new-password" className="block text-base font-medium text-text-primary mb-1">
                           New Password
                         </label>
                         <input
@@ -450,7 +382,7 @@ export default function Dashboard() {
                       </div>
                       
                       <div>
-                        <label htmlFor="confirm-password" className="block text-sm font-medium text-text-primary mb-1">
+                        <label htmlFor="confirm-password" className="block text-base font-medium text-text-primary mb-1">
                           Confirm Password
                         </label>
                         <input
@@ -467,13 +399,13 @@ export default function Dashboard() {
 
                       {/* Status Messages */}
                       {passwordUpdateStatus === 'success' && (
-                        <div className="text-green-600 text-sm bg-green-50 border border-green-200 rounded px-3 py-2">
+                        <div className="text-green-600 text-base bg-green-50 border border-green-200 rounded px-3 py-2">
                           ✅ Password updated successfully!
                         </div>
                       )}
                       
                       {passwordUpdateStatus === 'error' && (
-                        <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
+                        <div className="text-red-600 text-base bg-red-50 border border-red-200 rounded px-3 py-2">
                           ❌ Failed to update password. Please try again.
                         </div>
                       )}
@@ -522,8 +454,8 @@ export default function Dashboard() {
                         >
                           {customerPortalMutation.isPending ? 'Opening portal...' : 'Manage Subscription'}
                         </button>
-                        <p className="text-xs text-text-secondary mt-2">
-                          Manage your subscription, update billing info, and view invoices
+                        <p className="text-base text-text-secondary mt-2">
+                          Manage your subscription, update payment methods, and view billing history.
                         </p>
                       </div>
                     )}
@@ -545,13 +477,13 @@ export default function Dashboard() {
                               <div className="text-text-primary font-medium">
                                 Subscription {sub.stripe_subscription_id?.slice(-8)}
                               </div>
-                              <div className="text-sm text-text-secondary space-y-1">
+                              <div className="text-base text-text-secondary space-y-1">
                                 <div>Amount: {formatCurrency(sub.amount)}</div>
                                 <div>Started: {formatDate(sub.created_at)}</div>
                                 {sub.current_period_end && <div>Next billing: {formatDate(sub.current_period_end)}</div>}
                                 {sub.canceled_at && <div>Canceled: {formatDate(sub.canceled_at)}</div>}
                                 <div className="flex items-center gap-2">
-                                  <span className={`px-2 py-1 rounded text-xs ${statusInfo.bg} ${statusInfo.text}`}>
+                                  <span className={`px-2 py-1 rounded text-base ${statusInfo.bg} ${statusInfo.text}`}>
                                     {statusInfo.label}
                                   </span>
                                 </div>
@@ -596,7 +528,7 @@ export default function Dashboard() {
                       orders.map((order) => (
                       <div key={order.id} className="border border-neutral-border rounded-lg p-3">
                         <div className="text-text-primary font-medium">Order #{order.stripe_payment_intent_id?.slice(-8)}</div>
-                        <div className="text-xs text-text-tertiary mt-1">
+                        <div className="text-base text-text-tertiary mt-1">
                           {formatDate(order.created_at)} • {formatCurrency(order.amount)}
                         </div>
                       </div>

@@ -87,11 +87,11 @@ const CartPanel: React.FC<CartPanelProps> = ({
       >
         {/* Header Banner */}
         <div className="bg-brand-dark text-surface-background px-6 py-3 text-center text-lg">
-          "Wellness isn't rushed — your order is!"
+          "Wellness isn't rushed — but your order is!"
         </div>
 
         {/* Header with Close button */}
-        <div className="flex justify-between items-center p-6 pb-4 border-b border-neutral-border/10">
+        <div className="flex justify-between items-center p-6 pb-4 border-b border-neutral-border/10 relative">
           <h3 className="text-3xl font-medium text-text-primary">Your Experience</h3>
           <button 
             onClick={onClose}
@@ -101,6 +101,9 @@ const CartPanel: React.FC<CartPanelProps> = ({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
+          
+          {/* Shadow cast by header onto scroll area */}
+          <div className="absolute -bottom-3 left-0 right-0 h-3 bg-gradient-to-b from-black/15 via-black/8 to-transparent pointer-events-none z-10"></div>
         </div>
 
         {/* Scrollable Content Area with hidden scrollbar */}
@@ -118,8 +121,7 @@ const CartPanel: React.FC<CartPanelProps> = ({
             }
           `}</style>
           
-          {/* Scroll shadow when content extends under anchored bottom */}
-          <div className="scroll-shadow scroll-shadow-cart"></div>
+
           
           <div className="pb-4">
             {items.length === 0 ? (
@@ -291,11 +293,13 @@ const CartPanel: React.FC<CartPanelProps> = ({
         {/* Fixed Bottom Checkout Section - Anchored to bottom with safe area support and proper padding */}
         {items.length > 0 && (
           <div 
-            className="flex-shrink-0 border-t border-neutral-border/10 bg-surface p-6 pb-8"
+            className="flex-shrink-0 border-t border-neutral-border/10 bg-surface p-6 pb-8 relative"
             style={{
               paddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 16px))'
             }}
           >
+            {/* Shadow cast by footer onto scroll area */}
+            <div className="absolute -top-3 left-0 right-0 h-3 bg-gradient-to-t from-black/15 via-black/8 to-transparent pointer-events-none z-10"></div>
             {/* Subtotal and Shipping */}
             <div className="space-y-2 mb-4">
               <div className="flex justify-between items-center">
@@ -327,7 +331,7 @@ const CartPanel: React.FC<CartPanelProps> = ({
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-lg text-text-secondary">Shipping</span>
-                <span className="text-lg font-medium text-text-primary">Free within USA</span>
+                <span className="text-lg font-medium text-text-primary">Free to US ;)</span>
               </div>
             </div>
 
@@ -336,18 +340,10 @@ const CartPanel: React.FC<CartPanelProps> = ({
             {/* Checkout Button */}
             <div className="flex justify-center mb-3">
               <button 
-                className="cupgrade-button px-8 py-2 text-lg"
-                style={{ 
-                  width: 'auto',
-                  minWidth: '180px',
-                  maxWidth: '200px'
-                }}
+                className="bg-green-600 hover:bg-green-700 text-white font-medium px-8 py-3 text-lg rounded-full transition-colors duration-200"
                 onClick={() => {
                   onClose();
                   // Default to user checkout mode
-                  if (LOG_ENABLED) {
-                    console.log('🔄 Triggering checkout flow');
-                  }
                   window.location.href = '/checkout?mode=user';
                 }}
               >
