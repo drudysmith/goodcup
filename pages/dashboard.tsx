@@ -155,7 +155,6 @@ export default function Dashboard() {
       setTimeout(() => setPasswordUpdateStatus('idle'), 3000);
     },
     onError: (error: any) => {
-      console.error('❌ Password update failed:', error);
       setPasswordUpdateStatus('error');
       setTimeout(() => setPasswordUpdateStatus('idle'), 3000);
     },
@@ -188,7 +187,7 @@ export default function Dashboard() {
       window.location.href = data.url;
     },
     onError: (error: any) => {
-      console.error('❌ Customer portal creation failed:', error);
+      // Customer portal creation failed
     },
   });
 
@@ -229,7 +228,7 @@ export default function Dashboard() {
       router.push('/');
       
     } catch (error) {
-      console.error('❌ Sign out failed:', error);
+      // Sign out failed
     }
   };
 

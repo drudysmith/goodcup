@@ -36,8 +36,7 @@ function useWarnIfImgMissingAlt(media: ReactNode) {
     if (isReactElement(media) && media.type === 'img') {
       const alt = (media.props as { alt?: string }).alt;
       if (!alt || typeof alt !== 'string' || alt.trim() === '') {
-        // eslint-disable-next-line no-console
-        console.warn('Section: <img> in media prop is missing a non-empty alt attribute. This is required for accessibility.');
+        // Missing alt attribute - accessibility issue
       }
     }
   }, [media]);

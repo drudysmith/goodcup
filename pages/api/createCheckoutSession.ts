@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
-import { LOG_ENABLED } from '../../lib/utils/log';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: '2025-05-28.basil',
@@ -23,24 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const existingCustomers = await stripe.customers.list({ email: customerEmail, limit: 1 });
       if (existingCustomers.data.length > 0) {
         stripeCustomerId = existingCustomers.data[0].id;
-        if (LOG_ENABLED) {
-        console.log('Found existing Stripe customer:', stripeCustomerId);
-        }
-      } else {
-        if (LOG_ENABLED) {
-        console.log('No existing Stripe customer found for email, will create new on checkout:', customerEmail);
-        }
       }
-    }
-
-    if (LOG_ENABLED) {
-    console.log('Creating checkout session with:');
-    console.log('stripeCustomerId:', stripeCustomerId);
-    console.log('customerEmail:', customerEmail);
-    console.log('supabaseUserId:', supabaseUserId);
-    console.log('visitorId:', visitorId);
-    console.log('visitorJwt:', visitorJwt ? 'present' : 'not provided');
-    console.log('checkoutMode:', checkoutMode);
     }
 
     const line_items = items.map((item: { priceId: string; quantity: number }) => ({

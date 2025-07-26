@@ -111,14 +111,6 @@ export function findProductsForIngredient(
     });
   });
 
-  console.log(`🔍 Ingredient matching for "${ingredientName}":`, {
-    normalizedIngredient,
-    foundProducts: matchingProducts.map(p => ({
-      name: p.name,
-      ingredients: p.metadata?.['ingredients']
-    }))
-  });
-
   return matchingProducts.slice(0, maxResults);
 }
 

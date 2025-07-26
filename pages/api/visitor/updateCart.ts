@@ -1,7 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import jwt from 'jsonwebtoken';
 import { supabaseServiceRole } from '../../../lib/supabaseClient';
-import { LOG_ENABLED } from '../../../lib/utils/log';
 
 interface UpdateCartRequest {
   cart: object;
@@ -36,9 +35,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     try {
       decodedToken = jwt.verify(token, jwtSecret) as { visitor_id: string; type: string };
     } catch (jwtError) {
-      if (LOG_ENABLED) {
-      console.error('JWT verification failed:', jwtError);
-      }
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
@@ -60,14 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       .eq('id', visitorId);
 
     if (error) {
-      if (LOG_ENABLED) {
-      console.error('Error updating visitor cart:', error);
-      }
       return res.status(500).json({ error: 'Failed to update cart' });
-    }
-
-    if (LOG_ENABLED) {
-      console.log(`💾 Cart updated for visitor: ${visitorId}`);
     }
 
     return res.status(200).json({
@@ -75,10 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       message: 'Cart updated successfully'
     });
 
-  } catch (error) {
-    if (LOG_ENABLED) {
-    console.error('Error in updateCart:', error);
-    }
+  } catch (error: any) {
     return res.status(500).json({ error: 'Internal server error' });
   }
 } 

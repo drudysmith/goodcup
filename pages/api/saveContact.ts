@@ -1,7 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import jwt from 'jsonwebtoken';
 import { supabaseServiceRole, supabaseAnon } from '../../lib/supabaseClient';
-import { LOG_ENABLED } from '../../lib/utils/log';
 
 interface AddressPayload {
   street: string;
@@ -50,20 +49,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-    
-    if (LOG_ENABLED) {
-      console.log('📇 Bug 9A: Received contact payload:', { email, phone, name, address });
-    }
 
     // Try Supabase session first
     try {
       const { data: { user }, error: authError } = await supabaseAnon.auth.getUser(token);
       
       if (!authError && user) {
-        if (LOG_ENABLED) {
-          console.log('🔐 Bug 9A: Authenticated via Supabase session, user ID:', user.id);
-        }
-        
         // Find visitor record by user_id
         const { data: visitorData, error: fetchError } = await supabaseServiceRole
           .from('visitors')
@@ -72,9 +63,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .single();
 
         if (fetchError || !visitorData) {
-          if (LOG_ENABLED) {
-            console.error('⚠️ No visitor record found for user:', user.id);
-          }
           return res.status(404).json({ error: 'Visitor record not found for user' });
         }
 
@@ -102,14 +90,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             .eq('id', visitorData.id);
 
           if (updateError) {
-            if (LOG_ENABLED) {
-              console.error('⚠️ Bug 9A: Failed to update visitor contact:', updateError);
-            }
             return res.status(500).json({ error: 'Failed to save contact info' });
-          }
-          
-          if (LOG_ENABLED) {
-            console.log('📇 Bug 9A: Contact info saved from checkout');
           }
         }
 
@@ -122,9 +103,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     } catch (supabaseError) {
       // Not a Supabase session, try visitor JWT
-      if (LOG_ENABLED) {
-        console.log('🔍 Bug 9A: Not a Supabase session, trying visitor JWT');
-      }
     }
 
     // Try visitor JWT validation
@@ -137,10 +115,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(401).json({ error: 'Invalid JWT payload' });
       }
 
-      if (LOG_ENABLED) {
-        console.log('🔐 Bug 9A: Authenticated via visitor JWT, visitor ID:', visitor_id);
-      }
-
       // Get current visitor data
       const { data: visitorData, error: fetchError } = await supabaseServiceRole
         .from('visitors')
@@ -149,9 +123,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .single();
 
       if (fetchError || !visitorData) {
-        if (LOG_ENABLED) {
-          console.error('⚠️ Visitor not found:', visitor_id);
-        }
         return res.status(404).json({ error: 'Visitor not found' });
       }
 
@@ -179,14 +150,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .eq('id', visitor_id);
 
         if (updateError) {
-          if (LOG_ENABLED) {
-            console.error('⚠️ Bug 9A: Failed to update visitor contact:', updateError);
-          }
           return res.status(500).json({ error: 'Failed to save contact info' });
-        }
-        
-        if (LOG_ENABLED) {
-          console.log('📇 Bug 9A: Contact info saved from checkout');
         }
       }
 
@@ -197,16 +161,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
     } catch (jwtError) {
-      if (LOG_ENABLED) {
-        console.log('⚠️ Bug 9A: JWT verification failed:', jwtError);
-      }
       return res.status(401).json({ error: 'Invalid authentication token' });
     }
 
   } catch (error: any) {
-    if (LOG_ENABLED) {
-      console.error('Bug 9A Error in saveContact:', error);
-    }
     res.status(500).json({ error: 'Internal server error' });
   }
 } 

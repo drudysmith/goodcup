@@ -172,7 +172,7 @@ const ScrollTimeEffectGraph = () => {
           isLoadingRef.current = false;
         });
       } catch (error) {
-        console.error('Error in loadLottie:', error);
+        // Error loading Lottie animation
       }
     };
 

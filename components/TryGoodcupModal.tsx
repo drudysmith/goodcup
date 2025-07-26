@@ -138,37 +138,40 @@ const TryGoodcupModal: React.FC<TryGoodcupModalProps> = ({ open, onClose, produc
                     })()}
                   </div>
                 </div>
-                {/* Button right */}
-                <button 
-                  onClick={(e) => {
-                    if (product.prices?.[0]) {
-                      addItem({
-                        productId: product.id,
-                        priceId: product.prices[0].id,
-                        quantity: 1
-                      }, {
-                        x: e.clientX,
-                        y: e.clientY
-                      });
-                    }
-                  }}
-                  className="bg-brand-secondary text-white px-4 py-2 rounded-full font-medium text-base shadow hover:bg-brand-secondary/90 transition flex-shrink-0 -mr-4 md:mr-0 mt-12"
-                >
-                  <span className="block md:hidden">Try It</span>
-                  <span className="hidden md:block">Try It</span>
-                </button>
-                
-                {/* Info button */}
-                <button
-                  onClick={() => setExpandedDescription({
-                    description: product.description || 'No description available.',
-                    productName: product.name.split('(')[0].trim()
-                  })}
-                  className="absolute top-3 right-20 w-8 h-8 mt-20 bg-neutral-400 hover:bg-neutral-300 rounded-full flex items-center justify-center transition-colors z-10"
-                  aria-label="View product description"
-                >
-                  <span className="text-lg font-bold text-neutral-100 font-serif">i</span>
-                </button>
+                {/* Bottom right buttons container */}
+                <div className="absolute bottom-3 right-3 flex items-center gap-2">
+                  {/* Info button */}
+                  <button
+                    onClick={() => setExpandedDescription({
+                      description: product.description || 'No description available.',
+                      productName: product.name.split('(')[0].trim()
+                    })}
+                    className="w-8 h-8 bg-neutral-400 hover:bg-neutral-300 rounded-full flex items-center justify-center transition-colors"
+                    aria-label="View product description"
+                  >
+                    <span className="text-lg font-bold text-neutral-100 font-serif">i</span>
+                  </button>
+                  
+                  {/* Try It button */}
+                  <button 
+                    onClick={(e) => {
+                      if (product.prices?.[0]) {
+                        addItem({
+                          productId: product.id,
+                          priceId: product.prices[0].id,
+                          quantity: 1
+                        }, {
+                          x: e.clientX,
+                          y: e.clientY
+                        });
+                      }
+                    }}
+                    className="bg-brand-secondary text-white px-4 py-2 rounded-full font-medium text-base shadow hover:bg-brand-secondary/90 transition"
+                  >
+                    <span className="block md:hidden">Try It</span>
+                    <span className="hidden md:block">Try It</span>
+                  </button>
+                </div>
               </motion.div>
             ))}
           </div>

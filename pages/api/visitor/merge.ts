@@ -1,134 +1,92 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseServiceRole, supabaseAnon } from '../../../lib/supabaseClient';
-import { LOG_ENABLED } from '../../../lib/utils/log';
+import jwt from 'jsonwebtoken';
 
-interface MergeRequest {
+interface MergeVisitorRequest {
   visitor_id: string;
 }
 
-interface MergeResponse {
-  success: boolean;
+interface MergeVisitorResponse {
   visitor_id: string;
-  user_id: string;
+  jwt: string;
+  visitor: {
+    name: string | null;
+    email: string | null;
+    phone: string | null;
+    cart: any;
+    street: string | null;
+    unit: string | null;
+    city: string | null;
+    state: string | null;
+    postal_code: string | null;
+    country: string | null;
+  };
   merged: boolean;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse<MergeResponse | { error: string }>) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    // Extract JWT from Authorization header to get the authenticated user
+    // Extract token from Authorization header
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'Missing or invalid Authorization header' });
     }
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-    
-    // Verify the Supabase session token and get user info
+
+    // Verify Supabase session
     const { data: { user }, error: authError } = await supabaseAnon.auth.getUser(token);
     
     if (authError || !user) {
-      if (LOG_ENABLED) {
-      console.log('⚠️ Invalid Supabase session token:', authError);
-      }
       return res.status(401).json({ error: 'Invalid authentication token' });
     }
 
-    const { visitor_id } = req.body as MergeRequest;
+    const { visitor_id }: MergeVisitorRequest = req.body;
 
     if (!visitor_id) {
       return res.status(400).json({ error: 'visitor_id is required' });
     }
 
-    if (LOG_ENABLED) {
-    console.log(`🔄 Module 6b.1: Merging visitor ${visitor_id} with user ${user.id}`);
-    }
-
-    // Check if visitor exists
-    const { data: visitorData, error: fetchError } = await supabaseServiceRole
+    // Check if user already has a visitor record
+    const { data: existingUserVisitor, error: fetchError } = await supabaseServiceRole
       .from('visitors')
-      .select('*')
-      .eq('id', visitor_id)
-      .single();
-
-    if (fetchError || !visitorData) {
-      if (LOG_ENABLED) {
-      console.error('Error fetching visitor:', fetchError);
-      }
-      return res.status(404).json({ error: 'Visitor not found' });
-    }
-
-    // Check if this user already has a visitor record
-    const { data: existingUserVisitor, error: existingError } = await supabaseServiceRole
-      .from('visitors')
-      .select('*')
+      .select('id, cart, stripe_cust_id')
       .eq('user_id', user.id)
       .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      return res.status(500).json({ error: 'Error fetching visitor data' });
+    }
 
     let mergedVisitorId = visitor_id;
     let merged = false;
 
     if (existingUserVisitor) {
-      // User already has a visitor record - merge current visitor into existing one
-      if (LOG_ENABLED) {
-      console.log(`🔄 User ${user.id} already has visitor record ${existingUserVisitor.id}, merging carts`);
-      }
-      
-      // Merge cart data
-      const currentCart = Array.isArray(visitorData.cart) ? visitorData.cart : [];
-      const existingCart = Array.isArray(existingUserVisitor.cart) ? existingUserVisitor.cart : [];
+      // User already has a visitor record, merge carts
+      const existingCart = existingUserVisitor.cart || [];
+      const newCart = req.body.cart || [];
 
-      const mergedCart = [...existingCart, ...currentCart].reduce<any[]>((acc, item) => {
-        const found = acc.find(i => i.priceId === item.priceId);
-        if (found) {
-          found.quantity += item.quantity;
-        } else {
-          acc.push({ ...item });
-        }
-        return acc;
-      }, []);
+      // Merge carts (simple concatenation for now)
+      const mergedCart = [...existingCart, ...newCart];
 
-      // --- 8D.1: Preserve Stripe Customer ID ---
-      let stripeCustIdToUpdate = existingUserVisitor.stripe_cust_id;
-      if (!stripeCustIdToUpdate && visitorData.stripe_cust_id) {
-        stripeCustIdToUpdate = visitorData.stripe_cust_id;
-        if (LOG_ENABLED) {
-          console.log('💾 Bug 8D.1: Stripe customer ID preserved during merge:', stripeCustIdToUpdate);
-        }
-      }
-      // --- END 8D.1 ---
+      // Preserve Stripe customer ID if it exists
+      const stripeCustIdToUpdate = existingUserVisitor.stripe_cust_id;
 
-      // --- Bug 9: Visitor/User Data Backfill ---
-      const finalEmail = existingUserVisitor.email ?? visitorData.email ?? user.email;
-      const finalPhone = existingUserVisitor.phone ?? visitorData.phone ?? user.phone;
-      const finalName  = existingUserVisitor.name  ?? visitorData.name  ?? user.user_metadata?.name;
-      // --- END Bug 9 ---
-
-      // Update existing user visitor with merged data
+      // Update existing visitor record with merged data
       const { error: updateError } = await supabaseServiceRole
         .from('visitors')
         .update({
-          email: finalEmail,
-          phone: finalPhone,
-          name: finalName,
           cart: mergedCart,
-          stripe_cust_id: stripeCustIdToUpdate,
+          stripe_cust_id: stripeCustIdToUpdate
         })
         .eq('id', existingUserVisitor.id);
 
       if (updateError) {
-        if (LOG_ENABLED) {
-        console.error('Error updating existing user visitor:', updateError);
-        }
-        return res.status(500).json({ error: 'Failed to merge visitor data' });
-      }
-
-      // Log backfill
-      if (LOG_ENABLED) {
-        console.log('🧩 Bug 9: Visitor record backfilled with user data');
+        return res.status(500).json({ error: 'Error updating existing user visitor' });
       }
 
       // Delete the temporary visitor record
@@ -138,60 +96,70 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         .eq('id', visitor_id);
 
       if (deleteError) {
-        if (LOG_ENABLED) {
-        console.error('Error deleting temporary visitor:', deleteError);
-        }
-        // Don't fail the request, just log the error
+        return res.status(500).json({ error: 'Error deleting temporary visitor' });
       }
 
       mergedVisitorId = existingUserVisitor.id;
       merged = true;
     } else {
-      // No existing visitor for this user - just assign user_id to current visitor
-      if (LOG_ENABLED) {
-      console.log(`📝 Assigning visitor ${visitor_id} to user ${user.id}`);
-      }
-      
-      // --- Bug 9: Visitor/User Data Backfill (simple assignment case) ---
-      const updatePayload: any = { user_id: user.id };
-      if (!visitorData.email && user.email) updatePayload.email = user.email;
-      if (!visitorData.phone && user.phone) updatePayload.phone = user.phone;
-      if (!visitorData.name && user.user_metadata?.name)  updatePayload.name  = user.user_metadata.name;
-      // --- END Bug 9 ---
-      
+      // Assign visitor to user
       const { error: updateError } = await supabaseServiceRole
         .from('visitors')
-        .update(updatePayload)
+        .update({
+          user_id: user.id,
+          name: user.user_metadata?.name || null,
+          email: user.email || null
+        })
         .eq('id', visitor_id);
 
       if (updateError) {
-        if (LOG_ENABLED) {
-        console.error('Error assigning visitor to user:', updateError);
-        }
-        return res.status(500).json({ error: 'Failed to assign visitor to user' });
-      }
-
-      // Log backfill
-      if (LOG_ENABLED) {
-        console.log('🧩 Bug 9: Visitor record backfilled with user data');
+        return res.status(500).json({ error: 'Error assigning visitor to user' });
       }
     }
 
-    if (LOG_ENABLED) {
-    console.log(`✅ Module 6b.1: Visitor merge completed - visitor_id: ${mergedVisitorId}, user_id: ${user.id}, merged: ${merged}`);
+    // Generate new JWT for the merged visitor
+    const jwtSecret = process.env.SUPABASE_JWT_SECRET;
+    if (!jwtSecret) {
+      return res.status(500).json({ error: 'JWT secret not configured' });
     }
 
-    return res.status(200).json({
-      success: true,
+    const newToken = jwt.sign(
+      { 
+        visitor_id: mergedVisitorId,
+        type: 'visitor',
+        iat: Math.floor(Date.now() / 1000)
+      },
+      jwtSecret,
+      { expiresIn: '30d' }
+    );
+
+    // Fetch final visitor data
+    const { data: finalVisitorData } = await supabaseServiceRole
+      .from('visitors')
+      .select('name, email, phone, cart, street, unit, city, state, postal_code, country')
+      .eq('id', mergedVisitorId)
+      .single();
+
+    const response: MergeVisitorResponse = {
       visitor_id: mergedVisitorId,
-      user_id: user.id,
+      jwt: newToken,
+      visitor: {
+        name: finalVisitorData?.name || null,
+        email: finalVisitorData?.email || null,
+        phone: finalVisitorData?.phone || null,
+        cart: finalVisitorData?.cart || null,
+        street: finalVisitorData?.street || null,
+        unit: finalVisitorData?.unit || null,
+        city: finalVisitorData?.city || null,
+        state: finalVisitorData?.state || null,
+        postal_code: finalVisitorData?.postal_code || null,
+        country: finalVisitorData?.country || null
+      },
       merged
-    });
+    };
 
-  } catch (error) {
-    if (LOG_ENABLED) {
-    console.error('Module 6b.1 Error in visitor merge:', error);
-    }
-    return res.status(500).json({ error: 'Internal server error' });
+    res.status(200).json(response);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Internal server error' });
   }
 } 

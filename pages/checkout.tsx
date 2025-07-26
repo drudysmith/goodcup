@@ -316,7 +316,6 @@ export default function Checkout() {
       localStorage.removeItem('visitor_jwt');
     },
     onError: (error) => {
-      console.error('Module 6b.2: Visitor merge failed:', error);
       alert('Failed to merge visitor data. Please try again.');
     },
   });
@@ -328,12 +327,10 @@ export default function Checkout() {
       if (checkoutData.url) {
         window.location.assign(checkoutData.url);
       } else {
-        console.error('Checkout session creation failed:', checkoutData.error);
         alert(checkoutData.error || 'Checkout failed');
       }
     },
     onError: (error) => {
-      console.error('Error creating checkout session:', error);
       alert('Checkout failed');
     },
   });
@@ -350,7 +347,6 @@ export default function Checkout() {
       }
     },
     onError: (error) => {
-      console.error('Bug 9A: Error saving contact:', error);
       alert('Failed to save contact info. Please try again.');
     },
   });
@@ -382,7 +378,6 @@ export default function Checkout() {
             checkoutMode: 'user'
           });
         } catch (error) {
-          console.error('Module 6b.2: Error during merge and checkout:', error);
           alert('An error occurred during checkout. Please try again.');
         } finally {
           setIsProcessingMerge(false);
@@ -449,7 +444,6 @@ export default function Checkout() {
       const token = userSession?.access_token || jwt;
       
       if (!token) {
-        console.error('⚠️ Bug 9A: No authentication token available');
         alert('Authentication required to save contact info');
         return;
       }
@@ -459,7 +453,6 @@ export default function Checkout() {
       // Proceed to shipping stage after successful save
       setCurrentStage('shipping');
     } catch (error) {
-      console.error('Bug 9A: Failed to save contact:', error);
       // Still allow proceeding to shipping even if save fails
       setCurrentStage('shipping');
     }
