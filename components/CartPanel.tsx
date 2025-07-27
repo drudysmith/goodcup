@@ -13,7 +13,10 @@ interface StripePrice {
   id: string;
   unit_amount: number | null;
   currency: string;
-  recurring?: { interval: string };
+  recurring?: { 
+    interval: string;
+    interval_count?: number;
+  };
 }
 
 interface StripeProduct {
@@ -55,6 +58,22 @@ const CartPanel: React.FC<CartPanelProps> = ({
     const product = products.find((p) => p.id === item.productId);
     const price = product?.prices.find((pr) => pr.id === item.priceId);
     return { product, price };
+  };
+
+  // Helper to format recurring interval
+  const formatRecurringInterval = (recurring: { interval: string; interval_count?: number }) => {
+    const count = recurring.interval_count || 1;
+    const interval = recurring.interval;
+    
+    if (count === 1) {
+      return interval === 'week' ? 'week' : 
+             interval === 'month' ? 'month' : 
+             interval === 'year' ? 'year' : interval;
+    } else {
+      return interval === 'week' ? `${count} weeks` : 
+             interval === 'month' ? `${count} months` : 
+             interval === 'year' ? `${count} years` : `${count} ${interval}s`;
+    }
   };
 
   // Calculate total items in cart
@@ -199,7 +218,7 @@ const CartPanel: React.FC<CartPanelProps> = ({
                               {product.name.split('(')[0].trim()}
                               </h4>
                               <p className="text-lg text-text-tertiary mt-1">
-                                {price.recurring ? `refill ships every 4 weeks` : product.description || '30 servings'}
+                                {price.recurring ? `refill ships every ${formatRecurringInterval(price.recurring)}` : product.description || '30 servings'}
                               </p>
                             </div>
                             

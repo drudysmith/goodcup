@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSupabaseSession, useSupabaseSessionHelpers, useSessionExpiryMutation } from '../lib/queries/sessionQueries';
+import { useBannerPromoQuery } from '../lib/queries/stripeQueries';
 import { useCartStore, CartItem } from '../store/cartStore';
 import { CheckoutModeToggle } from '../components/CheckoutModeToggle';
 import { openAuthModal } from '../store/authModalStore';
@@ -192,6 +193,9 @@ export default function Checkout() {
 
   // Visitor context for guest checkout
   const { visitorId, jwt, visitorData } = useVisitor();
+
+  // Promo query for pricing
+  const { data: promo } = useBannerPromoQuery();
 
   // Module 6e: Initialize customerInfo with empty defaults
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
@@ -403,11 +407,27 @@ export default function Checkout() {
     }
   }, [clearCart]);
 
+  // Helper to get product/price info for cart items
   const getProductAndPrice = (item: CartItem) => {
-    const products = productsQuery.data?.products || [];
-    const product = products.find((p) => p.id === item.productId);
+    const product = productsQuery.data?.products.find((p) => p.id === item.productId);
     const price = product?.prices.find((pr) => pr.id === item.priceId);
     return { product, price };
+  };
+
+  // Helper to format recurring interval
+  const formatRecurringInterval = (recurring: { interval: string; interval_count?: number }) => {
+    const count = recurring.interval_count || 1;
+    const interval = recurring.interval;
+    
+    if (count === 1) {
+      return interval === 'week' ? 'week' : 
+             interval === 'month' ? 'month' : 
+             interval === 'year' ? 'year' : interval;
+    } else {
+      return interval === 'week' ? `${count} weeks` : 
+             interval === 'month' ? `${count} months` : 
+             interval === 'year' ? `${count} years` : `${count} ${interval}s`;
+    }
   };
 
   const cartTotal = items.reduce((sum, item) => {
@@ -522,29 +542,108 @@ export default function Checkout() {
         <div>
           {/* Order Summary Toggle (Mobile) */}
           <div className="lg:hidden mb-4">
-            <button onClick={() => setOrderSummaryExpanded(!orderSummaryExpanded)} className="w-full flex justify-between p-4 border rounded">
-              <span className="text-2xl font-bold text-orange-600">{orderSummaryExpanded ? 'Hide order summary' : 'Show order summary'}</span>
-              <span>${(cartTotal / 100).toFixed(2)}</span>
+            <button 
+              onClick={() => setOrderSummaryExpanded(!orderSummaryExpanded)} 
+              className="w-full flex justify-between items-center p-4 border border-neutral-border rounded-lg bg-surface hover:bg-neutral-muted-bg transition-colors cursor-pointer shadow-sm"
+            >
+              <span className="text-xl font-medium text-text-primary">
+                {orderSummaryExpanded ? 'Hide order summary' : 'Show order summary'}
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-lg">
+                  {(() => {
+                    const subtotal = items.reduce((sum, item) => {
+                      const { price } = getProductAndPrice(item);
+                      return sum + ((price?.unit_amount || 0) * item.quantity);
+                    }, 0);
+                    let promoSubtotal = null;
+                    if (promo && (promo.percent_off || promo.amount_off)) {
+                      if (promo.percent_off) {
+                        promoSubtotal = subtotal * (1 - promo.percent_off / 100);
+                      } else if (promo.amount_off) {
+                        promoSubtotal = subtotal - promo.amount_off * items.length;
+                      }
+                    }
+                    return promoSubtotal && promoSubtotal < subtotal ? (
+                      <>
+                        <span className="line-through text-text-secondary opacity-60 mr-1">${(subtotal / 100).toFixed(2)}</span>
+                        <span className="text-brand-secondary font-medium">${(promoSubtotal / 100).toFixed(2)}</span>
+                      </>
+                    ) : (
+                      <span>${(subtotal / 100).toFixed(2)}</span>
+                    );
+                  })()}
+                </span>
+                <svg 
+                  className={`w-5 h-5 text-text-secondary transition-transform ${orderSummaryExpanded ? 'rotate-180' : ''}`} 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </button>
             {orderSummaryExpanded && (
               <div className="mt-4 space-y-4">
                 {items.map((item) => {
                   const { product, price } = getProductAndPrice(item);
                   if (!product || !price) return null;
+                  const displayPrice = price.unit_amount || 0;
+                  let promoPrice = null;
+                  if (promo && (promo.percent_off || promo.amount_off)) {
+                    if (promo.percent_off) {
+                      promoPrice = displayPrice * (1 - promo.percent_off / 100);
+                    } else if (promo.amount_off) {
+                      promoPrice = displayPrice - promo.amount_off;
+                    }
+                  }
                   return (
                     <div key={item.priceId} className="flex justify-between border p-2 rounded">
-                      <div>{product.name}</div>
-                      <div>${((price.unit_amount || 0) * item.quantity / 100).toFixed(2)}</div>
+                      <div className="text-lg">{product.name}</div>
+                      <div className="text-lg">
+                        {promoPrice && promoPrice < displayPrice ? (
+                          <>
+                            <span className="line-through text-text-secondary opacity-60 mr-1">${((displayPrice * item.quantity) / 100).toFixed(2)}</span>
+                            <span className="text-brand-secondary font-medium">${((promoPrice * item.quantity) / 100).toFixed(2)}</span>
+                          </>
+                        ) : (
+                          <span>${((displayPrice * item.quantity) / 100).toFixed(2)}</span>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
-                <div className="text-right font-bold">Total: ${(cartTotal / 100).toFixed(2)}</div>
+                <div className="text-right font-bold text-lg">
+                  {(() => {
+                    const subtotal = items.reduce((sum, item) => {
+                      const { price } = getProductAndPrice(item);
+                      return sum + ((price?.unit_amount || 0) * item.quantity);
+                    }, 0);
+                    let promoSubtotal = null;
+                    if (promo && (promo.percent_off || promo.amount_off)) {
+                      if (promo.percent_off) {
+                        promoSubtotal = subtotal * (1 - promo.percent_off / 100);
+                      } else if (promo.amount_off) {
+                        promoSubtotal = subtotal - promo.amount_off * items.length;
+                      }
+                    }
+                    return promoSubtotal && promoSubtotal < subtotal ? (
+                      <>
+                        <span className="line-through text-text-secondary opacity-60 mr-2">${(subtotal / 100).toFixed(2)}</span>
+                        <span className="text-brand-secondary">${(promoSubtotal / 100).toFixed(2)}</span>
+                      </>
+                    ) : (
+                      <span>${(subtotal / 100).toFixed(2)}</span>
+                    );
+                  })()}
+                </div>
               </div>
             )}
           </div>
 
           {/* Breadcrumb */}
-          <div className="mb-6 text-sm text-text-secondary">
+          <div className="mb-6 text-lg text-text-secondary">
             Information › Shipping › Payment
           </div>
 
@@ -552,21 +651,21 @@ export default function Checkout() {
           {currentStage === 'information' && (
             <div className="space-y-4">
               <h2 className="text-xl font-bold">Contact</h2>
-              <input type="email" placeholder="Email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} className="w-full p-3 border rounded" />
+              <input type="email" placeholder="Email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} className="w-full p-3 border rounded text-lg" />
               <h3 className="text-xl font-bold mt-6">Shipping Address</h3>
-              <input type="text" placeholder="First name" value={customerInfo.firstName} onChange={(e) => setCustomerInfo({ ...customerInfo, firstName: e.target.value })} className="w-full p-3 border rounded" />
-              <input type="text" placeholder="Last name" value={customerInfo.lastName} onChange={(e) => setCustomerInfo({ ...customerInfo, lastName: e.target.value })} className="w-full p-3 border rounded" />
-              <input type="text" placeholder="Address" value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} className="w-full p-3 border rounded" />
-              <input type="text" placeholder="City" value={customerInfo.city} onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })} className="w-full p-3 border rounded" />
-              <input type="text" placeholder="State" value={customerInfo.state} onChange={(e) => setCustomerInfo({ ...customerInfo, state: e.target.value })} className="w-full p-3 border rounded" />
-              <input type="text" placeholder="ZIP code" value={customerInfo.zipCode} onChange={(e) => setCustomerInfo({ ...customerInfo, zipCode: e.target.value })} className="w-full p-3 border rounded" />
-              <input type="text" placeholder="Country" value={customerInfo.country} onChange={(e) => setCustomerInfo({ ...customerInfo, country: e.target.value })} className="w-full p-3 border rounded" />
+              <input type="text" placeholder="First name" value={customerInfo.firstName} onChange={(e) => setCustomerInfo({ ...customerInfo, firstName: e.target.value })} className="w-full p-3 border rounded text-lg" />
+              <input type="text" placeholder="Last name" value={customerInfo.lastName} onChange={(e) => setCustomerInfo({ ...customerInfo, lastName: e.target.value })} className="w-full p-3 border rounded text-lg" />
+              <input type="text" placeholder="Address" value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} className="w-full p-3 border rounded text-lg" />
+              <input type="text" placeholder="City" value={customerInfo.city} onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })} className="w-full p-3 border rounded text-lg" />
+              <input type="text" placeholder="State" value={customerInfo.state} onChange={(e) => setCustomerInfo({ ...customerInfo, state: e.target.value })} className="w-full p-3 border rounded text-lg" />
+              <input type="text" placeholder="ZIP code" value={customerInfo.zipCode} onChange={(e) => setCustomerInfo({ ...customerInfo, zipCode: e.target.value })} className="w-full p-3 border rounded text-lg" />
+              <input type="text" placeholder="Country" value={customerInfo.country} onChange={(e) => setCustomerInfo({ ...customerInfo, country: e.target.value })} className="w-full p-3 border rounded text-lg" />
               <button onClick={handleContinueToShipping} className="w-full bg-brand-secondary text-white py-3 px-6 rounded disabled:opacity-50" disabled={!validateInformationStage() || saveContactMutation.isPending}>
                 {saveContactMutation.isPending ? 'Saving contact...' : 'Continue to shipping'}
               </button>
               <button
                 onClick={() => window.location.href = '/'}
-                className="text-sm text-brand-secondary hover:underline"
+                className="text-lg text-brand-secondary hover:underline"
               >
                 ← Back
               </button>
@@ -577,11 +676,11 @@ export default function Checkout() {
           {currentStage === 'shipping' && (
             <div className="space-y-6">
               <div className="border p-4 rounded">
-                <div className="mb-2 text-sm text-text-secondary">Contact</div>
+                <div className="mb-2 text-base text-text-secondary">Contact</div>
                 <div className="font-medium">{customerInfo.email}</div>
               </div>
               <div className="border p-4 rounded">
-                <div className="mb-2 text-sm text-text-secondary">Shipping to</div>
+                <div className="mb-2 text-base text-text-secondary">Shipping to</div>
                 <div className="font-medium">
                   {customerInfo.address}, {customerInfo.city}, {customerInfo.state} {customerInfo.zipCode}, {customerInfo.country}
                 </div>
@@ -606,11 +705,11 @@ export default function Checkout() {
                 <div className="mt-4 p-4 border rounded bg-gray-50">
                   {!loginLinkSent ? (
                     <div className="space-y-4">
-                      <h4 className="text-sm font-medium text-gray-700">Sign in to your account</h4>
+                      <h4 className="text-base font-medium text-text-primary">Sign in to your account</h4>
                       
                       {/* Email field (shared) */}
                       <div>
-                        <label htmlFor="inline-email" className="block text-sm font-medium text-gray-700 mb-1">
+                        <label htmlFor="inline-email" className="block text-base font-medium text-text-primary mb-1">
                           Email address
                         </label>
                         <input
@@ -622,7 +721,7 @@ export default function Checkout() {
                             setLoginEmail(e.target.value);
                             if (loginError) setLoginError(null);
                           }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
                           required
                           disabled={loginLoading || authActions.isLoading}
                           readOnly={!!(visitorData?.email || customerInfo.email)}
@@ -631,7 +730,7 @@ export default function Checkout() {
 
                       {/* Error Message */}
                       {(loginError || authActions.error) && (
-                        <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
+                        <div className="text-semantic-error text-base bg-semantic-error/10 border border-semantic-error/20 rounded px-3 py-2">
                           {loginError || authActions.error}
                         </div>
                       )}
@@ -641,7 +740,7 @@ export default function Checkout() {
                         
                         {/* Magic Link Option */}
                         <div className="space-y-3">
-                          <h5 className="text-xs font-medium text-gray-600 uppercase tracking-wide">Quick Sign In</h5>
+                          <h5 className="text-base font-medium text-text-secondary uppercase tracking-wide">Quick Sign In</h5>
                     <form 
                       onSubmit={async (e: React.FormEvent) => {
                         e.preventDefault();
@@ -695,12 +794,12 @@ export default function Checkout() {
                               {loginLoading ? 'Sending...' : 'Send magic link'}
                             </button>
                           </form>
-                          <p className="text-xs text-gray-500">We'll email you a secure link</p>
+                          <p className="text-base text-text-tertiary">We'll email you a secure link</p>
                         </div>
 
                         {/* Email/Password Option */}
                         <div className="space-y-3">
-                          <h5 className="text-xs font-medium text-gray-600 uppercase tracking-wide">Password Sign In</h5>
+                          <h5 className="text-base font-medium text-text-secondary uppercase tracking-wide">Password Sign In</h5>
                           <form 
                             onSubmit={async (e: React.FormEvent) => {
                               e.preventDefault();
@@ -726,7 +825,7 @@ export default function Checkout() {
                             className="space-y-3"
                           >
                       <div>
-                              <label htmlFor="inline-password" className="block text-sm font-medium text-gray-700 mb-1">
+                              <label htmlFor="inline-password" className="block text-base font-medium text-text-primary mb-1">
                                 Password
                         </label>
                         <input
@@ -738,7 +837,7 @@ export default function Checkout() {
                                   setLoginPassword(e.target.value);
                                   if (loginError) setLoginError(null);
                                 }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
                           required
                                 disabled={loginLoading || authActions.isLoading}
                         />
@@ -752,7 +851,7 @@ export default function Checkout() {
                               {authActions.isLoading ? 'Signing in...' : 'Sign in'}
                       </button>
                     </form>
-                          <p className="text-xs text-gray-500">Use your account password</p>
+                          <p className="text-base text-text-tertiary">Use your account password</p>
                         </div>
                       </div>
                     </div>
@@ -763,8 +862,8 @@ export default function Checkout() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                         </svg>
                       </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Check your email</h3>
-                      <p className="text-sm text-gray-500 mb-4">
+                      <h3 className="text-lg font-semibold text-text-primary mb-2">Check your email</h3>
+                      <p className="text-base text-text-secondary mb-4">
                         We've sent a magic link to <strong>{(visitorData?.email || customerInfo.email) || loginEmail}</strong>. Click the link to sign in and complete your checkout.
                       </p>
                     </div>
@@ -774,7 +873,7 @@ export default function Checkout() {
 
               <button
                 onClick={() => window.location.href = '/'}
-                className="text-sm text-brand-secondary hover:underline"
+                className="text-lg text-brand-secondary hover:underline"
               >
                 ← Back
               </button>
@@ -810,8 +909,8 @@ export default function Checkout() {
           <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 ease-out" />
           <div className="relative bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 transform transition-all duration-300 ease-out animate-in zoom-in-95">
             <div className="px-6 py-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Create an account?</h3>
-              <p className="text-sm text-gray-600 mb-6">
+              <h3 className="text-lg font-semibold text-text-primary mb-3">Create an account?</h3>
+              <p className="text-base text-text-secondary mb-6">
                 We noticed you have contact information saved. Would you like to create an account to track your orders and manage your subscriptions?
               </p>
               <div className="flex space-x-3">

@@ -32,7 +32,7 @@ interface StripeProduct {
 
 interface CartState {
   items: CartItem[];
-  addItem: (item: CartItem) => void;
+  addItem: (item: CartItem, clickPosition?: { x: number; y: number }) => void;
   removeItem: (priceId: string) => void;
   updateQuantity: (priceId: string, quantity: number) => void;
   clearCart: () => void;

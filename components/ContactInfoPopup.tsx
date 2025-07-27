@@ -49,21 +49,21 @@ export const ContactInfoPopup: React.FC<ContactInfoPopupProps> = ({ onClose, onS
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Overlay with fade-in */}
       <div 
-        className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 ease-out"
+        className="absolute inset-0 bg-neutral-foreground bg-opacity-50 transition-opacity duration-300 ease-out"
         onClick={onClose}
       />
       
       {/* Popup with scale-in */}
-      <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 ease-out animate-in zoom-in-95">
+      <div className="relative bg-surface rounded-lg shadow-xl max-w-sm w-full mx-4 transform transition-all duration-300 ease-out animate-in zoom-in-95">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-6 py-4 border-b border-neutral-border/10">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-2xl font-medium text-text-primary">
               Stay connected with us
             </h3>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-text-secondary hover:text-text-primary transition-colors"
               aria-label="Close"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,7 +71,7 @@ export const ContactInfoPopup: React.FC<ContactInfoPopupProps> = ({ onClose, onS
               </svg>
             </button>
           </div>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-lg text-text-secondary">
             Help us provide you with a better experience by sharing your contact information.
           </p>
         </div>
@@ -80,7 +80,7 @@ export const ContactInfoPopup: React.FC<ContactInfoPopupProps> = ({ onClose, onS
         <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
           {/* Email (Required) */}
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="email" className="block text-lg font-medium text-text-primary mb-1">
               Email address *
             </label>
             <input
@@ -88,7 +88,7 @@ export const ContactInfoPopup: React.FC<ContactInfoPopupProps> = ({ onClose, onS
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-neutral-border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-secondary focus:border-brand-secondary bg-surface text-text-primary placeholder:text-text-tertiary text-lg"
               placeholder="your@email.com"
               required
               disabled={isSubmitting}
@@ -97,7 +97,7 @@ export const ContactInfoPopup: React.FC<ContactInfoPopupProps> = ({ onClose, onS
 
           {/* Phone (Optional) */}
           <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="phone" className="block text-lg font-medium text-text-primary mb-1">
               Phone number
             </label>
             <input
@@ -105,7 +105,7 @@ export const ContactInfoPopup: React.FC<ContactInfoPopupProps> = ({ onClose, onS
               id="phone"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-neutral-border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-secondary focus:border-brand-secondary bg-surface text-text-primary placeholder:text-text-tertiary text-lg"
               placeholder="(555) 123-4567"
               disabled={isSubmitting}
             />
@@ -113,7 +113,7 @@ export const ContactInfoPopup: React.FC<ContactInfoPopupProps> = ({ onClose, onS
 
           {/* Name (Optional) */}
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="name" className="block text-lg font-medium text-text-primary mb-1">
               Your name
             </label>
             <input
@@ -121,7 +121,7 @@ export const ContactInfoPopup: React.FC<ContactInfoPopupProps> = ({ onClose, onS
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-neutral-border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-secondary focus:border-brand-secondary bg-surface text-text-primary placeholder:text-text-tertiary text-lg"
               placeholder="John Doe"
               disabled={isSubmitting}
             />
@@ -129,7 +129,7 @@ export const ContactInfoPopup: React.FC<ContactInfoPopupProps> = ({ onClose, onS
 
           {/* Error Message */}
           {error && (
-            <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
+            <div className="text-semantic-error text-lg bg-semantic-error/10 border border-semantic-error/20 rounded px-3 py-2">
               {error}
             </div>
           )}
@@ -139,14 +139,14 @@ export const ContactInfoPopup: React.FC<ContactInfoPopupProps> = ({ onClose, onS
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+              className="flex-1 px-4 py-2 text-text-secondary bg-surface border border-neutral-border rounded-md hover:bg-neutral-muted-bg focus:outline-none focus:ring-2 focus:ring-neutral-border transition-colors text-lg"
               disabled={isSubmitting}
             >
               Skip for now
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex-1 px-4 py-2 bg-brand-secondary text-white rounded-md hover:bg-brand-secondary/90 focus:outline-none focus:ring-2 focus:ring-brand-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-lg"
               disabled={isSubmitting}
             >
               {isSubmitting ? 'Saving...' : 'Continue'}

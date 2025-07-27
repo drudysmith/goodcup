@@ -14,7 +14,10 @@ interface MandustProduct {
     id: string;
     unit_amount: number | null;
     currency: string;
-    recurring?: { interval: string };
+    recurring?: { 
+      interval: string;
+      interval_count: number;
+    };
   }>;
 }
 
@@ -55,7 +58,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               unit_amount: price.unit_amount,
               currency: price.currency,
               recurring: price.recurring ? {
-                interval: price.recurring.interval
+                interval: price.recurring.interval,
+                interval_count: price.recurring.interval_count
               } : undefined
             }))
           });
