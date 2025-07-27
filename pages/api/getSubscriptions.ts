@@ -33,13 +33,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       expand: ['data.default_payment_method']
     });
 
-    const subscriptionData: StripeSubscription[] = subscriptions.data.map(sub => ({
+    const subscriptionData: StripeSubscription[] = subscriptions.data.map((sub: Stripe.Subscription) => ({
       id: sub.id,
       stripe_subscription_id: sub.id,
       created_at: new Date(sub.created * 1000).toISOString(),
       current_period_end: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : undefined,
       canceled_at: sub.canceled_at ? new Date(sub.canceled_at * 1000).toISOString() : undefined,
-      amount: sub.items.data[0]?.price.unit_amount || 0,
+      amount: sub.items.data[0]?.price.unit_amount ?? 0,
       status: sub.status
     }));
 

@@ -1,13 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
 
-type StripeSubscription = Stripe.Subscription & {
-  current_period_start: number;
-  current_period_end: number;
-  cancel_at_period_end: boolean;
-  canceled_at: number | null;
-};
-
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: '2025-05-28.basil',
 });
@@ -48,7 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
       expand: ['items.data.price']
-    }) as unknown as StripeSubscription;
+    });
 
     const details: SubscriptionDetails = {
       id: subscription.id,
