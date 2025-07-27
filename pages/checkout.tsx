@@ -600,7 +600,10 @@ export default function Checkout() {
                   }
                   return (
                     <div key={item.priceId} className="flex justify-between border p-2 rounded">
-                      <div className="text-lg">{product.name}</div>
+                      <div className="text-lg">
+                        <span>{product.name}</span>
+                        <span className="text-text-secondary ml-2">× {item.quantity}</span>
+                      </div>
                       <div className="text-lg">
                         {promoPrice && promoPrice < displayPrice ? (
                           <>
@@ -644,7 +647,17 @@ export default function Checkout() {
 
           {/* Breadcrumb */}
           <div className="mb-6 text-lg text-text-secondary">
-            Information › Shipping › Payment
+            <span className={currentStage === 'information' ? 'text-brand-secondary font-medium' : 'opacity-60'}>
+              Information
+            </span>
+            <span className="mx-2">›</span>
+            <span className={currentStage === 'shipping' ? 'text-brand-secondary font-medium' : 'opacity-60'}>
+              Shipping
+            </span>
+            <span className="mx-2">›</span>
+            <span className="opacity-40">
+              Payment
+            </span>
           </div>
 
           {/* Stage: Information */}
@@ -676,12 +689,18 @@ export default function Checkout() {
           {currentStage === 'shipping' && (
             <div className="space-y-6">
               <div className="border p-4 rounded">
-                <div className="mb-2 text-base text-text-secondary">Contact</div>
-                <div className="font-medium">{customerInfo.email}</div>
+                <div className="mb-2 text-lg text-text-secondary">Contact</div>
+                <div className="font-medium text-lg">{customerInfo.email}</div>
               </div>
+              
+              {/* Free Shipping Note */}
+              <div className="text-center py-3">
+                <p className="text-lg text-brand-secondary font-medium">🚚 Free shipping to the US</p>
+              </div>
+              
               <div className="border p-4 rounded">
-                <div className="mb-2 text-base text-text-secondary">Shipping to</div>
-                <div className="font-medium">
+                <div className="mb-2 text-lg text-text-secondary">Shipping to</div>
+                <div className="font-medium text-lg">
                   {customerInfo.address}, {customerInfo.city}, {customerInfo.state} {customerInfo.zipCode}, {customerInfo.country}
                 </div>
               </div>
@@ -694,7 +713,7 @@ export default function Checkout() {
                 />
               </div>
 
-              <button onClick={handleCheckout} disabled={checkoutLoading} className="w-full bg-brand-secondary text-white py-3 px-6 rounded disabled:opacity-50">
+              <button onClick={handleCheckout} disabled={checkoutLoading} className="w-full bg-brand-secondary text-white py-3 px-6 rounded disabled:opacity-50 text-lg">
                 {checkoutLoading ? 'Processing...' : 
                   checkoutMode === 'user' ? 'Continue to sign in' : 'Continue to payment'
                 }
@@ -705,11 +724,11 @@ export default function Checkout() {
                 <div className="mt-4 p-4 border rounded bg-gray-50">
                   {!loginLinkSent ? (
                     <div className="space-y-4">
-                      <h4 className="text-base font-medium text-text-primary">Sign in to your account</h4>
+                      <h4 className="text-lg font-medium text-text-primary">Sign in to your account (use magic link to create account or sign in)</h4>
                       
                       {/* Email field (shared) */}
                       <div>
-                        <label htmlFor="inline-email" className="block text-base font-medium text-text-primary mb-1">
+                        <label htmlFor="inline-email" className="block text-lg font-medium text-text-primary mb-1">
                           Email address
                         </label>
                         <input
@@ -730,7 +749,7 @@ export default function Checkout() {
 
                       {/* Error Message */}
                       {(loginError || authActions.error) && (
-                        <div className="text-semantic-error text-base bg-semantic-error/10 border border-semantic-error/20 rounded px-3 py-2">
+                        <div className="text-semantic-error text-lg bg-semantic-error/10 border border-semantic-error/20 rounded px-3 py-2">
                           {loginError || authActions.error}
                         </div>
                       )}
@@ -740,7 +759,7 @@ export default function Checkout() {
                         
                         {/* Magic Link Option */}
                         <div className="space-y-3">
-                          <h5 className="text-base font-medium text-text-secondary uppercase tracking-wide">Quick Sign In</h5>
+                          <h5 className="text-lg font-medium text-text-secondary uppercase tracking-wide">Quick Sign In</h5>
                     <form 
                       onSubmit={async (e: React.FormEvent) => {
                         e.preventDefault();
@@ -794,12 +813,12 @@ export default function Checkout() {
                               {loginLoading ? 'Sending...' : 'Send magic link'}
                             </button>
                           </form>
-                          <p className="text-base text-text-tertiary">We'll email you a secure link</p>
+                          <p className="text-lg text-text-tertiary">We'll email you a secure link</p>
                         </div>
 
                         {/* Email/Password Option */}
                         <div className="space-y-3">
-                          <h5 className="text-base font-medium text-text-secondary uppercase tracking-wide">Password Sign In</h5>
+                          <h5 className="text-lg font-medium text-text-secondary uppercase tracking-wide">Password Sign In</h5>
                           <form 
                             onSubmit={async (e: React.FormEvent) => {
                               e.preventDefault();
@@ -825,7 +844,7 @@ export default function Checkout() {
                             className="space-y-3"
                           >
                       <div>
-                              <label htmlFor="inline-password" className="block text-base font-medium text-text-primary mb-1">
+                              <label htmlFor="inline-password" className="block text-lg font-medium text-text-primary mb-1">
                                 Password
                         </label>
                         <input
@@ -851,7 +870,7 @@ export default function Checkout() {
                               {authActions.isLoading ? 'Signing in...' : 'Sign in'}
                       </button>
                     </form>
-                          <p className="text-base text-text-tertiary">Use your account password</p>
+                          <p className="text-lg text-text-tertiary">Use your account password</p>
                         </div>
                       </div>
                     </div>
@@ -863,8 +882,8 @@ export default function Checkout() {
                         </svg>
                       </div>
                       <h3 className="text-lg font-semibold text-text-primary mb-2">Check your email</h3>
-                      <p className="text-base text-text-secondary mb-4">
-                        We've sent a magic link to <strong>{(visitorData?.email || customerInfo.email) || loginEmail}</strong>. Click the link to sign in and complete your checkout.
+                      <p className="text-lg text-text-secondary mb-4">
+                        We've sent a magic link <strong>from Supabase</strong> to <strong>{(visitorData?.email || customerInfo.email) || loginEmail}</strong>. Click the link to sign in and complete your checkout.
                       </p>
                     </div>
                   )}
@@ -910,7 +929,7 @@ export default function Checkout() {
           <div className="relative bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 transform transition-all duration-300 ease-out animate-in zoom-in-95">
             <div className="px-6 py-6">
               <h3 className="text-lg font-semibold text-text-primary mb-3">Create an account?</h3>
-              <p className="text-base text-text-secondary mb-6">
+              <p className="text-lg text-text-secondary mb-6">
                 We noticed you have contact information saved. Would you like to create an account to track your orders and manage your subscriptions?
               </p>
               <div className="flex space-x-3">
@@ -921,7 +940,7 @@ export default function Checkout() {
                     setShowInlineLogin(true);
                     setCheckoutLoading(false);
                   }}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors text-lg"
                 >
                   Yes, create account
                 </button>
@@ -941,7 +960,7 @@ export default function Checkout() {
                       setCheckoutLoading(false);
                     }
                   }}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors text-lg"
                 >
                   No, continue as guest
                 </button>
