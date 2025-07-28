@@ -1,7 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { supabaseAnon } from '../supabaseClient';
 import { useSupabaseSessionHelpers } from '../queries/sessionQueries';
-import { useVisitorMerge } from './useVisitorMerge';
 
 interface AuthActionsState {
   isLoading: boolean;
@@ -18,9 +17,8 @@ interface AuthActionsReturn extends AuthActionsState {
 // Bug Module 6A: useAuthActions Hook
 export const useAuthActions = (): AuthActionsReturn => {
   
-  // Bug Module 8B: Get session helpers and visitor merge
+  // Bug Module 8B: Get session helpers
   const { setSessionData } = useSupabaseSessionHelpers();
-  const visitorMerge = useVisitorMerge();
 
   // Sign up mutation
   const signUpMutation = useMutation({
@@ -63,8 +61,7 @@ export const useAuthActions = (): AuthActionsReturn => {
       if (data.session) {
         setSessionData(data.session);
         
-        // Bug Module 8B: Trigger visitor merge without waiting for auth listener
-        visitorMerge.triggerMerge();
+        // Merge will be handled by global listener
       }
       
       return data;

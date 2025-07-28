@@ -594,7 +594,9 @@ export default function Mandust() {
               Mandust started when my own T levels crashed to 100 in my early 30s. That's dangerously low. I tried prescription TRT — short-term bandaid with long-term consequences.
             </p>
             <p className="text-xl mb-3 font-normal">
-              So I spent 10 years testing supplements, researching ingredients, and refining ratios. I've tried it all — at one point I had a dozen different bottles on the shelf. Mandust is the final formula — real results from real effort.
+              I've spent 15 years testing supplements, researching ingredients, and refining ratios. 
+              I've tried it all — at one point I had a dozen different bottles on the shelf. 
+              Mandust is the final formula — real results from real effort.
               </p>
             </div>
         </section>
@@ -606,7 +608,7 @@ export default function Mandust() {
             <p className="text-xl mb-3 font-normal">
               It won't taste like cotton candy. It's a down-to-earth taste.
               It actually tends to smell different for each man, 
-              but always reminiscent of something, let's saystereotypically masculine.
+              but always reminiscent of something, let's say stereotypically masculine.
               Real quotes from first-timers:</p>
             <p className="text-xl font-normal mb-6">
               "motor oil"<br />

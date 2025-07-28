@@ -72,23 +72,6 @@ const fetchProducts = async (): Promise<{ products: StripeProduct[] }> => {
   return response.json();
 };
 
-const mergeVisitor = async ({ visitorId, accessToken }: { visitorId: string; accessToken: string }) => {
-  const response = await fetch('/api/visitor/merge', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ visitor_id: visitorId }),
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to merge visitor');
-  }
-
-  return response.json();
-};
-
 const createCheckoutSession = async (payload: {
   items: CartItem[];
   customerEmail: string;
@@ -311,19 +294,6 @@ export default function Checkout() {
     }
   }, [userSession, userProfileQuery.data, visitorData]);
 
-  // Visitor merge mutation
-  const visitorMergeMutation = useMutation({
-    mutationFn: mergeVisitor,
-    onSuccess: (mergeData) => {
-      // Clear visitor tokens from localStorage
-      localStorage.removeItem('visitor_id');
-      localStorage.removeItem('visitor_jwt');
-    },
-    onError: (error) => {
-      alert('Failed to merge visitor data. Please try again.');
-    },
-  });
-
   // Checkout session mutation
   const checkoutSessionMutation = useMutation({
     mutationFn: createCheckoutSession,
@@ -360,20 +330,14 @@ export default function Checkout() {
     // Listen for auth state changes and update query cache
     const { data: { subscription } } = supabaseAnon.auth.onAuthStateChange(async (event, session) => {
       setSessionData(session);
-      if (event === 'SIGNED_IN' && session && checkoutMode === 'user' && visitorId && !isProcessingMerge) {
+      if (event === 'SIGNED_IN' && session && checkoutMode === 'user' && !isProcessingMerge) {
         setShowInlineLogin(false);
         
-        // Module 6b.2: Post-Merge Cleanup and Checkout
+        // Create checkout session with user ID (merge handled by global listener)
         setIsProcessingMerge(true);
         setCheckoutLoading(true);
         
         try {
-          // Call merge mutation
-          const mergeData = await visitorMergeMutation.mutateAsync({
-            visitorId,
-            accessToken: session.access_token,
-          });
-          
           // Create checkout session with user ID
           await checkoutSessionMutation.mutateAsync({
             items,
@@ -391,7 +355,7 @@ export default function Checkout() {
     });
 
     return () => subscription.unsubscribe();
-  }, [checkoutMode, visitorId, isProcessingMerge, items, customerInfo.email, setSessionData, visitorMergeMutation, checkoutSessionMutation]);
+  }, [checkoutMode, isProcessingMerge, items, customerInfo.email, setSessionData, checkoutSessionMutation]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

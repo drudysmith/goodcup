@@ -79,24 +79,28 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
   // visitor effects (ID generation, JWT fetch, cart sync) are bypassed.
   useEffect(() => {
     const init = async () => {
+      // Step 1: Read visitor ID first, regardless of session status
+      if (typeof window !== 'undefined') {
+        const existingVisitorId = localStorage.getItem('visitor_id');
+        if (existingVisitorId) {
+          setVisitorId(existingVisitorId);
+        } else {
+          const newVisitorId = uuidv4();
+          localStorage.setItem('visitor_id', newVisitorId);
+          setVisitorId(newVisitorId);
+        }
+      }
+
+      // Step 2: Check for session after loading visitor ID
       const { data: { session } } = await supabaseAnon.auth.getSession();
       if (session) {
         setSkipVisitor(true);
-        return;
-      }
-
-      setSkipVisitor(false);
-
-      if (typeof window === 'undefined') return;
-
-      const existingVisitorId = localStorage.getItem('visitor_id');
-      if (existingVisitorId) {
-        setVisitorId(existingVisitorId);
       } else {
-        const newVisitorId = uuidv4();
-        localStorage.setItem('visitor_id', newVisitorId);
-        setVisitorId(newVisitorId);
+        setSkipVisitor(false);
       }
+
+      // Step 5: Add console log for verification
+      console.log('[VisitorProvider] Visitor ID:', visitorId, 'skipVisitor:', skipVisitor);
     };
 
     init();
@@ -346,7 +350,7 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
     isReady = !visitorQuery.isLoading && !visitorQuery.isError && !!visitorQuery.data;
   }
   const contextValue: VisitorContextType = {
-    visitorId: skipVisitor ? null : visitorId || null,
+    visitorId: visitorId || null, // Always expose visitor ID regardless of skipVisitor
     jwt: skipVisitor ? null : visitorQuery.data?.jwt || null,
     visitorData: skipVisitor ? null : visitorQuery.data?.visitorData || null,
     isReady,

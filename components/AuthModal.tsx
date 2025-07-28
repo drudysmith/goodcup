@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthModalState, closeAuthModal, updateCachedCredentials } from '../store/authModalStore';
 import { useAuthActions } from '../lib/hooks/useAuthActions';
-import { useVisitorMerge } from '../lib/hooks/useVisitorMerge';
 import { useSupabaseSession } from '../lib/queries/sessionQueries';
 import { useVisitor } from '../lib/contexts/VisitorContext';
 import { LOG_ENABLED, log } from '../lib/utils/log';
@@ -86,9 +85,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   // Module 7: Use auth actions hook for state only
   const authActions = useAuthActions();
 
-  // Module 7: Use visitor merge hook for state only  
-  const visitorMerge = useVisitorMerge();
-
   // Bug Module 8A: Monitor global session state
   const sessionQuery = useSupabaseSession();
   const { visitorId } = useVisitor();
@@ -121,15 +117,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     }
   }, [authActions.requiresConfirmation, awaitingEmailConfirmation, modalState.email, email]);
 
-  // Bug Module 8A: Monitor session changes for merge triggering
+  // Bug Module 8A: Monitor session changes after email confirmation
   useEffect(() => {
     if (awaitingEmailConfirmation && sessionQuery.data && visitorId) {
       if (LOG_ENABLED) {
-        log('✅ Bug 8A: Session verified after email confirmation – triggering merge');
+        log('✅ Bug 8A: Session verified after email confirmation – waiting for global merge');
       }
       
-      // Trigger visitor merge with session verification
-      visitorMerge.triggerMerge();
+      // Global listener will handle the merge
       
       // Update cached credentials
       updateCachedCredentials(signUpEmail, password);
@@ -146,11 +141,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     }
   }, [awaitingEmailConfirmation, sessionQuery.data, visitorId, signUpEmail, password, onSuccess]);
 
-  // Bug Module 8B: Handle visitor merge completion for password sign-in
+  // Bug Module 8B: Handle completion for password sign-in
   useEffect(() => {
-    if (!visitorMerge.isLoading && !authActions.isLoading && !authActions.requiresConfirmation && !awaitingEmailConfirmation && !authActions.error && sessionQuery.data) {
+    if (!authActions.isLoading && !authActions.requiresConfirmation && !awaitingEmailConfirmation && !authActions.error && sessionQuery.data) {
       if (LOG_ENABLED) {
-        log('✅ Bug 8B: Visitor merge completed – closing modal');
+        log('✅ Bug 8B: Auth completed – closing modal');
       }
       
       // Update cached credentials
@@ -162,7 +157,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
         onSuccess();
       }
     }
-  }, [visitorMerge.isLoading, authActions.isLoading, authActions.requiresConfirmation, awaitingEmailConfirmation, authActions.error, sessionQuery.data, modalState.email, email, password, onSuccess]);
+  }, [authActions.isLoading, authActions.requiresConfirmation, awaitingEmailConfirmation, authActions.error, sessionQuery.data, modalState.email, email, password, onSuccess]);
 
   // Module 7: Simple modal close handler
   const handleClose = () => {
@@ -230,8 +225,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   };
 
   // Module 7: Display hook states only
-  const isLoading = authActions.isLoading || visitorMerge.isLoading;
-  const error = authActions.error || visitorMerge.error;
+  const isLoading = authActions.isLoading;
+  const error = authActions.error;
 
   // Module 7: Don't render if modal is not open
   if (!modalState.isOpen) {

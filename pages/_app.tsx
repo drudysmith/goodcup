@@ -76,6 +76,9 @@ function GlobalAuthListener() {
         
         // Bug Module 8C: Prevent duplicate merge for same sign-in
         if (lastProcessedSignInRef.current !== signInEventId) {
+          // Add console log for verification
+          console.log('[Auth] Merging visitor', visitorIdRef.current);
+          
           // Bug Module 8C: Trigger visitor merge
           triggerMergeRef.current();
           
