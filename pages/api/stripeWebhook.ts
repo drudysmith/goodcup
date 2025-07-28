@@ -13,7 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const sig = req.headers['stripe-signature'];
-  let event = req.body;
+  const event = req.body;
 
   try {
     // Verify webhook signature if secret is available
@@ -91,9 +91,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const stripeCustomerId = subscription.customer as string;
       const subscriptionStatus = subscription.status;
 
-      if (subscriptionStatus === 'canceled') {
+      if (subscriptionStatus === 'deleted') {
+        // Handle subscription deletion
+      } else if (subscriptionStatus === 'canceled') {
         // Handle subscription cancellation
-      } else if ((subscription as any).cancel_at_period_end) {
+      } else if (subscription.cancel_at_period_end) {
         // Handle scheduled cancellation
       }
     }

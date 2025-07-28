@@ -539,13 +539,6 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
     }
   }, [cartHovered, cartClosing]);
 
-  // Track when cart is first opened this session
-  useEffect(() => {
-    if (cartHovered && !cartOpenedThisSession) {
-      setCartOpenedThisSession(true);
-    }
-  }, [cartHovered, cartOpenedThisSession]);
-
   // Check if contact info popup should be shown when cart opens
   useEffect(() => {
     if (cartHovered && !cartOpenedThisSession && visitorReady && !userSession) {
@@ -556,6 +549,13 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
       }
     }
   }, [cartHovered, cartOpenedThisSession, visitorReady, visitorData, userSession]);
+
+  // Track when cart is first opened this session (after popup check)
+  useEffect(() => {
+    if (cartHovered && !cartOpenedThisSession) {
+      setCartOpenedThisSession(true);
+    }
+  }, [cartHovered, cartOpenedThisSession]);
 
   const handleContactInfoSubmit = async (contactInfo: { email: string; phone?: string; name?: string }) => {
     if (!visitorId || !jwt) {
