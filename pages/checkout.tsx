@@ -867,20 +867,65 @@ export default function Checkout() {
         {/* Order Summary (Desktop) */}
         <div className="hidden lg:block">
           <div className="p-6 border rounded">
+            <h3 className="text-xl font-bold mb-4">Order Summary</h3>
             {items.map((item) => {
               const { product, price } = getProductAndPrice(item);
               if (!product || !price) return null;
+              const displayPrice = price.unit_amount || 0;
+              let promoPrice = null;
+              if (promo && (promo.percent_off || promo.amount_off)) {
+                if (promo.percent_off) {
+                  promoPrice = displayPrice * (1 - promo.percent_off / 100);
+                } else if (promo.amount_off) {
+                  promoPrice = displayPrice - promo.amount_off;
+                }
+              }
               return (
-                <div key={item.priceId} className="flex justify-between mb-2">
-                  <span>{product.name}</span>
-                  <span>${((price.unit_amount || 0) * item.quantity / 100).toFixed(2)}</span>
+                <div key={item.priceId} className="flex justify-between mb-3">
+                  <div className="flex-1">
+                    <div className="text-lg font-medium">{product.name}</div>
+                    <div className="text-base text-text-secondary">Quantity: {item.quantity}</div>
+                  </div>
+                  <div className="text-lg text-right">
+                    {promoPrice && promoPrice < displayPrice ? (
+                      <>
+                        <div className="line-through text-text-secondary opacity-60">${((displayPrice * item.quantity) / 100).toFixed(2)}</div>
+                        <div className="text-brand-secondary font-medium">${((promoPrice * item.quantity) / 100).toFixed(2)}</div>
+                      </>
+                    ) : (
+                      <span>${((displayPrice * item.quantity) / 100).toFixed(2)}</span>
+                    )}
+                  </div>
                 </div>
               );
             })}
             <hr className="my-4" />
-            <div className="flex justify-between font-bold">
+            <div className="flex justify-between text-xl font-bold">
               <span>Total</span>
-              <span>${(cartTotal / 100).toFixed(2)}</span>
+              <span>
+                {(() => {
+                  const subtotal = items.reduce((sum, item) => {
+                    const { price } = getProductAndPrice(item);
+                    return sum + ((price?.unit_amount || 0) * item.quantity);
+                  }, 0);
+                  let promoSubtotal = null;
+                  if (promo && (promo.percent_off || promo.amount_off)) {
+                    if (promo.percent_off) {
+                      promoSubtotal = subtotal * (1 - promo.percent_off / 100);
+                    } else if (promo.amount_off) {
+                      promoSubtotal = subtotal - promo.amount_off * items.length;
+                    }
+                  }
+                  return promoSubtotal && promoSubtotal < subtotal ? (
+                    <>
+                      <span className="line-through text-text-secondary opacity-60 mr-2">${(subtotal / 100).toFixed(2)}</span>
+                      <span className="text-brand-secondary">${(promoSubtotal / 100).toFixed(2)}</span>
+                    </>
+                  ) : (
+                    <span>${(subtotal / 100).toFixed(2)}</span>
+                  );
+                })()}
+              </span>
             </div>
           </div>
         </div>

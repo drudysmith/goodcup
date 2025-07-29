@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCartStore, validateCartItems } from '../../store/cartStore';
 import { supabaseAnon } from '../supabaseClient';
+import { useSupabaseSession } from '../queries/sessionQueries';
 
 interface VisitorData {
   name: string | null;
@@ -23,6 +24,7 @@ interface VisitorContextType {
   jwt: string | null;
   visitorData: VisitorData | null;
   isReady: boolean;
+  userCartReady: boolean;
   updateVisitorIdentity: (newVisitorId: string, newJwt: string, newVisitorData: VisitorData) => void;
   syncCartToDatabase: (cart: object, jwtToken: string) => Promise<void>;
   hydrateCartFromDatabase: (cartData: any[], products?: any[]) => void;
@@ -69,9 +71,30 @@ const fetchVisitorValidate = async (jwt: string) => {
   return data;
 };
 
+// User cart data fetching function
+const fetchUserCart = async (session: any) => {
+  if (!session?.access_token) {
+    throw new Error('No session token available');
+  }
+
+  const response = await fetch('/api/user/cart', {
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch user cart: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data;
+};
+
 export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) => {
   const queryClient = useQueryClient();
   const [skipVisitor, setSkipVisitor] = useState<boolean | null>(null);
+  const [userCartReady, setUserCartReady] = useState<boolean>(false);
   // Initialize visitor ID directly from localStorage to avoid timing races
   const [visitorId, setVisitorId] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -79,6 +102,37 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
     }
     return '';
   });
+
+  // Monitor session state for userCartReady flag
+  const sessionQuery = useSupabaseSession();
+
+  // Effect to set userCartReady based on session state
+  useEffect(() => {
+    const hasValidSession = !!sessionQuery.data?.user?.id;
+    setUserCartReady(hasValidSession);
+    
+    // Log state transition for debugging
+    console.log('[VisitorProvider] userCartReady:', hasValidSession, 'skipVisitor:', skipVisitor);
+  }, [sessionQuery.data?.user?.id]);
+
+  // User cart query - only enabled when userCartReady is true
+  const userCartQuery = useQuery({
+    queryKey: ['userCart', sessionQuery.data?.user?.id],
+    queryFn: () => fetchUserCart(sessionQuery.data),
+    enabled: userCartReady && !!sessionQuery.data?.user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  });
+
+  // Effect to hydrate cart when user cart data is loaded
+  useEffect(() => {
+    if (!userCartReady) return;
+    
+    const userData = userCartQuery.data;
+    if (userData && userData.cart && Array.isArray(userData.cart)) {
+      hydrateCartFromDatabase(userData.cart);
+    }
+  }, [userCartQuery.data, userCartReady]);
 
   // Before generating a visitor ID, check if a Supabase user session exists.
   // When a session is detected we set `skipVisitor` so the rest of the
@@ -111,6 +165,10 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
   // Cart sync state and refs
   const cartSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSyncedCartRef = useRef<string>('');
+
+  // User cart sync state and refs
+  const userCartSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSyncedUserCartRef = useRef<string>('');
 
   // Get cart items from store
   const cartItems = useCartStore((state) => state.items);
@@ -214,6 +272,33 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
     onSuccess: () => {
       // Invalidate visitor query to refresh data
       queryClient.invalidateQueries({ queryKey: ['visitor', visitorId] });
+    },
+    onError: (error) => {
+      // Error handling without logging
+    },
+  });
+
+  // User cart sync mutation
+  const userCartSyncMutation = useMutation({
+    mutationFn: async ({ cart, sessionToken }: { cart: object; sessionToken: string }) => {
+      const response = await fetch('/api/user/cart', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sessionToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ cart }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to sync user cart: ${response.status}`);
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate user cart query to refresh data
+      queryClient.invalidateQueries({ queryKey: ['userCart', sessionQuery.data?.user?.id] });
     },
     onError: (error) => {
       // Error handling without logging
@@ -343,6 +428,44 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
     };
   }, [cartItems, visitorQuery.data?.jwt, visitorId, visitorQuery.isLoading, visitorQuery.isError, skipVisitor]);
 
+  // Effect to sync user cart changes to database
+  useEffect(() => {
+    if (!userCartReady) return;
+    const sessionToken = sessionQuery.data?.access_token;
+    const isSessionReady = !sessionQuery.isLoading && !sessionQuery.isError;
+    
+    // Only sync if user session is authenticated and ready
+    if (!isSessionReady || !sessionToken || !sessionQuery.data?.user?.id) {
+      return;
+    }
+
+    // Convert cart items to JSON string for comparison
+    const currentCartJson = JSON.stringify(cartItems);
+    
+    // Skip if cart hasn't changed
+    if (currentCartJson === lastSyncedUserCartRef.current) {
+      return;
+    }
+
+    // Clear existing timeout
+    if (userCartSyncTimeoutRef.current) {
+      clearTimeout(userCartSyncTimeoutRef.current);
+    }
+
+    // Debounce cart sync by 1 second to avoid rapid API calls
+    userCartSyncTimeoutRef.current = setTimeout(() => {
+      lastSyncedUserCartRef.current = currentCartJson;
+      userCartSyncMutation.mutate({ cart: cartItems, sessionToken });
+    }, 1000);
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (userCartSyncTimeoutRef.current) {
+        clearTimeout(userCartSyncTimeoutRef.current);
+      }
+    };
+  }, [cartItems, sessionQuery.data?.access_token, sessionQuery.data?.user?.id, sessionQuery.isLoading, sessionQuery.isError, userCartReady]);
+
   // Derive context values from query state
   let isReady = false;
   if (skipVisitor === true) {
@@ -355,6 +478,7 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
     jwt: skipVisitor ? null : visitorQuery.data?.jwt || null,
     visitorData: skipVisitor ? null : visitorQuery.data?.visitorData || null,
     isReady,
+    userCartReady,
     updateVisitorIdentity,
     syncCartToDatabase,
     hydrateCartFromDatabase,
