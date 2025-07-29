@@ -72,26 +72,27 @@ const fetchVisitorValidate = async (jwt: string) => {
 export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) => {
   const queryClient = useQueryClient();
   const [skipVisitor, setSkipVisitor] = useState<boolean | null>(null);
-  const [visitorId, setVisitorId] = useState<string>('');
+  // Initialize visitor ID directly from localStorage to avoid timing races
+  const [visitorId, setVisitorId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('visitor_id') || '';
+    }
+    return '';
+  });
 
   // Before generating a visitor ID, check if a Supabase user session exists.
   // When a session is detected we set `skipVisitor` so the rest of the
   // visitor effects (ID generation, JWT fetch, cart sync) are bypassed.
   useEffect(() => {
     const init = async () => {
-      // Step 1: Read visitor ID first, regardless of session status
-      if (typeof window !== 'undefined') {
-        const existingVisitorId = localStorage.getItem('visitor_id');
-        if (existingVisitorId) {
-          setVisitorId(existingVisitorId);
-        } else {
-          const newVisitorId = uuidv4();
-          localStorage.setItem('visitor_id', newVisitorId);
-          setVisitorId(newVisitorId);
-        }
+      // Step 1: Generate visitor ID if none exists (already loaded in useState)
+      if (typeof window !== 'undefined' && !visitorId) {
+        const newVisitorId = uuidv4();
+        localStorage.setItem('visitor_id', newVisitorId);
+        setVisitorId(newVisitorId);
       }
 
-      // Step 2: Check for session after loading visitor ID
+      // Step 2: Check for session status
       const { data: { session } } = await supabaseAnon.auth.getSession();
       if (session) {
         setSkipVisitor(true);
@@ -99,8 +100,8 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
         setSkipVisitor(false);
       }
 
-      // Step 5: Add console log for verification
-      console.log('[VisitorProvider] Visitor ID:', visitorId, 'skipVisitor:', skipVisitor);
+      // Step 3: Add console log for verification
+      console.log('[VisitorProvider] Visitor ID:', visitorId || 'generating...', 'skipVisitor:', session ? true : false);
     };
 
     init();

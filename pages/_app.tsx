@@ -70,8 +70,8 @@ function GlobalAuthListener() {
       // Bug 5: Update session data in query cache
       setSessionData(session);
 
-      // Bug Module 8C: Handle SIGNED_IN event for visitor merge
-      if (event === 'SIGNED_IN' && session?.user?.id && visitorIdRef.current) {
+      // Bug Module 8C: Handle SIGNED_IN and INITIAL_SESSION events for visitor merge
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user?.id && visitorIdRef.current) {
         const signInEventId = `${session.user.id}-${Date.now()}`;
         
         // Bug Module 8C: Prevent duplicate merge for same sign-in
@@ -87,6 +87,22 @@ function GlobalAuthListener() {
         }
       }
     });
+
+    // Fallback merge check on mount
+    const checkInitialSession = async () => {
+      const { data: { session } } = await supabaseAnon.auth.getSession();
+      if (session?.user?.id && visitorIdRef.current) {
+        const signInEventId = `${session.user.id}-${Date.now()}`;
+        
+        if (lastProcessedSignInRef.current !== signInEventId) {
+          console.log('[Auth] Fallback merge check - merging visitor', visitorIdRef.current);
+          triggerMergeRef.current();
+          lastProcessedSignInRef.current = signInEventId;
+        }
+      }
+    };
+
+    checkInitialSession();
 
     // Bug 5: Cleanup function to unsubscribe
     return () => {
