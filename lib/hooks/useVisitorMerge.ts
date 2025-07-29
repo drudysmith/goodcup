@@ -67,6 +67,9 @@ export const useVisitorMerge = (): VisitorMergeState => {
 
       // Invalidate visitor query to refresh with merged data
       queryClient.invalidateQueries({ queryKey: ['visitor'], exact: false });
+      
+      // Invalidate user cart query to ensure merged cart data is fetched
+      queryClient.invalidateQueries({ queryKey: ['userCart'], exact: false });
     },
     onError: (error) => {
       console.error('❌ Bug 6B: Visitor merge failed:', error);

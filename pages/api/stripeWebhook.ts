@@ -58,20 +58,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const visitorId = session.metadata?.visitor_id;
 
       if (supabaseUserId) {
-        // Update authenticated user's stripe_cust_id
+        // Update authenticated user's stripe_cust_id and clear cart
         const { error: updateResult } = await supabaseServiceRole
           .from('visitors')
-          .update({ stripe_cust_id: stripeCustomerId })
+          .update({ stripe_cust_id: stripeCustomerId, cart: [] })
           .eq('user_id', supabaseUserId);
 
         if (updateResult) {
           return res.status(500).json({ error: 'Failed to update user stripe_cust_id' });
         }
       } else if (visitorId) {
-        // Update visitor's stripe_cust_id
+        // Update visitor's stripe_cust_id and clear cart
         const { error: updateResult } = await supabaseServiceRole
           .from('visitors')
-          .update({ stripe_cust_id: stripeCustomerId })
+          .update({ stripe_cust_id: stripeCustomerId, cart: [] })
           .eq('id', visitorId);
 
         if (updateResult) {
