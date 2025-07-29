@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 import { supabaseServiceRole } from '../../../lib/supabaseClient';
 
 interface IdentifyVisitorRequest {

@@ -1,11 +1,27 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
 import { supabaseServiceRole } from '../../lib/supabaseClient';
-import { useQueryClient } from '@tanstack/react-query';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: '2025-05-28.basil',
 });
+
+// Disable body parsing to handle raw body for Stripe signature verification
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+// Helper function to read raw body
+const getRawBody = (req: NextApiRequest): Promise<Buffer> => {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -13,16 +29,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const sig = req.headers['stripe-signature'];
-  let event = req.body;
+  let event;
 
   try {
+    // Get raw body for signature verification
+    const rawBody = await getRawBody(req);
+    
     // Verify webhook signature if secret is available
     if (process.env.STRIPE_WEBHOOK_SECRET) {
       try {
-        event = stripe.webhooks.constructEvent(req.body, sig as string, process.env.STRIPE_WEBHOOK_SECRET);
+        event = stripe.webhooks.constructEvent(rawBody, sig as string, process.env.STRIPE_WEBHOOK_SECRET);
       } catch (err: any) {
         return res.status(400).json({ error: `Webhook signature verification failed: ${err.message}` });
       }
+    } else {
+      // Parse JSON manually if no signature verification
+      event = JSON.parse(rawBody.toString());
     }
 
     const eventType = event.type;
