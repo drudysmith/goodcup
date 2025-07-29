@@ -112,9 +112,11 @@ export default function Dashboard() {
 
   // SMU 4.3c: Console logging for Stripe history loading
   useEffect(() => {
-    // Track Stripe history loading without logging
+    console.log('Dashboard - User stripeCustomerId:', user?.stripeCustomerId);
+    console.log('Dashboard - Orders count:', orders.length);
+    console.log('Dashboard - Subscriptions count:', subs.length);
   }, [user?.stripeCustomerId, orders, subs]);
-
+  
   // SMU 4.3d: Cache invalidation when user changes
   const prevCustomerIdRef = useRef<string | null | undefined>(undefined);
   
@@ -267,8 +269,52 @@ export default function Dashboard() {
 
   const formatCurrency = (amount: number) => `$${(amount / 100).toFixed(2)}`;
 
+  // Helper to format billing cycle information
+  const formatBillingCycle = (billingCycle: { interval: string; interval_count: number; amount: number }) => {
+    const { interval, interval_count, amount } = billingCycle;
+    const frequencyText = interval_count === 1 ? interval : `${interval_count} ${interval}s`;
+    return `${formatCurrency(amount)} per ${frequencyText}`;
+  };
+
+  // Helper to format billing frequency for display
+  const formatBillingFrequency = (billingCycle: { interval: string; interval_count: number }) => {
+    const { interval, interval_count } = billingCycle;
+    if (interval_count === 1) {
+      return `Every ${interval}`;
+    }
+    return `Every ${interval_count} ${interval}s`;
+  };
+
+  // Helper to format products list
+  const formatProductsList = (products: { id: string; name: string; description?: string }[]) => {
+    if (products.length === 0) return 'No products';
+    if (products.length === 1) return products[0].name;
+    return `${products[0].name} + ${products.length - 1} more`;
+  };
+
+  // Helper to get pause status text
+  const getPauseStatus = (subscription: any) => {
+    if (!subscription.is_paused) return null;
+    
+    const pauseInfo = subscription.pause_collection;
+    if (!pauseInfo) return 'Paused';
+    
+    if (pauseInfo.resumes_at) {
+      const resumeDate = new Date(pauseInfo.resumes_at * 1000).toLocaleDateString();
+      return `Paused until ${resumeDate}`;
+    }
+    
+    return 'Paused';
+  };
+
   const formatSubscriptionStatus = (sub: any) => {
     const status = sub.status?.toLowerCase() || 'unknown';
+    
+    // If paused, show as paused regardless of underlying status
+    if (sub.is_paused) {
+      return { bg: 'bg-yellow-100', text: 'text-yellow-800', label: getPauseStatus(sub) || 'Paused' };
+    }
+    
     const statusColors: { [key: string]: { bg: string; text: string; label: string } } = {
       'active': { bg: 'bg-semantic-success/10', text: 'text-semantic-success', label: 'Active' },
       'trialing': { bg: 'bg-semantic-info/10', text: 'text-semantic-info', label: 'Trial' },
@@ -469,26 +515,76 @@ export default function Dashboard() {
                       return (
                         <div 
                           key={sub.id} 
-                          className="border border-neutral-border rounded-lg p-3 mb-2 relative"
+                          className="border border-neutral-border rounded-lg p-4 mb-3 bg-white"
                         >
-                          <div className="flex justify-between items-start">
+                          <div className="flex justify-between items-start mb-3">
                             <div className="flex-1">
-                              <div className="text-text-primary font-medium">
-                                Subscription {sub.stripe_subscription_id?.slice(-8)}
+                              <div className="text-text-primary font-semibold text-lg mb-1">
+                                {formatProductsList(sub.products)}
                               </div>
-                              <div className="text-base text-text-secondary space-y-1">
-                                <div>Amount: {formatCurrency(sub.amount)}</div>
-                                <div>Started: {formatDate(sub.created_at)}</div>
-                                {sub.current_period_end && <div>Next billing: {formatDate(sub.current_period_end)}</div>}
-                                {sub.canceled_at && <div>Canceled: {formatDate(sub.canceled_at)}</div>}
-                                <div className="flex items-center gap-2">
-                                  <span className={`px-2 py-1 rounded text-base ${statusInfo.bg} ${statusInfo.text}`}>
-                                    {statusInfo.label}
-                                  </span>
-                                </div>
+                              <div className="text-sm text-text-secondary mb-2">
+                                ID: {sub.stripe_subscription_id?.slice(-8)}
+                              </div>
+                              <div className="text-sm text-text-primary font-medium">
+                                {formatBillingFrequency(sub.billing_cycle)} • {formatCurrency(sub.billing_cycle.amount)}
                               </div>
                             </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusInfo.bg} ${statusInfo.text}`}>
+                                {statusInfo.label}
+                              </span>
+                            </div>
                           </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                            <div className="space-y-2">
+                              {sub.current_period_end && (
+                                <div className="flex justify-between">
+                                  <span className="text-text-secondary">Next renewal:</span>
+                                  <span className="text-text-primary font-medium">{formatDate(sub.current_period_end)}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between">
+                                <span className="text-text-secondary">Started:</span>
+                                <span className="text-text-primary">{formatDate(sub.start_date)}</span>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              {sub.canceled_at && (
+                                <div className="flex justify-between">
+                                  <span className="text-text-secondary">Canceled:</span>
+                                  <span className="text-text-primary">{formatDate(sub.canceled_at)}</span>
+                                </div>
+                              )}
+                              {sub.products.length > 1 && (
+                                <div>
+                                  <span className="text-text-secondary">All products:</span>
+                                  <div className="mt-1">
+                                    {sub.products.map((product, index) => (
+                                      <div key={product.id} className="text-text-primary text-xs">
+                                        • {product.name}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Additional pause information */}
+                          {sub.is_paused && sub.pause_collection && (
+                            <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                              <div className="text-yellow-800">
+                                <strong>Subscription Paused:</strong> {getPauseStatus(sub)}
+                                {sub.pause_collection.behavior && (
+                                  <div className="text-xs mt-1">
+                                    Behavior: {sub.pause_collection.behavior.replace(/_/g, ' ')}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                       })
