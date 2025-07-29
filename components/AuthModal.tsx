@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuthModalState, closeAuthModal, updateCachedCredentials } from '../store/authModalStore';
+import { useAuthModalState, closeAuthModal, updateCachedCredentials, setAuthModalMode } from '../store/authModalStore';
 import { useAuthActions } from '../lib/hooks/useAuthActions';
 import { useSupabaseSession } from '../lib/queries/sessionQueries';
 import { useVisitor } from '../lib/contexts/VisitorContext';
@@ -76,7 +76,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   const modalState = useAuthModalState();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
+  
+  // Use mode from store instead of local state
+  const isSignUp = modalState.mode === 'signup';
   
   // Bug Module 8A: Track sign-up email confirmation state
   const [awaitingEmailConfirmation, setAwaitingEmailConfirmation] = useState(false);
@@ -98,10 +100,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
       setAwaitingEmailConfirmation(false);
       setSignUpEmail('');
       if (LOG_ENABLED) {
-        log('🎯 Module 7: Modal opened with prefilled data', {
-          email: modalState.email ? '***' + modalState.email.slice(-8) : undefined,
-          hasPassword: !!modalState.password,
-        });
+        log('[Modal Debug] Modal opened with prefilled email:', modalState.email);
       }
     }
   }, [modalState.isOpen, modalState.email, modalState.password]);
@@ -250,10 +249,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
       <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 ease-out animate-in zoom-in-95">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">
-              {isSignUp ? 'Create your account' : 'Sign in to your account'}
-            </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Welcome</h3>
             <button
               onClick={handleClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -262,6 +259,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
+            </button>
+          </div>
+          
+          {/* Tab-style toggle */}
+          <div className="flex bg-gray-100 rounded-lg p-1">
+            <button
+              type="button"
+              onClick={() => setAuthModalMode('signin')}
+              className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
+                modalState.mode === 'signin'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+              disabled={isLoading}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => setAuthModalMode('signup')}
+              className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
+                modalState.mode === 'signup'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+              disabled={isLoading}
+            >
+              Create Account
             </button>
           </div>
         </div>
@@ -351,15 +376,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                 disabled={isLoading}
               >
                 {isLoading ? (isSignUp ? 'Creating account...' : 'Signing in...') : (isSignUp ? 'Create account' : 'Sign in')}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="w-full text-sm text-blue-600 hover:text-blue-700 transition-colors"
-                disabled={isLoading}
-              >
-                {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
               </button>
             </div>
           </form>

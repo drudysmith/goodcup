@@ -6,6 +6,7 @@ interface AuthModalState {
   isOpen: boolean;
   email?: string;
   password?: string;
+  mode?: 'signin' | 'signup';
 }
 
 // UxAuth 1: Initial state
@@ -13,6 +14,7 @@ const initialState: AuthModalState = {
   isOpen: false,
   email: undefined,
   password: undefined,
+  mode: 'signin',
 };
 
 // UxAuth 1: Create auth modal store
@@ -39,7 +41,7 @@ const saveCachedCredentials = (email?: string, password?: string) => {
 };
 
 // UxAuth 1: Global method to open auth modal
-export const openAuthModal = (email?: string, password?: string) => {
+export const openAuthModal = (email?: string, password?: string, mode: 'signin' | 'signup' = 'signin') => {
   // Read cached credentials if not provided
   const cached = getCachedCredentials();
   const finalEmail = email || cached.email;
@@ -50,6 +52,7 @@ export const openAuthModal = (email?: string, password?: string) => {
     isOpen: true,
     email: finalEmail,
     password: finalPassword,
+    mode,
   }));
 
 
@@ -61,6 +64,7 @@ export const closeAuthModal = () => {
     isOpen: false,
     email: undefined,
     password: undefined,
+    mode: 'signin',
   }));
 
 
@@ -69,6 +73,14 @@ export const closeAuthModal = () => {
 // UxAuth 1: Method to update cached credentials
 export const updateCachedCredentials = (email?: string, password?: string) => {
   saveCachedCredentials(email, password);
+};
+
+// Method to update auth modal mode
+export const setAuthModalMode = (mode: 'signin' | 'signup') => {
+  authModalStore.setState((state) => ({
+    ...state,
+    mode,
+  }));
 };
 
 // UxAuth 1: Hook to get auth modal state

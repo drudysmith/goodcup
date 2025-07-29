@@ -295,14 +295,14 @@ export default function Dashboard() {
                 </p>
                 <div className="space-y-3">
                   <button 
-                    onClick={() => openAuthModal(visitorData?.email || undefined)}
-                    className="w-full bg-primary text-primary-foreground py-2 px-4 rounded-lg hover:bg-primary/90 transition-colors"
+                    onClick={() => openAuthModal(visitorData?.email || undefined, undefined, 'signin')}
+                    className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium"
                   >
                     Sign In
                   </button>
                   <button 
-                    onClick={() => openAuthModal(visitorData?.email || undefined)}
-                    className="w-full border border-neutral-border bg-surface text-text-primary py-2 px-4 rounded-lg hover:bg-neutral-muted-bg transition-colors"
+                    onClick={() => openAuthModal(visitorData?.email || undefined, undefined, 'signup')}
+                    className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium"
                   >
                     Create Account
                   </button>

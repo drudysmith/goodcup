@@ -66,41 +66,48 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let merged = false;
 
     if (existingUserVisitor) {
-      // User already has a visitor record, merge carts
-      const existingCart = existingUserVisitor.cart || [];
-      const newCart = req.body.cart || [];
+      // Guard: Check if visitor_id already belongs to this user
+      if (existingUserVisitor.id === visitor_id) {
+        // No merge needed - visitor already belongs to user
+        mergedVisitorId = existingUserVisitor.id;
+        merged = false;
+      } else {
+        // User already has a visitor record, merge carts
+        const existingCart = existingUserVisitor.cart || [];
+        const newCart = req.body.cart || [];
 
-      // Merge carts (simple concatenation for now)
-      const mergedCart = [...existingCart, ...newCart];
+        // Merge carts (simple concatenation for now)
+        const mergedCart = [...existingCart, ...newCart];
 
-      // Preserve Stripe customer ID if it exists
-      const stripeCustIdToUpdate = existingUserVisitor.stripe_cust_id;
+        // Preserve Stripe customer ID if it exists
+        const stripeCustIdToUpdate = existingUserVisitor.stripe_cust_id;
 
-      // Update existing visitor record with merged data
-      const { error: updateError } = await supabaseServiceRole
-        .from('visitors')
-        .update({
-          cart: mergedCart,
-          stripe_cust_id: stripeCustIdToUpdate
-        })
-        .eq('id', existingUserVisitor.id);
+        // Update existing visitor record with merged data
+        const { error: updateError } = await supabaseServiceRole
+          .from('visitors')
+          .update({
+            cart: mergedCart,
+            stripe_cust_id: stripeCustIdToUpdate
+          })
+          .eq('id', existingUserVisitor.id);
 
-      if (updateError) {
-        return res.status(500).json({ error: 'Error updating existing user visitor' });
+        if (updateError) {
+          return res.status(500).json({ error: 'Error updating existing user visitor' });
+        }
+
+        // Delete the temporary visitor record
+        const { error: deleteError } = await supabaseServiceRole
+          .from('visitors')
+          .delete()
+          .eq('id', visitor_id);
+
+        if (deleteError) {
+          return res.status(500).json({ error: 'Error deleting temporary visitor' });
+        }
+
+        mergedVisitorId = existingUserVisitor.id;
+        merged = true;
       }
-
-      // Delete the temporary visitor record
-      const { error: deleteError } = await supabaseServiceRole
-        .from('visitors')
-        .delete()
-        .eq('id', visitor_id);
-
-      if (deleteError) {
-        return res.status(500).json({ error: 'Error deleting temporary visitor' });
-      }
-
-      mergedVisitorId = existingUserVisitor.id;
-      merged = true;
     } else {
       // Assign visitor to user
       const { error: updateError } = await supabaseServiceRole
