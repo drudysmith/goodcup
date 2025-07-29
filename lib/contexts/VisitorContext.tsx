@@ -311,8 +311,6 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
       return;
     }
 
-
-    
     // Clear current cart first to avoid duplicates
     cartActions.clearCart();
     

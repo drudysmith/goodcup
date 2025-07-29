@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
 import { supabaseServiceRole } from '../../lib/supabaseClient';
+import { QueryClient } from '@tanstack/react-query';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: '2025-05-28.basil',
@@ -49,20 +50,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const eventType = event.type;
 
-    // Module B: Query invalidation for specific events
-    if (eventType === 'checkout.session.completed' || 
-        eventType === 'invoice.paid' || 
-        eventType === 'customer.subscription.created' ||
-        eventType === 'customer.subscription.updated' ||
-        eventType === 'customer.subscription.deleted') {
-      
-      if (eventType === 'checkout.session.completed') {
-        // Invalidate orders and subscriptions queries
-      } else {
-        // Invalidate subscriptions queries only
-      }
-    }
-
     // Handle checkout.session.completed events
     if (eventType === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -78,7 +65,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const supabaseUserId = session.metadata?.supabase_user_id;
       const visitorId = session.metadata?.visitor_id;
-
+      
       if (supabaseUserId) {
         // Update authenticated user's stripe_cust_id and clear cart
         const { error: updateResult } = await supabaseServiceRole

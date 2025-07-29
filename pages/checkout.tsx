@@ -668,17 +668,20 @@ export default function Checkout() {
                   {customerInfo.address}, {customerInfo.city}, {customerInfo.state} {customerInfo.zipCode}, {customerInfo.country}
                 </div>
               </div>
-              {/* Checkout Mode Toggle */}
-              <div className="mb-4">
-                <CheckoutModeToggle
-                  onModeChange={setCheckoutMode}
-                  defaultMode={checkoutMode}
-                  className=""
-                />
-              </div>
+              {/* Checkout Mode Toggle - Only show for guests */}
+              {!userSession && (
+                <div className="mb-4">
+                  <CheckoutModeToggle
+                    onModeChange={setCheckoutMode}
+                    defaultMode={checkoutMode}
+                    className=""
+                  />
+                </div>
+              )}
 
               <button onClick={handleCheckout} disabled={checkoutLoading} className="w-full bg-brand-secondary text-white py-3 px-6 rounded disabled:opacity-50 text-lg">
                 {checkoutLoading ? 'Processing...' : 
+                  userSession ? 'Continue to payment' : 
                   checkoutMode === 'user' ? 'Continue to sign in' : 'Continue to payment'
                 }
               </button>
@@ -899,6 +902,35 @@ export default function Checkout() {
                 </div>
               );
             })}
+            
+            {/* Promo code reminder note */}
+            {promo && promo.code && (
+              <div className="text-lg text-brand-secondary bg-brand-secondary/10 rounded px-3 py-2 mb-4 text-center font-medium">
+                <div className="space-y-1">
+                  <p>
+                    Use coupon code <span className="font-bold">{promo.code}</span> at checkout.
+                  </p>
+                  {promo.duration && (
+                    <p>
+                      {promo.duration === 'once' 
+                        ? 'Applies to first month.'
+                        : promo.duration === 'forever'
+                        ? 'Good forever.'
+                        : promo.duration === 'repeating' && promo.duration_in_months
+                        ? `Good for ${promo.duration_in_months} months of subscription.`
+                        : null
+                      }
+                    </p>
+                  )}
+                  {promo.first_time_transaction && (
+                    <p>
+                      Good for first time orders.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+            
             <hr className="my-4" />
             <div className="flex justify-between text-xl font-bold">
               <span>Total</span>

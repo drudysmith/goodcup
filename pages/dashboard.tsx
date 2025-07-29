@@ -237,8 +237,16 @@ export default function Dashboard() {
     const { success, canceled } = router.query;
     
     if (success === '1') {
-      // Clear the cart
-      clearCart();
+      // Clear the cart with a small delay to let webhook clear database first
+      console.log('🎯 [Dashboard] Clearing cart after successful purchase');
+      
+      // Small delay to allow webhook to clear database first
+      setTimeout(() => {
+        clearCart();
+        
+        // Invalidate visitor query to force fresh fetch
+        queryClient.invalidateQueries({ queryKey: ['visitor'], exact: false });
+      }, 1000);
       
       // Invalidate and refetch orders and subscriptions
       queryClient.invalidateQueries({ queryKey: ['orders'], exact: false });
