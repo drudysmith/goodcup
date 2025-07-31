@@ -14,4 +14,4 @@ git commit -m "$message"
 #comment out next line if you want to answer the questions
 $env:GIT_ASK_YESNO = "false"
 
-git push origin $branch
+git push origin $branch --force

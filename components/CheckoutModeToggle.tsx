@@ -20,12 +20,12 @@ export const CheckoutModeToggle: React.FC<CheckoutModeToggleProps> = ({
 
   return (
     <div className={`checkout-mode-toggle ${className}`}>
-      <div className="text-lg text-text-secondary mb-2 text-center">Choose checkout option:</div>
+      <div className="text-2xl text-text-secondary mb-2 text-center">Choose checkout option:</div>
       <div className="flex gap-2 justify-center">
         {/* Check out as user */}
         <button
           onClick={() => handleModeSelect('user')}
-          className={`flex-1 px-3 py-2 text-lg rounded-md transition-all duration-200 ${
+          className={`flex-1 px-3 py-2 text-lg rounded-full transition-all duration-200 ${
             selectedMode === 'user'
               ? 'bg-brand-secondary text-white shadow-sm'
               : 'bg-surface-background border border-neutral-border text-text-secondary hover:bg-neutral-hover'
@@ -42,7 +42,7 @@ export const CheckoutModeToggle: React.FC<CheckoutModeToggleProps> = ({
         {/* Continue as guest */}
         <button
           onClick={() => handleModeSelect('guest')}
-          className={`flex-1 px-3 py-2 text-lg rounded-md transition-all duration-200 ${
+          className={`flex-1 px-3 py-2 text-lg rounded-full transition-all duration-200 ${
             selectedMode === 'guest'
               ? 'bg-brand-secondary text-white shadow-sm'
               : 'bg-surface-background border border-neutral-border text-text-secondary hover:bg-neutral-hover'
@@ -52,15 +52,15 @@ export const CheckoutModeToggle: React.FC<CheckoutModeToggleProps> = ({
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>Continue as guest</span>
+            <span>Continue as visitor</span>
           </div>
         </button>
       </div>
       
-      <div className="text-lg text-text-tertiary mt-1 text-center">
+      <div className="text-xl text-text-tertiary mt-4 text-center">
         {selectedMode === 'user' 
-          ? 'Create account for faster future checkouts'
-          : 'Quick checkout without account creation'
+          ? '<< Faster future checkouts'
+          : 'Quick checkout today >>'
         }
       </div>
     </div>

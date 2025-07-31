@@ -376,6 +376,79 @@ export default function Checkout() {
     },
   });
 
+  // Shipment order saving function (writes to shipment_orders table)
+  const saveShipmentOrder = async (shipmentData: any, token: string) => {
+    console.log('💾 SAVE SHIPMENT ORDER - API Call:', { shipmentData, token });
+    // DEBUG: Log the shipmentData payload in detail
+    console.log('DEBUG shipmentData payload:', JSON.stringify(shipmentData, null, 2));
+    
+    const response = await fetch('/api/saveShipmentOrder', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ shipmentData }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to save shipment order');
+    }
+
+    return response.json();
+  };
+
+  // Shipment order saving mutation
+  const saveShipmentOrderMutation = useMutation({
+    mutationFn: ({ shipmentData, token }: { shipmentData: any; token: string }) => saveShipmentOrder(shipmentData, token),
+    onSuccess: (data) => {
+      console.log('✅ SAVE SHIPMENT ORDER - Success:', data);
+    },
+    onError: (error) => {
+      console.error('❌ SAVE SHIPMENT ORDER - Error:', error);
+      alert('Failed to save shipment order. Please try again.');
+    },
+  });
+
+  // Helper function to prepare shipment order data
+  const prepareShipmentOrderData = () => {
+    const isGiftShipping = shippingToggleQuery.data;
+    const addressData = shippingAddressQuery.data;
+    const isAddressDirty = addressDirtyQuery.data;
+    
+    return {
+      // Visitor/User identification
+      visitor_id: visitorId,
+      user_id: userSession?.user?.id || null,
+      email: visitorData?.email || '',
+      phone: visitorData?.phone || '',
+      
+      // Recipient address (self or guest)
+      recipient_name: addressData?.name || '',
+      address_line1: addressData?.street || '',
+      address_line2: addressData?.unit || '',
+      city: addressData?.city || '',
+      state: addressData?.state || '',
+      postal_code: addressData?.postal_code || '',
+      country: addressData?.country || '',
+      
+      // Shipping mode and metadata
+      shipping_mode: isGiftShipping ? 'gift' : 'self',
+      is_address_dirty: isAddressDirty,
+      
+      // Cart/order context (if needed)
+      cart_items: items,
+      cart_total: items.reduce((sum, item) => {
+        const { price } = getProductAndPrice(item);
+        return sum + ((price?.unit_amount || 0) * item.quantity);
+      }, 0),
+      
+      // Metadata
+      created_at: new Date().toISOString(),
+    };
+  };
+
   // TanStack Query for shipping toggle state management
   const shippingToggleQuery = useQuery({
     queryKey: ['shippingToggle'],
@@ -471,7 +544,7 @@ export default function Checkout() {
     const isGuestToggle = shippingToggleQuery.data;
     
     if (isGuestToggle) {
-      // Clear address when toggled to guest
+      // Clear address when toggled to gift
       updateShippingAddressMutation.mutate({
         name: '',
         street: '',
@@ -518,7 +591,7 @@ export default function Checkout() {
       });
       setHasPrefilledAddress(true);
     }
-  }, [shippingToggleQuery.data, userSession, userProfileQuery.data, visitorData, updateShippingAddressMutation, updateAddressDirtyMutation, hasPrefilledAddress]);
+  }, [shippingToggleQuery.data, userSession, userProfileQuery.data, visitorData, hasPrefilledAddress]);
 
   // State Mgmt Update 2: Setup auth state change listener
   useEffect(() => {
@@ -536,7 +609,7 @@ export default function Checkout() {
           // Create checkout session with user ID
           await checkoutSessionMutation.mutateAsync({
             items,
-            customerEmail: session.user.email || customerInfoQuery.data?.email,
+            customerEmail: session.user.email || customerInfoQuery.data?.email || '',
             supabaseUserId: session.user.id,
             checkoutMode: 'user'
           });
@@ -645,19 +718,19 @@ export default function Checkout() {
     setCheckoutLoading(true);
     
     // Check shipping stage validation and handle address saving logic
-    const isGuestShipping = shippingToggleQuery.data;
+    const isGiftShipping = shippingToggleQuery.data;
     const isAddressDirty = addressDirtyQuery.data;
     
     try {
-      if (isGuestShipping) {
-        // If shipping to guest, validate address is complete
+      if (isGiftShipping) {
+        // If shipping to gift, validate address is complete
         if (!validateShippingStage()) {
           alert('Please complete all shipping address fields');
           setCheckoutLoading(false);
           return;
         }
-        // TODO: Save guest shipping address to shipment_orders table
-        console.log('Guest shipping - would save to shipment_orders:', shippingAddressQuery.data);
+        // TODO: Save gift shipping address to shipment_orders table
+        console.log('Gift shipping - would save to shipment_orders:', shippingAddressQuery.data);
       } else {
         // If shipping to self
         if (isAddressDirty) {
@@ -676,7 +749,7 @@ export default function Checkout() {
           try {
             await checkoutSessionMutation.mutateAsync({
               items,
-              customerEmail: userSession.user.email || customerInfoQuery.data?.email,
+              customerEmail: userSession.user.email || customerInfoQuery.data?.email || '',
               supabaseUserId: userSession.user.id,
               checkoutMode: 'user'
             });
@@ -705,7 +778,7 @@ export default function Checkout() {
       // Guest checkout flow using visitor context
       await checkoutSessionMutation.mutateAsync({
         items,
-        customerEmail: visitorData?.email || customerInfoQuery.data?.email,
+        customerEmail: visitorData?.email || customerInfoQuery.data?.email || '',
         visitorId: visitorId || undefined,
         visitorJwt: jwt || undefined,
         checkoutMode: 'guest'
@@ -906,8 +979,8 @@ export default function Checkout() {
                 <p className="text-3xl text-brand-secondary font-medium">🚚 Free shipping to the US</p>
               </div>
                               <div className="border p-4 rounded">
-                 <div className="mb-3 text-lg text-text-secondary">
-                   Shipping to {shippingToggleQuery.data ? 'guest' : 'self'}
+                 <div className="mb-3 text-2xl text-text-secondary">
+                   Shipping  {shippingToggleQuery.data ? 'as a gift' : 'to yourself'}
                  </div>
                  <div className="mb-4">
                    <button
@@ -928,7 +1001,7 @@ export default function Checkout() {
                      </span>
                    </button>
                    <span className="ml-3 text-lg text-text-primary">
-                     Guest
+                     Gift
                    </span>
                  </div>
                  <div className="space-y-4">
@@ -1064,13 +1137,43 @@ export default function Checkout() {
                           <form
                             onSubmit={async (e) => {
                               e.preventDefault();
+                              
+                              // GATE 1: SEND MAGIC LINK BUTTON
+                              // ================================
+                              // Before sending magic link, we must save shipment order to ensure
+                              // fulfillment data is captured before user proceeds to payment
+                              console.log('🚪 GATE 1: Send Magic Link - Starting validation and save process');
+                              
                               if (!loginEmail.trim()) {
                                 setLoginError('Email is required');
                                 return;
                               }
+                              
+                              // Validate shipping address is complete
+                              if (!validateShippingStage()) {
+                                setLoginError('Please complete all shipping address fields before proceeding');
+                                return;
+                              }
+                              
                               setLoginLoading(true);
                               setLoginError(null);
+                              
                               try {
+                                // Step 1: Save shipment order BEFORE sending magic link
+                                console.log('🚪 GATE 1: Preparing shipment order data...');
+                                const shipmentData = prepareShipmentOrderData();
+                                const token = (userSession as any)?.access_token || jwt;
+                                
+                                if (!token) {
+                                  setLoginError('Authentication required to save shipment order');
+                                  return;
+                                }
+                                
+                                console.log('🚪 GATE 1: Saving shipment order before magic link...');
+                                await saveShipmentOrderMutation.mutateAsync({ shipmentData, token });
+                                
+                                // Step 2: Send magic link only after successful save
+                                console.log('🚪 GATE 1: Shipment order saved, sending magic link...');
                                 const emailToUse = (visitorData?.email || customerInfoQuery.data?.email) || loginEmail;
                                 const redirectParams = new URLSearchParams({
                                   mode: 'user',
@@ -1083,13 +1186,17 @@ export default function Checkout() {
                                   email: emailToUse.trim(),
                                   options: { emailRedirectTo: redirectUrl }
                                 });
+                                
                                 if (error) {
                                   setLoginError(error.message);
+                                  console.log('🚪 GATE 1: Magic link send failed:', error.message);
                                 } else {
                                   setLoginLinkSent(true);
+                                  console.log('🚪 GATE 1: Magic link sent successfully');
                                 }
                               } catch (err) {
-                                setLoginError('Failed to send magic link');
+                                setLoginError('Failed to save shipment order or send magic link');
+                                console.error('🚪 GATE 1: Error in magic link flow:', err);
                               } finally {
                                 setLoginLoading(false);
                               }
@@ -1111,6 +1218,13 @@ export default function Checkout() {
                           <form
                             onSubmit={async (e) => {
                               e.preventDefault();
+                              
+                              // GATE 2: SIGN IN WITH PASSWORD BUTTON
+                              // ====================================
+                              // Before password authentication, we must save shipment order to ensure
+                              // fulfillment data is captured before user proceeds to payment
+                              console.log('🚪 GATE 2: Sign In with Password - Starting validation and save process');
+                              
                               if (!loginEmail.trim()) {
                                 setLoginError('Email is required');
                                 return;
@@ -1119,11 +1233,37 @@ export default function Checkout() {
                                 setLoginError('Password is required');
                                 return;
                               }
+                              
+                              // Validate shipping address is complete
+                              if (!validateShippingStage()) {
+                                setLoginError('Please complete all shipping address fields before proceeding');
+                                return;
+                              }
+                              
                               setLoginError(null);
+                              
                               try {
+                                // Step 1: Save shipment order BEFORE password authentication
+                                console.log('🚪 GATE 2: Preparing shipment order data...');
+                                const shipmentData = prepareShipmentOrderData();
+                                const token = (userSession as any)?.access_token || jwt;
+                                
+                                if (!token) {
+                                  setLoginError('Authentication required to save shipment order');
+                                  return;
+                                }
+                                
+                                console.log('🚪 GATE 2: Saving shipment order before password auth...');
+                                await saveShipmentOrderMutation.mutateAsync({ shipmentData, token });
+                                
+                                // Step 2: Authenticate with password only after successful save
+                                console.log('🚪 GATE 2: Shipment order saved, attempting password authentication...');
                                 authActions.signInWithPassword(loginEmail.trim(), loginPassword);
+                                console.log('🚪 GATE 2: Password authentication initiated');
+                                
                               } catch (err) {
-                                setLoginError('Failed to sign in');
+                                setLoginError('Failed to save shipment order or sign in');
+                                console.error('🚪 GATE 2: Error in password auth flow:', err);
                               }
                             }}
                             className="space-y-3"
@@ -1298,23 +1438,57 @@ export default function Checkout() {
                 </button>
                 <button
                   onClick={async () => {
+                    // GATE 3: NO, CONTINUE AS GUEST BUTTON
+                    // ====================================
+                    // Before proceeding to guest checkout, we must save shipment order to ensure
+                    // fulfillment data is captured before user proceeds to payment
+                    console.log('🚪 GATE 3: Continue as Guest - Starting validation and save process');
+                    
                     setShowGuestConfirmation(false);
                     setCheckoutLoading(true);
                     
                     try {
+                      // Step 1: Validate shipping address is complete
+                      if (!validateShippingStage()) {
+                        alert('Please complete all shipping address fields before proceeding');
+                        setCheckoutLoading(false);
+                        return;
+                      }
+                      
+                      // Step 2: Save shipment order BEFORE proceeding to payment
+                      console.log('🚪 GATE 3: Preparing shipment order data...');
+                      const shipmentData = prepareShipmentOrderData();
+                      const token = userSession?.access_token || jwt;
+                      
+                      if (!token) {
+                        alert('Authentication required to save shipment order');
+                        setCheckoutLoading(false);
+                        return;
+                      }
+                      
+                      console.log('🚪 GATE 3: Saving shipment order before guest checkout...');
+                      await saveShipmentOrderMutation.mutateAsync({ shipmentData, token });
+                      
+                      // Step 3: Proceed to checkout only after successful save
+                      console.log('🚪 GATE 3: Shipment order saved, proceeding to guest checkout...');
                       await checkoutSessionMutation.mutateAsync({
                         items,
-                        customerEmail: visitorData?.email || customerInfoQuery.data?.email,
+                        customerEmail: visitorData?.email || customerInfoQuery.data?.email || '',
                         visitorId: visitorId || undefined,
                         checkoutMode: 'guest'
                       });
+                      console.log('🚪 GATE 3: Guest checkout initiated successfully');
+                      
+                    } catch (error) {
+                      console.error('🚪 GATE 3: Error in guest checkout flow:', error);
+                      alert('Failed to save shipment order or proceed to checkout. Please try again.');
                     } finally {
                       setCheckoutLoading(false);
                     }
                   }}
                   className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors text-lg"
                 >
-                  No, continue as guest
+                  No, continue as visitor
                 </button>
               </div>
             </div>
