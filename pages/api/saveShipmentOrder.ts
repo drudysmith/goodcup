@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseServiceRole } from '../../lib/supabaseClient';
-import * as jwt from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ShipmentOrderData {
@@ -23,6 +23,8 @@ interface ShipmentOrderData {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log('🚀 API: /api/saveShipmentOrder endpoint reached');
+  
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -71,7 +73,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } else {
         // Try visitor JWT
         try {
-                     const decoded = jwt.verify(token, process.env.SUPABASE_JWT_SECRET!) as { visitorId: string };
+          const decoded = jwt.verify(token, process.env.SUPABASE_JWT_SECRET!) as { visitorId: string };
           visitorId = decoded.visitorId;
         } catch (jwtError) {
           return res.status(401).json({ error: 'Invalid token' });

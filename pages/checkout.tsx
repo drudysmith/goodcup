@@ -378,6 +378,7 @@ export default function Checkout() {
 
   // Shipment order saving function (writes to shipment_orders table)
   const saveShipmentOrder = async (shipmentData: any, token: string) => {
+    console.log('🚀 FRONTEND: saveShipmentOrder called - initiating API request to /api/saveShipmentOrder');
     console.log('💾 SAVE SHIPMENT ORDER - API Call:', { shipmentData, token });
     // DEBUG: Log the shipmentData payload in detail
     console.log('DEBUG shipmentData payload:', JSON.stringify(shipmentData, null, 2));
