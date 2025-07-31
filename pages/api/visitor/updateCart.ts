@@ -50,6 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     }
 
     // Update visitor's cart in database
+    console.log('[visitor id] updated IN db', visitorId.substring(0, 4) + '...');
     const { error } = await supabaseServiceRole
       .from('visitors')
       .update({ cart })

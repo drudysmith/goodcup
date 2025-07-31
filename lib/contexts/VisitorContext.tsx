@@ -95,16 +95,49 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
   const queryClient = useQueryClient();
   const [skipVisitor, setSkipVisitor] = useState<boolean | null>(null);
   const [userCartReady, setUserCartReady] = useState<boolean>(false);
-  // Initialize visitor ID directly from localStorage to avoid timing races
-  const [visitorId, setVisitorId] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('visitor_id') || '';
-    }
-    return '';
+  
+  // TanStack Query for visitor ID management (data state)
+  const visitorIdQuery = useQuery({
+    queryKey: ['visitorId'],
+    queryFn: () => {
+      if (typeof window !== 'undefined') {
+        const storedId = localStorage.getItem('visitor_id') || '';
+        console.log('[visitor id] checked IN localStorage', storedId ? storedId.substring(0, 4) + '...' : 'none');
+        return storedId;
+      }
+      return '';
+    },
+    staleTime: Infinity, // Visitor ID doesn't change unless we explicitly update it
+    refetchOnWindowFocus: false,
   });
 
   // Monitor session state for userCartReady flag
   const sessionQuery = useSupabaseSession();
+
+  // TanStack Mutation for updating visitor ID (data state)
+  const updateVisitorIdMutation = useMutation({
+    mutationFn: async (newVisitorId: string) => {
+      localStorage.setItem('visitor_id', newVisitorId);
+      console.log('[visitor id] set IN localStorage', newVisitorId.substring(0, 4) + '...');
+      return newVisitorId;
+    },
+    onSuccess: (newVisitorId) => {
+      queryClient.setQueryData(['visitorId'], newVisitorId);
+      console.log('[visitor id] updated IN state', newVisitorId.substring(0, 4) + '...');
+    },
+  });
+
+  // TanStack Mutation for removing visitor ID (data state)
+  const removeVisitorIdMutation = useMutation({
+    mutationFn: async () => {
+      localStorage.removeItem('visitor_id');
+      console.log('[visitor id] removed IN localStorage due to invalid JWT');
+      return '';
+    },
+    onSuccess: () => {
+      queryClient.setQueryData(['visitorId'], '');
+    },
+  });
 
   // Effect to set userCartReady based on session state
   useEffect(() => {
@@ -139,11 +172,10 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
   // visitor effects (ID generation, JWT fetch, cart sync) are bypassed.
   useEffect(() => {
     const init = async () => {
-      // Step 1: Generate visitor ID if none exists (already loaded in useState)
-      if (typeof window !== 'undefined' && !visitorId) {
+      // Step 1: Generate visitor ID if none exists (use TanStack mutation)
+      if (typeof window !== 'undefined' && visitorIdQuery.data === '' && !updateVisitorIdMutation.isPending) {
         const newVisitorId = uuidv4();
-        localStorage.setItem('visitor_id', newVisitorId);
-        setVisitorId(newVisitorId);
+        updateVisitorIdMutation.mutate(newVisitorId);
       }
 
       // Step 2: Check for session status
@@ -155,11 +187,11 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
       }
 
       // Step 3: Add console log for verification
-      console.log('[VisitorProvider] Visitor ID:', visitorId || 'generating...', 'skipVisitor:', session ? true : false);
+      console.log('[VisitorProvider] Visitor ID:', visitorIdQuery.data ? visitorIdQuery.data.substring(0, 4) + '...' : 'generating...', 'skipVisitor:', session ? true : false);
     };
 
     init();
-  }, []);
+  }, [visitorIdQuery.data, updateVisitorIdMutation]);
 
 
   // Cart sync state and refs
@@ -176,15 +208,15 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
 
   // Query for visitor data - handles both init and validate flows
   const visitorQuery = useQuery({
-    queryKey: ['visitor', visitorId],
+    queryKey: ['visitor', visitorIdQuery.data],
     queryFn: async () => {
-      if (!visitorId) return null;
+      if (!visitorIdQuery.data) return null;
 
       const existingJwt = localStorage.getItem('visitor_jwt');
       
       if (!existingJwt) {
         // Module 2: Registration flow - New visitor needs JWT
-        const initData = await fetchVisitorInit(visitorId);
+        const initData = await fetchVisitorInit(visitorIdQuery.data);
         localStorage.setItem('visitor_jwt', initData.jwt);
         
         return {
@@ -215,13 +247,13 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
             needsReload: false
           };
         } catch (error) {
-          // Invalid JWT - clear and restart
-          localStorage.removeItem('visitor_id');
+          // Invalid JWT - clear and restart using TanStack mutations
+          removeVisitorIdMutation.mutate();
           localStorage.removeItem('visitor_jwt');
           
-          // Generate new visitor and restart flow
+          // Generate new visitor and restart flow using TanStack mutation
           const newVisitorId = uuidv4();
-          localStorage.setItem('visitor_id', newVisitorId);
+          updateVisitorIdMutation.mutate(newVisitorId);
           
           return {
             jwt: null,
@@ -231,7 +263,7 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
         }
       }
     },
-    enabled: !!visitorId && skipVisitor === false,
+    enabled: !!visitorIdQuery.data && skipVisitor === false,
     retry: (failureCount, error) => {
       // Don't retry if it's an auth error to prevent loops
       if (error?.message?.includes('Failed to validate visitor')) {
@@ -271,7 +303,7 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
     },
     onSuccess: () => {
       // Invalidate visitor query to refresh data
-      queryClient.invalidateQueries({ queryKey: ['visitor', visitorId] });
+      queryClient.invalidateQueries({ queryKey: ['visitor', visitorIdQuery.data] });
     },
     onError: (error) => {
       // Error handling without logging
@@ -358,8 +390,8 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
   // Function to update visitor identity after merge/identify
   const updateVisitorIdentity = (newVisitorId: string, newJwt: string, newVisitorData: VisitorData) => {
 
-    // Update localStorage
-    localStorage.setItem('visitor_id', newVisitorId);
+    // Update visitor ID using TanStack mutation
+    updateVisitorIdMutation.mutate(newVisitorId);
     localStorage.setItem('visitor_jwt', newJwt);
 
     // Invalidate and refetch visitor data with new identity
@@ -395,7 +427,7 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
     const isReady = !visitorQuery.isLoading && !visitorQuery.isError;
     
     // Only sync if visitor is authenticated and ready
-    if (!isReady || !jwt || !visitorId) {
+    if (!isReady || !jwt || !visitorIdQuery.data) {
       return;
     }
 
@@ -424,7 +456,7 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
         clearTimeout(cartSyncTimeoutRef.current);
       }
     };
-  }, [cartItems, visitorQuery.data?.jwt, visitorId, visitorQuery.isLoading, visitorQuery.isError, skipVisitor]);
+  }, [cartItems, visitorQuery.data?.jwt, visitorIdQuery.data, visitorQuery.isLoading, visitorQuery.isError, skipVisitor]);
 
   // Effect to sync user cart changes to database
   useEffect(() => {
@@ -472,7 +504,7 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
     isReady = !visitorQuery.isLoading && !visitorQuery.isError && !!visitorQuery.data;
   }
   const contextValue: VisitorContextType = {
-    visitorId: visitorId || null, // Always expose visitor ID regardless of skipVisitor
+    visitorId: visitorIdQuery.data || null, // Always expose visitor ID regardless of skipVisitor
     jwt: skipVisitor ? null : visitorQuery.data?.jwt || null,
     visitorData: skipVisitor ? null : visitorQuery.data?.visitorData || null,
     isReady,
@@ -499,7 +531,7 @@ export const useVisitor = () => {
   
   // Smart console log in the hook to show what we have
   /*console.log('🔍 useVisitor hook called - Current state:', {
-    visitorId: context.visitorId,
+    visitorId: context.visitorId ? context.visitorId.substring(0, 4) + '...' : null,
     jwt: context.jwt ? '***' + context.jwt.slice(-8) : null,
     visitorData: context.visitorData ? { 
       hasName: !!context.visitorData.name,

@@ -14,20 +14,20 @@ interface MagicLinkSentViewProps {
 const MagicLinkSentView: React.FC<MagicLinkSentViewProps> = ({ email, onClose }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center">
     <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 ease-out" onClick={onClose} />
-    <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 ease-out animate-in zoom-in-95">
-      <div className="px-6 py-8 text-center">
-        <div className="text-green-500 mb-4">
+    <div className="relative bg-surface rounded-lg shadow-xl max-w-sm w-full mx-4 transform transition-all duration-300 ease-out animate-in zoom-in-95 border border-neutral-border">
+      <div className="px-4 py-6 text-center">
+        <div className="text-semantic-success mb-4">
           <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2z" />
           </svg>
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Check your email</h3>
-        <p className="text-sm text-gray-500 mb-6">
+        <h3 className="text-xl font-semibold text-text-primary mb-2">Check your email</h3>
+        <p className="text-base text-text-secondary mb-4">
           We've sent a magic link to <strong>{email}</strong>. Click the link to sign in and continue.
         </p>
         <button
           onClick={onClose}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+          className="px-4 py-2.5 bg-brand-secondary text-white rounded-md hover:bg-brand-secondary/90 focus:outline-none focus:ring-2 focus:ring-brand-secondary transition-colors text-base font-medium"
         >
           Got it
         </button>
@@ -45,20 +45,20 @@ interface EmailConfirmationViewProps {
 const EmailConfirmationView: React.FC<EmailConfirmationViewProps> = ({ email, onClose }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center">
     <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 ease-out" onClick={onClose} />
-    <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 ease-out animate-in zoom-in-95">
-      <div className="px-6 py-8 text-center">
-        <div className="text-orange-500 mb-4">
+    <div className="relative bg-surface rounded-lg shadow-xl max-w-sm w-full mx-4 transform transition-all duration-300 ease-out animate-in zoom-in-95 border border-neutral-border">
+      <div className="px-4 py-6 text-center">
+        <div className="text-semantic-warning mb-4">
           <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2z" />
           </svg>
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm your email</h3>
-        <p className="text-sm text-gray-500 mb-6">
+        <h3 className="text-xl font-semibold text-text-primary mb-2">Confirm your email</h3>
+        <p className="text-base text-text-secondary mb-4">
           We've sent a confirmation email to <strong>{email}</strong>. Please click the link in the email to verify your account and continue.
         </p>
         <button
           onClick={onClose}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+          className="px-4 py-2.5 bg-brand-secondary text-white rounded-md hover:bg-brand-secondary/90 focus:outline-none focus:ring-2 focus:ring-brand-secondary transition-colors text-base font-medium"
         >
           Got it
         </button>
@@ -246,14 +246,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 ease-out" onClick={() => { if (LOG_ENABLED) log('[Modal Debug] Overlay onClick — attempting to close modal'); handleClose(); }} />
       
-      <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 ease-out animate-in zoom-in-95">
+      <div className="relative bg-surface rounded-lg shadow-xl max-w-sm w-full mx-4 transform transition-all duration-300 ease-out animate-in zoom-in-95 border border-neutral-border">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Welcome</h3>
+        <div className="px-4 py-3 border-b border-neutral-border">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xl font-semibold text-text-primary">Welcome</h3>
             <button
               onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-text-tertiary hover:text-text-primary transition-colors"
               aria-label="Close"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -263,14 +263,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
           </div>
           
           {/* Tab-style toggle */}
-          <div className="flex bg-gray-100 rounded-lg p-1">
+          <div className="flex bg-neutral-muted-light rounded-lg p-1">
             <button
               type="button"
               onClick={() => setAuthModalMode('signin')}
-              className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
+              className={`flex-1 py-2 px-3 text-base font-medium rounded-md transition-colors ${
                 modalState.mode === 'signin'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-surface text-text-primary shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary'
               }`}
               disabled={isLoading}
             >
@@ -279,10 +279,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
             <button
               type="button"
               onClick={() => setAuthModalMode('signup')}
-              className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
+              className={`flex-1 py-2 px-3 text-base font-medium rounded-md transition-colors ${
                 modalState.mode === 'signup'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-surface text-text-primary shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary'
               }`}
               disabled={isLoading}
             >
@@ -292,11 +292,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
         </div>
 
         {/* Form */}
-        <div className="px-6 py-4">
+        <div className="px-4 py-3">
           {/* Magic Link Option */}
-          <form onSubmit={handleMagicLink} className="space-y-4 mb-6">
+          <form onSubmit={handleMagicLink} className="space-y-3 mb-4">
             <div>
-              <label htmlFor="magic-email" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="magic-email" className="block text-base font-medium text-text-primary mb-1">
                 Email address
               </label>
               <input
@@ -304,7 +304,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                 id="magic-email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-neutral-border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-secondary focus:border-brand-secondary bg-surface text-text-primary placeholder:text-text-muted"
                 placeholder="your@email.com"
                 required
                 disabled={isLoading}
@@ -313,7 +313,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
             
             <button
               type="submit"
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full px-4 py-2.5 bg-brand-secondary text-white rounded-md hover:bg-brand-secondary/90 focus:outline-none focus:ring-2 focus:ring-brand-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-base font-medium"
               disabled={isLoading}
             >
               {isLoading ? 'Sending...' : 'Send magic link'}
@@ -321,16 +321,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
           </form>
 
           {/* Divider */}
-          <div className="relative flex items-center justify-center mb-6">
-            <div className="border-t border-gray-300 w-full"></div>
-            <span className="bg-white px-3 text-sm text-gray-500">or</span>
-            <div className="border-t border-gray-300 w-full"></div>
+          <div className="relative flex items-center justify-center mb-4">
+            <div className="border-t border-neutral-border w-full"></div>
+            <span className="bg-surface px-3 text-base text-text-secondary">or</span>
+            <div className="border-t border-neutral-border w-full"></div>
           </div>
 
           {/* Email/Password Option */}
-          <form onSubmit={handleEmailPassword} className="space-y-4">
+          <form onSubmit={handleEmailPassword} className="space-y-3">
             <div>
-              <label htmlFor="auth-email" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="auth-email" className="block text-base font-medium text-text-primary mb-1">
                 Email address
               </label>
               <input
@@ -338,7 +338,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                 id="auth-email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-neutral-border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-secondary focus:border-brand-secondary bg-surface text-text-primary placeholder:text-text-muted"
                 placeholder="your@email.com"
                 required
                 disabled={isLoading}
@@ -346,7 +346,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="password" className="block text-base font-medium text-text-primary mb-1">
                 Password
               </label>
               <input
@@ -354,7 +354,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-neutral-border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-secondary focus:border-brand-secondary bg-surface text-text-primary placeholder:text-text-muted"
                 placeholder="Enter your password"
                 required
                 disabled={isLoading}
@@ -363,7 +363,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
 
             {/* Error Message */}
             {error && (
-              <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
+              <div className="text-semantic-error text-base bg-semantic-error/10 border border-semantic-error/20 rounded px-3 py-2">
                 {error}
               </div>
             )}
@@ -372,7 +372,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
             <div className="space-y-3">
               <button
                 type="submit"
-                className="w-full px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full px-4 py-2.5 bg-brand-secondary text-white rounded-md hover:bg-brand-secondary/90 focus:outline-none focus:ring-2 focus:ring-brand-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-base font-medium"
                 disabled={isLoading}
               >
                 {isLoading ? (isSignUp ? 'Creating account...' : 'Signing in...') : (isSignUp ? 'Create account' : 'Sign in')}

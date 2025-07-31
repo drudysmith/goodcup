@@ -2,23 +2,13 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import jwt from 'jsonwebtoken';
 import { supabaseServiceRole, supabaseAnon } from '../../lib/supabaseClient';
 
-interface AddressPayload {
-  street: string;
-  unit?: string;
-  city: string;
-  state: string;
-  postal_code: string;
-  country: string;
-}
-
-interface SaveContactRequest {
+interface SaveContactInfoRequest {
   email: string;
   phone?: string;
   name?: string;
-  address: AddressPayload;
 }
 
-interface SaveContactResponse {
+interface SaveContactInfoResponse {
   success: boolean;
   visitor_id: string;
   user_id?: string;
@@ -31,15 +21,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { email, phone, name, address } = req.body as SaveContactRequest;
+    const { email, phone, name } = req.body as SaveContactInfoRequest;
 
     // Validate required fields
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
-    }
-    
-    if (!address || !address.street || !address.city || !address.state || !address.postal_code || !address.country) {
-      return res.status(400).json({ error: 'Missing required address fields' });
     }
 
     // Extract token from Authorization header
@@ -59,7 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         console.log('[visitor id] checked IN db for user', user.id);
         const { data: visitorData, error: fetchError } = await supabaseServiceRole
           .from('visitors')
-          .select('id, email, phone, name, street, unit, city, state, postal_code, country')
+          .select('id, email, phone, name')
           .eq('user_id', user.id)
           .single();
 
@@ -67,25 +53,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           return res.status(404).json({ error: 'Visitor record not found for user' });
         }
 
-        // Build dynamic update payload - only update fields that are null in database
+        // Build update payload - update contact fields when provided
         const updatePayload: any = {};
         
-        // Contact fields - conditional updates
-        if (visitorData.email === null && email) updatePayload.email = email;
-        if (visitorData.phone === null && phone) updatePayload.phone = phone;
-        if (visitorData.name === null && name) updatePayload.name = name;
-        
-        // Address fields - conditional updates
-        if (visitorData.street === null && address.street) updatePayload.street = address.street;
-        if (visitorData.unit === null && address.unit) updatePayload.unit = address.unit;
-        if (visitorData.city === null && address.city) updatePayload.city = address.city;
-        if (visitorData.state === null && address.state) updatePayload.state = address.state;
-        if (visitorData.postal_code === null && address.postal_code) updatePayload.postal_code = address.postal_code;
-        if (visitorData.country === null && address.country) updatePayload.country = address.country;
+        // Contact fields - update when provided
+        if (email) updatePayload.email = email;
+        if (phone) updatePayload.phone = phone;
+        if (name) updatePayload.name = name;
 
         // Only update if there are fields to update
         if (Object.keys(updatePayload).length > 0) {
-          console.log('[visitor id] updated IN db', visitorData.id.substring(0, 4) + '...');
+          console.log('[visitor id] updated contact IN db', visitorData.id.substring(0, 4) + '...');
           const { error: updateError } = await supabaseServiceRole
             .from('visitors')
             .update(updatePayload)
@@ -121,7 +99,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log('[visitor id] checked IN db', visitor_id.substring(0, 4) + '...');
       const { data: visitorData, error: fetchError } = await supabaseServiceRole
         .from('visitors')
-        .select('id, email, phone, name, street, unit, city, state, postal_code, country')
+        .select('id, email, phone, name')
         .eq('id', visitor_id)
         .single();
 
@@ -129,25 +107,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(404).json({ error: 'Visitor not found' });
       }
 
-      // Build dynamic update payload - only update fields that are null in database
+      // Build update payload - update contact fields when provided
       const updatePayload: any = {};
       
-      // Contact fields - conditional updates
-      if (visitorData.email === null && email) updatePayload.email = email;
-      if (visitorData.phone === null && phone) updatePayload.phone = phone;
-      if (visitorData.name === null && name) updatePayload.name = name;
-      
-      // Address fields - conditional updates
-      if (visitorData.street === null && address.street) updatePayload.street = address.street;
-      if (visitorData.unit === null && address.unit) updatePayload.unit = address.unit;
-      if (visitorData.city === null && address.city) updatePayload.city = address.city;
-      if (visitorData.state === null && address.state) updatePayload.state = address.state;
-      if (visitorData.postal_code === null && address.postal_code) updatePayload.postal_code = address.postal_code;
-      if (visitorData.country === null && address.country) updatePayload.country = address.country;
+      // Contact fields - update when provided
+      if (email) updatePayload.email = email;
+      if (phone) updatePayload.phone = phone;
+      if (name) updatePayload.name = name;
 
       // Only update if there are fields to update
       if (Object.keys(updatePayload).length > 0) {
-        console.log('[visitor id] updated IN db', visitor_id.substring(0, 4) + '...');
+        console.log('[visitor id] updated contact IN db', visitor_id.substring(0, 4) + '...');
         const { error: updateError } = await supabaseServiceRole
           .from('visitors')
           .update(updatePayload)

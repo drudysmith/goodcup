@@ -41,6 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Search for existing visitors with this email
+    console.log('[visitor id] checked IN db for email', email);
     const { data: existingVisitors, error: searchError } = await supabaseServiceRole
       .from('visitors')
       .select('id, email, phone, name, cart, user_id')
@@ -80,6 +81,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }, [] as any[]);
 
         // Update existing visitor with merged cart and contact info
+        console.log('[visitor id] updated IN db', existingVisitor.id.substring(0, 4) + '...');
         const { error: updateError } = await supabaseServiceRole
           .from('visitors')
           .update({
@@ -95,6 +97,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         // Delete the current visitor record since we merged into the existing one
         if (visitor_id !== existingVisitor.id) {
+          console.log('[visitor id] removed IN db', visitor_id.substring(0, 4) + '...');
           const { error: deleteError } = await supabaseServiceRole
             .from('visitors')
             .delete()
@@ -106,6 +109,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       } else {
         // Update existing visitor with contact info only
+        console.log('[visitor id] updated IN db', existingVisitor.id.substring(0, 4) + '...');
         const { error: updateError } = await supabaseServiceRole
           .from('visitors')
           .update({
@@ -120,6 +124,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     } else {
       // No existing visitor found, update current visitor with contact info
+      console.log('[visitor id] updated IN db', visitor_id.substring(0, 4) + '...');
       const { error: updateError } = await supabaseServiceRole
         .from('visitors')
         .update({

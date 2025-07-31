@@ -93,9 +93,9 @@ const createCheckoutSession = async (payload: {
   return response.json();
 };
 
-// Bug 9A: Contact saving function
-const saveContact = async (contactData: any, token: string) => {
-  const response = await fetch('/api/saveContact', {
+// Contact info saving function (contact-only, no address required)
+const saveContactInfo = async (contactData: any, token: string) => {
+  const response = await fetch('/api/saveContactInfo', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -180,24 +180,61 @@ export default function Checkout() {
   // Promo query for pricing
   const { data: promo } = useBannerPromoQuery();
 
-  // Module 6e: Initialize customerInfo with empty defaults
-  const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
-    email: '',
-    firstName: '',
-    lastName: '',
-    address: '',
-    apartment: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    country: '',
-    phone: '',
+  // TanStack Query for customer info data state management
+  const customerInfoQuery = useQuery({
+    queryKey: ['customerInfo'],
+    queryFn: () => {
+      // Initialize with empty defaults
+      return {
+        email: '',
+        firstName: '',
+        lastName: '',
+        address: '',
+        apartment: '',
+        city: '',
+        state: '',
+        zipCode: '',
+        country: '',
+        phone: '',
+      } as CustomerInfo;
+    },
+    staleTime: Infinity, // Customer info doesn't change unless explicitly updated
   });
+
+  // TanStack Mutation for updating customer info
+  const updateCustomerInfoMutation = useMutation({
+    mutationFn: async (newCustomerInfo: CustomerInfo) => {
+      return newCustomerInfo;
+    },
+    onSuccess: (newCustomerInfo) => {
+      queryClient.setQueryData(['customerInfo'], newCustomerInfo);
+    },
+  });
+
+  // Helper function to update customer info safely
+  const updateCustomerInfoField = (field: keyof CustomerInfo, value: string) => {
+    const currentData = customerInfoQuery.data || {
+      email: '',
+      firstName: '',
+      lastName: '',
+      address: '',
+      apartment: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      country: '',
+      phone: '',
+    };
+    updateCustomerInfoMutation.mutate({
+      ...currentData,
+      [field]: value,
+    });
+  };
 
   // Prefill login email when inline login shows
   useEffect(() => {
     if (showInlineLogin && !loginEmail) {
-      const prefillEmail = visitorData?.email || customerInfo.email;
+      const prefillEmail = visitorData?.email || customerInfoQuery.data?.email;
       if (prefillEmail) {
         setLoginEmail(prefillEmail);
       }
@@ -206,17 +243,17 @@ export default function Checkout() {
     if (showInlineLogin) {
       setLoginPassword('');
     }
-  }, [showInlineLogin, visitorData?.email, customerInfo.email, loginEmail]);
+  }, [showInlineLogin, visitorData?.email, customerInfoQuery.data?.email, loginEmail]);
 
 
 
   // Module 6b.3.1: Prefill login email from available data
   useEffect(() => {
-    const prefillEmail = visitorData?.email || customerInfo.email;
+    const prefillEmail = visitorData?.email || customerInfoQuery.data?.email;
     if (prefillEmail && !loginEmail) {
       setLoginEmail(prefillEmail);
     }
-  }, [visitorData?.email, customerInfo.email, loginEmail]);
+  }, [visitorData?.email, customerInfoQuery.data?.email, loginEmail]);
 
   // Module 6b.3.1: Confirm inline form display
   useEffect(() => {
@@ -255,14 +292,25 @@ export default function Checkout() {
     },
   });
 
-  // Module 6e: Prefill customerInfo from available data
+  // Module 6e: Prefill customerInfo from available data using TanStack mutation
+  // Only run once when data first becomes available, not when user is editing
+  const [hasPrefilledData, setHasPrefilledData] = useState(false);
+  
   useEffect(() => {
+    // Only prefill if we haven't already and have no user-entered data
+    const currentData = customerInfoQuery.data;
+    const hasUserData = currentData?.email || currentData?.firstName || currentData?.phone;
+    
+    if (hasPrefilledData || hasUserData) {
+      return; // Don't overwrite user input or prefill twice
+    }
+    
     const profileData = userProfileQuery.data;
     
     if (userSession && profileData) {
       // Prefill from user profile data
       const nameParts = profileData.name ? profileData.name.split(' ') : ['', ''];
-      setCustomerInfo({
+      updateCustomerInfoMutation.mutate({
         email: userSession.user.email || profileData.email || '',
         firstName: nameParts[0] || '',
         lastName: nameParts.slice(1).join(' ') || '',
@@ -274,11 +322,13 @@ export default function Checkout() {
         country: profileData.country || '',
         phone: profileData.phone || '',
       });
+      setHasPrefilledData(true);
     } else if (visitorData && !userSession) {
       // Prefill from visitor data
       const nameParts = visitorData.name ? visitorData.name.split(' ') : ['', ''];
-      setCustomerInfo(prev => ({
-        ...prev,
+      const currentData = customerInfoQuery.data || {};
+      updateCustomerInfoMutation.mutate({
+        ...currentData,
         email: visitorData.email || '',
         firstName: nameParts[0] || '',
         lastName: nameParts.slice(1).join(' ') || '',
@@ -290,9 +340,10 @@ export default function Checkout() {
         state: visitorData.state || '',
         zipCode: visitorData.postal_code || '',
         country: visitorData.country || '',
-      }));
+      });
+      setHasPrefilledData(true);
     }
-  }, [userSession, userProfileQuery.data, visitorData]);
+  }, [userSession, userProfileQuery.data, visitorData, updateCustomerInfoMutation, customerInfoQuery.data, hasPrefilledData]);
 
   // Checkout session mutation
   const checkoutSessionMutation = useMutation({
@@ -309,9 +360,9 @@ export default function Checkout() {
     },
   });
 
-  // Bug 9A: Contact saving mutation
-  const saveContactMutation = useMutation({
-    mutationFn: ({ contactData, token }: { contactData: any; token: string }) => saveContact(contactData, token),
+  // Contact info saving mutation
+  const saveContactInfoMutation = useMutation({
+    mutationFn: ({ contactData, token }: { contactData: any; token: string }) => saveContactInfo(contactData, token),
     onSuccess: (data) => {
       // Invalidate visitor query to refresh data with saved contact info
       queryClient.invalidateQueries({ queryKey: ['visitor', visitorId] });
@@ -324,6 +375,150 @@ export default function Checkout() {
       alert('Failed to save contact info. Please try again.');
     },
   });
+
+  // TanStack Query for shipping toggle state management
+  const shippingToggleQuery = useQuery({
+    queryKey: ['shippingToggle'],
+    queryFn: () => {
+      // Initialize with default value (false = self, true = guest)
+      return false;
+    },
+    staleTime: Infinity, // Shipping toggle doesn't change unless explicitly updated
+  });
+
+  // TanStack Mutation for updating shipping toggle
+  const updateShippingToggleMutation = useMutation({
+    mutationFn: async (newToggleState: boolean) => {
+      return newToggleState;
+    },
+    onSuccess: (newToggleState) => {
+      queryClient.setQueryData(['shippingToggle'], newToggleState);
+    },
+  });
+
+  // TanStack Query for shipping address state management
+  const shippingAddressQuery = useQuery({
+    queryKey: ['shippingAddress'],
+    queryFn: () => {
+      // Initialize with empty defaults
+      return {
+        name: '',
+        street: '',
+        unit: '',
+        city: '',
+        state: '',
+        postal_code: '',
+        country: '',
+      };
+    },
+    staleTime: Infinity, // Address info doesn't change unless explicitly updated
+  });
+
+  // TanStack Mutation for updating shipping address
+  const updateShippingAddressMutation = useMutation({
+    mutationFn: async (newAddressData: any) => {
+      return newAddressData;
+    },
+    onSuccess: (newAddressData) => {
+      queryClient.setQueryData(['shippingAddress'], newAddressData);
+    },
+  });
+
+  // TanStack Query for tracking if address form is dirty (edited)
+  const addressDirtyQuery = useQuery({
+    queryKey: ['addressDirty'],
+    queryFn: () => false,
+    staleTime: Infinity,
+  });
+
+  // TanStack Mutation for updating dirty state
+  const updateAddressDirtyMutation = useMutation({
+    mutationFn: async (isDirty: boolean) => {
+      return isDirty;
+    },
+    onSuccess: (isDirty) => {
+      queryClient.setQueryData(['addressDirty'], isDirty);
+    },
+  });
+
+  // Helper function to update shipping address field safely
+  const updateShippingAddressField = (field: string, value: string) => {
+    const currentData = shippingAddressQuery.data || {
+      name: '',
+      street: '',
+      unit: '',
+      city: '',
+      state: '',
+      postal_code: '',
+      country: '',
+    };
+    updateShippingAddressMutation.mutate({
+      ...currentData,
+      [field]: value,
+    });
+  };
+
+  // Handle address field changes and mark as dirty
+  const handleAddressFieldChange = (field: string, value: string) => {
+    updateShippingAddressField(field, value);
+    updateAddressDirtyMutation.mutate(true);
+  };
+
+  // Prefill shipping address from available data when toggle is 'self'
+  const [hasPrefilledAddress, setHasPrefilledAddress] = useState(false);
+  
+  useEffect(() => {
+    const isGuestToggle = shippingToggleQuery.data;
+    
+    if (isGuestToggle) {
+      // Clear address when toggled to guest
+      updateShippingAddressMutation.mutate({
+        name: '',
+        street: '',
+        unit: '',
+        city: '',
+        state: '',
+        postal_code: '',
+        country: '',
+      });
+      updateAddressDirtyMutation.mutate(false);
+      setHasPrefilledAddress(false); // Reset so it can repopulate when toggling back
+      return;
+    }
+
+    // Only prefill for 'self' if we haven't already and have data available
+    if (hasPrefilledAddress) {
+      return;
+    }
+
+    const profileData = userProfileQuery.data;
+    
+    if (userSession && profileData) {
+      // Prefill from user profile data
+      updateShippingAddressMutation.mutate({
+        name: profileData.name || '',
+        street: profileData.street || '',
+        unit: profileData.unit || '',
+        city: profileData.city || '',
+        state: profileData.state || '',
+        postal_code: profileData.postal_code || '',
+        country: profileData.country || '',
+      });
+      setHasPrefilledAddress(true);
+    } else if (visitorData && !userSession) {
+      // Prefill from visitor data
+      updateShippingAddressMutation.mutate({
+        name: visitorData.name || '',
+        street: visitorData.street || '',
+        unit: visitorData.unit || '',
+        city: visitorData.city || '',
+        state: visitorData.state || '',
+        postal_code: visitorData.postal_code || '',
+        country: visitorData.country || '',
+      });
+      setHasPrefilledAddress(true);
+    }
+  }, [shippingToggleQuery.data, userSession, userProfileQuery.data, visitorData, updateShippingAddressMutation, updateAddressDirtyMutation, hasPrefilledAddress]);
 
   // State Mgmt Update 2: Setup auth state change listener
   useEffect(() => {
@@ -341,7 +536,7 @@ export default function Checkout() {
           // Create checkout session with user ID
           await checkoutSessionMutation.mutateAsync({
             items,
-            customerEmail: session.user.email || customerInfo.email,
+            customerEmail: session.user.email || customerInfoQuery.data?.email,
             supabaseUserId: session.user.id,
             checkoutMode: 'user'
           });
@@ -355,7 +550,7 @@ export default function Checkout() {
     });
 
     return () => subscription.unsubscribe();
-  }, [checkoutMode, isProcessingMerge, items, customerInfo.email, setSessionData, checkoutSessionMutation]);
+  }, [checkoutMode, isProcessingMerge, items, customerInfoQuery.data?.email, setSessionData, checkoutSessionMutation]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -400,7 +595,12 @@ export default function Checkout() {
   }, 0);
 
   const validateInformationStage = () => {
-    return customerInfo.email && customerInfo.firstName && customerInfo.lastName && customerInfo.address && customerInfo.city && customerInfo.state && customerInfo.zipCode;
+    return customerInfoQuery.data?.email && customerInfoQuery.data?.firstName;
+  };
+
+  const validateShippingStage = () => {
+    const addressData = shippingAddressQuery.data;
+    return addressData?.name && addressData?.street && addressData?.city && addressData?.state && addressData?.postal_code && addressData?.country;
   };
 
   const handleContinueToShipping = async () => {
@@ -408,37 +608,32 @@ export default function Checkout() {
       return;
     }
 
-    // Bug 9A: Save contact info before proceeding to shipping
-    const contactPayload = {
-      email: customerInfo.email,
-      phone: customerInfo.phone || '',
-      name: `${customerInfo.firstName} ${customerInfo.lastName}`.trim(),
-      address: {
-      street: customerInfo.address,
-      unit: customerInfo.apartment || '',
-      city: customerInfo.city,
-      state: customerInfo.state,
-      postal_code: customerInfo.zipCode,
-      country: customerInfo.country,
-      }
-    };
+    // Save contact info before proceeding to shipping
+      const contactPayload = {
+        email: customerInfoQuery.data?.email || '',
+        phone: customerInfoQuery.data?.phone || '',
+        name: `${customerInfoQuery.data?.firstName || ''} ${customerInfoQuery.data?.lastName || ''}`.trim(),
+      };
 
-    try {
-      // Determine which token to use
-      const token = userSession?.access_token || jwt;
-      
+      try {
+        // Determine which token to use
+        const token = userSession?.access_token || jwt;
+        
       if (!token) {
         alert('Authentication required to save contact info');
         return;
       }
 
-      await saveContactMutation.mutateAsync({ contactData: contactPayload, token });
-      
+      // Only save if we have at least email and name
+      if (contactPayload.email && contactPayload.name) {
+        await saveContactInfoMutation.mutateAsync({ contactData: contactPayload, token });
+      }
+          
       // Proceed to shipping stage after successful save
       setCurrentStage('shipping');
-    } catch (error) {
+      } catch (error) {
       // Still allow proceeding to shipping even if save fails
-      setCurrentStage('shipping');
+    setCurrentStage('shipping');
     }
   };
 
@@ -449,44 +644,68 @@ export default function Checkout() {
   const handleCheckout = async () => {
     setCheckoutLoading(true);
     
-    if (checkoutMode === 'user') {
-      // Module 5: User Auth Trigger
-      if (userSession) {
-        // Module 6a: Session Short-Circuit
-        try {
-          await checkoutSessionMutation.mutateAsync({
-            items,
-            customerEmail: userSession.user.email || customerInfo.email,
-            supabaseUserId: userSession.user.id,
-            checkoutMode: 'user'
-          });
-        } finally {
+    // Check shipping stage validation and handle address saving logic
+    const isGuestShipping = shippingToggleQuery.data;
+    const isAddressDirty = addressDirtyQuery.data;
+    
+    try {
+      if (isGuestShipping) {
+        // If shipping to guest, validate address is complete
+        if (!validateShippingStage()) {
+          alert('Please complete all shipping address fields');
           setCheckoutLoading(false);
+          return;
         }
-        return;
+        // TODO: Save guest shipping address to shipment_orders table
+        console.log('Guest shipping - would save to shipment_orders:', shippingAddressQuery.data);
       } else {
-        // User not signed in - show inline login
-        setShowInlineLogin(true);
+        // If shipping to self
+        if (isAddressDirty) {
+          // Address was edited, save to visitor table
+          // TODO: Call address saving API here
+          console.log('Self shipping with edits - would save to visitor table:', shippingAddressQuery.data);
+        }
+        // If not dirty, just proceed without saving
+      }
+
+      // Continue with existing checkout flow
+      if (checkoutMode === 'user') {
+        // Module 5: User Auth Trigger
+        if (userSession) {
+          // Module 6a: Session Short-Circuit
+          try {
+            await checkoutSessionMutation.mutateAsync({
+              items,
+              customerEmail: userSession.user.email || customerInfoQuery.data?.email,
+              supabaseUserId: userSession.user.id,
+              checkoutMode: 'user'
+            });
+          } finally {
+            setCheckoutLoading(false);
+          }
+          return;
+        } else {
+          // User not signed in - show inline login
+          setShowInlineLogin(true);
+          setCheckoutLoading(false);
+          return;
+        }
+      }
+
+      // Module 6c: Guest Flow Reconciliation
+      const hasVisitorContactInfo = visitorData?.email || visitorData?.name || visitorData?.phone;
+      
+      if (hasVisitorContactInfo && !showGuestConfirmation) {
+        // Show confirmation dialog for guests with saved contact info
+        setShowGuestConfirmation(true);
         setCheckoutLoading(false);
         return;
       }
-    }
 
-    // Module 6c: Guest Flow Reconciliation
-    const hasVisitorContactInfo = visitorData?.email || visitorData?.name || visitorData?.phone;
-    
-    if (hasVisitorContactInfo && !showGuestConfirmation) {
-      // Show confirmation dialog for guests with saved contact info
-      setShowGuestConfirmation(true);
-      setCheckoutLoading(false);
-      return;
-    }
-
-    // Guest checkout flow using visitor context
-    try {
+      // Guest checkout flow using visitor context
       await checkoutSessionMutation.mutateAsync({
         items,
-        customerEmail: visitorData?.email || customerInfo.email,
+        customerEmail: visitorData?.email || customerInfoQuery.data?.email,
         visitorId: visitorId || undefined,
         visitorJwt: jwt || undefined,
         checkoutMode: 'guest'
@@ -611,9 +830,12 @@ export default function Checkout() {
 
           {/* Breadcrumb */}
           <div className="mb-6 text-lg text-text-secondary">
-            <span className={currentStage === 'information' ? 'text-brand-secondary font-medium' : 'opacity-60'}>
-              Information
-            </span>
+            <button 
+              onClick={handleReturnToInformation}
+              className={`${currentStage === 'information' ? 'text-brand-secondary font-medium' : 'opacity-60'} hover:text-brand-secondary transition-colors`}
+            >
+              Contact Info
+            </button>
             <span className="mx-2">›</span>
             <span className={currentStage === 'shipping' ? 'text-brand-secondary font-medium' : 'opacity-60'}>
               Shipping
@@ -624,21 +846,48 @@ export default function Checkout() {
             </span>
           </div>
 
-          {/* Stage: Information */}
+          {/* Stage: Contact Info */}
           {currentStage === 'information' && (
             <div className="space-y-4">
-              <h2 className="text-xl font-bold">Contact</h2>
-              <input type="email" placeholder="Email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} className="w-full p-3 border rounded text-lg" />
-              <h3 className="text-xl font-bold mt-6">Shipping Address</h3>
-              <input type="text" placeholder="First name" value={customerInfo.firstName} onChange={(e) => setCustomerInfo({ ...customerInfo, firstName: e.target.value })} className="w-full p-3 border rounded text-lg" />
-              <input type="text" placeholder="Last name" value={customerInfo.lastName} onChange={(e) => setCustomerInfo({ ...customerInfo, lastName: e.target.value })} className="w-full p-3 border rounded text-lg" />
-              <input type="text" placeholder="Address" value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} className="w-full p-3 border rounded text-lg" />
-              <input type="text" placeholder="City" value={customerInfo.city} onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })} className="w-full p-3 border rounded text-lg" />
-              <input type="text" placeholder="State" value={customerInfo.state} onChange={(e) => setCustomerInfo({ ...customerInfo, state: e.target.value })} className="w-full p-3 border rounded text-lg" />
-              <input type="text" placeholder="ZIP code" value={customerInfo.zipCode} onChange={(e) => setCustomerInfo({ ...customerInfo, zipCode: e.target.value })} className="w-full p-3 border rounded text-lg" />
-              <input type="text" placeholder="Country" value={customerInfo.country} onChange={(e) => setCustomerInfo({ ...customerInfo, country: e.target.value })} className="w-full p-3 border rounded text-lg" />
-              <button onClick={handleContinueToShipping} className="w-full bg-brand-secondary text-white py-3 px-6 rounded disabled:opacity-50" disabled={!validateInformationStage() || saveContactMutation.isPending}>
-                {saveContactMutation.isPending ? 'Saving contact...' : 'Continue to shipping'}
+              <h2 className="text-xl font-bold">Contact Information</h2>
+              <input 
+                type="text" 
+                placeholder="Full name" 
+                value={customerInfoQuery.data?.firstName && customerInfoQuery.data?.lastName 
+                  ? `${customerInfoQuery.data.firstName} ${customerInfoQuery.data.lastName}`.trim()
+                  : customerInfoQuery.data?.firstName || ''
+                } 
+                onChange={(e) => {
+                  const nameParts = e.target.value.split(' ');
+                  const firstName = nameParts[0] || '';
+                  const lastName = nameParts.slice(1).join(' ') || '';
+                  updateCustomerInfoMutation.mutate({ 
+                    ...customerInfoQuery.data, 
+                    firstName, 
+                    lastName 
+                  } as CustomerInfo);
+                }} 
+                className="w-full p-3 border rounded text-lg" 
+              />
+              <input 
+                type="email" 
+                placeholder="Email" 
+                value={customerInfoQuery.data?.email || ''} 
+                onChange={(e) => updateCustomerInfoMutation.mutate({ 
+                  ...customerInfoQuery.data, 
+                  email: e.target.value 
+                } as CustomerInfo)} 
+                className="w-full p-3 border rounded text-lg" 
+              />
+              <input 
+                type="tel" 
+                placeholder="Phone number (optional)" 
+                value={customerInfoQuery.data?.phone || ''} 
+                onChange={(e) => updateCustomerInfoField('phone', e.target.value)} 
+                className="w-full p-3 border rounded text-lg" 
+              />
+              <button onClick={handleContinueToShipping} className="w-full bg-brand-secondary text-white py-3 px-6 rounded disabled:opacity-50" disabled={!validateInformationStage() || saveContactInfoMutation.isPending}>
+                {saveContactInfoMutation.isPending ? 'Saving contact...' : 'Continue to shipping'}
               </button>
               <button
                 onClick={() => window.location.href = '/'}
@@ -652,22 +901,92 @@ export default function Checkout() {
           {/* Stage: Shipping */}
           {currentStage === 'shipping' && (
             <div className="space-y-6">
-              <div className="border p-4 rounded">
-                <div className="mb-2 text-lg text-text-secondary">Contact</div>
-                <div className="font-medium text-lg">{customerInfo.email}</div>
-              </div>
-              
               {/* Free Shipping Note */}
               <div className="text-center py-3">
-                <p className="text-lg text-brand-secondary font-medium">🚚 Free shipping to the US</p>
+                <p className="text-3xl text-brand-secondary font-medium">🚚 Free shipping to the US</p>
               </div>
-              
-              <div className="border p-4 rounded">
-                <div className="mb-2 text-lg text-text-secondary">Shipping to</div>
-                <div className="font-medium text-lg">
-                  {customerInfo.address}, {customerInfo.city}, {customerInfo.state} {customerInfo.zipCode}, {customerInfo.country}
+                              <div className="border p-4 rounded">
+                 <div className="mb-3 text-lg text-text-secondary">
+                   Shipping to {shippingToggleQuery.data ? 'guest' : 'self'}
+                 </div>
+                 <div className="mb-4">
+                   <button
+                     type="button"
+                     aria-pressed={shippingToggleQuery.data}
+                     onClick={() => updateShippingToggleMutation.mutate(!shippingToggleQuery.data)}
+                     className={`relative w-16 h-8 rounded-full transition-colors duration-200 focus:outline-none ${
+                       shippingToggleQuery.data ? 'bg-brand-secondary' : 'bg-gray-300'
+                     }`}
+                   >
+                     <span
+                       className={`absolute left-1 top-1 w-6 h-6 rounded-full bg-white shadow transition-transform duration-200 ${
+                         shippingToggleQuery.data ? 'translate-x-8' : ''
+                       }`}
+                     />
+                     <span className="sr-only">
+                       Toggle between shipping to self or guest
+                     </span>
+                   </button>
+                   <span className="ml-3 text-lg text-text-primary">
+                     Guest
+                   </span>
+                 </div>
+                 <div className="space-y-4">
+                   <input
+                     type="text"
+                     placeholder="Full name"
+                     value={shippingAddressQuery.data?.name || ''}
+                     onChange={(e) => handleAddressFieldChange('name', e.target.value)}
+                     className="w-full p-3 border rounded text-lg"
+                   />
+                   <input
+                     type="text"
+                     placeholder="Street address"
+                     value={shippingAddressQuery.data?.street || ''}
+                     onChange={(e) => handleAddressFieldChange('street', e.target.value)}
+                     className="w-full p-3 border rounded text-lg"
+                   />
+                   <input
+                     type="text"
+                     placeholder="Apartment, suite, etc. (optional)"
+                     value={shippingAddressQuery.data?.unit || ''}
+                     onChange={(e) => handleAddressFieldChange('unit', e.target.value)}
+                     className="w-full p-3 border rounded text-lg"
+                   />
+                   <div className="grid grid-cols-2 gap-4">
+                     <input
+                       type="text"
+                       placeholder="City"
+                       value={shippingAddressQuery.data?.city || ''}
+                       onChange={(e) => handleAddressFieldChange('city', e.target.value)}
+                       className="w-full p-3 border rounded text-lg"
+                     />
+                     <input
+                       type="text"
+                       placeholder="State"
+                       value={shippingAddressQuery.data?.state || ''}
+                       onChange={(e) => handleAddressFieldChange('state', e.target.value)}
+                       className="w-full p-3 border rounded text-lg"
+                     />
+                   </div>
+                   <div className="grid grid-cols-2 gap-4">
+                     <input
+                       type="text"
+                       placeholder="ZIP code"
+                       value={shippingAddressQuery.data?.postal_code || ''}
+                       onChange={(e) => handleAddressFieldChange('postal_code', e.target.value)}
+                       className="w-full p-3 border rounded text-lg"
+                     />
+                     <input
+                       type="text"
+                       placeholder="Country"
+                       value={shippingAddressQuery.data?.country || ''}
+                       onChange={(e) => handleAddressFieldChange('country', e.target.value)}
+                       className="w-full p-3 border rounded text-lg"
+                     />
+                   </div>
+                 </div>
                 </div>
-              </div>
               {/* Checkout Mode Toggle - Only show for guests */}
               {!userSession && (
                 <div className="mb-4">
@@ -678,11 +997,37 @@ export default function Checkout() {
                   />
                 </div>
               )}
-
+              {/* Promo code reminder note - moved here */}
+              {promo && promo.code && (
+                <div className="text-lg text-brand-secondary bg-brand-secondary/10 rounded px-3 py-2 mb-4 text-center font-medium">
+                  <div className="space-y-1">
+                    <p>
+                      Use coupon code <span className="font-bold">{promo.code}</span> at checkout.
+                    </p>
+                    {promo.duration && (
+                      <p>
+                        {promo.duration === 'once' 
+                          ? 'Applies to first month.'
+                          : promo.duration === 'forever'
+                          ? 'Good forever.'
+                          : promo.duration === 'repeating' && promo.duration_in_months
+                          ? `Good for ${promo.duration_in_months} months of subscription.`
+                          : null
+                        }
+                      </p>
+                    )}
+                    {promo.first_time_transaction && (
+                      <p>
+                        Good for first time orders.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
               <button onClick={handleCheckout} disabled={checkoutLoading} className="w-full bg-brand-secondary text-white py-3 px-6 rounded disabled:opacity-50 text-lg">
                 {checkoutLoading ? 'Processing...' : 
                   userSession ? 'Continue to payment' : 
-                  checkoutMode === 'user' ? 'Continue to sign in' : 'Continue to payment'
+                  checkoutMode === 'user' ? 'Sign in or create account' : 'Continue to payment'
                 }
               </button>
 
@@ -690,88 +1035,67 @@ export default function Checkout() {
               {checkoutMode === 'user' && !userSession && showInlineLogin && (
                 <div className="mt-4 p-4 border rounded bg-gray-50">
                   {!loginLinkSent ? (
-                    <div className="space-y-4">
-                      <h4 className="text-lg font-medium text-text-primary">Sign in to your account (use magic link to create account or sign in)</h4>
-                      
-                      {/* Email field (shared) */}
-                      <div>
-                        <label htmlFor="inline-email" className="block text-lg font-medium text-text-primary mb-1">
-                          Email address
-                        </label>
-                        <input
-                          type="email"
-                          id="inline-email"
-                          placeholder="your@email.com"
-                          value={loginEmail}
-                          onChange={(e) => {
-                            setLoginEmail(e.target.value);
-                            if (loginError) setLoginError(null);
-                          }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
-                          required
-                          disabled={loginLoading || authActions.isLoading}
-                          readOnly={!!(visitorData?.email || customerInfo.email)}
-                        />
-                      </div>
-
-                      {/* Error Message */}
+                    <div className="space-y-6">
+                      <h4 className="text-2xl font-medium text-text-primary">Sign in or create account</h4>
+                      <p className="text-lg text-text-secondary">Either will take you to the payment page next</p>
+                      <input
+                        type="email"
+                        id="inline-email"
+                        placeholder="email@email.com"
+                        value={loginEmail}
+                        onChange={(e) => {
+                          setLoginEmail(e.target.value);
+                          if (loginError) setLoginError(null);
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
+                        required
+                        disabled={loginLoading || authActions.isLoading}
+                        readOnly={!!(visitorData?.email || customerInfoQuery.data?.email)}
+                      />
                       {(loginError || authActions.error) && (
                         <div className="text-semantic-error text-lg bg-semantic-error/10 border border-semantic-error/20 rounded px-3 py-2">
                           {loginError || authActions.error}
                         </div>
                       )}
-                      
-                      {/* Two options side-by-side on wider screens, stacked on narrow */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Magic Link Option */}
                         <div className="space-y-3">
-                          <h5 className="text-lg font-medium text-text-secondary uppercase tracking-wide">Quick Sign In</h5>
-                    <form 
-                      onSubmit={async (e: React.FormEvent) => {
-                        e.preventDefault();
-                        
-                        if (!loginEmail.trim()) {
-                          setLoginError('Email is required');
-                          return;
-                        }
-
-                        setLoginLoading(true);
-                        setLoginError(null);
-
-                        try {
-                          // Use original prefilled email if available, otherwise use current input
-                          const emailToUse = (visitorData?.email || customerInfo.email) || loginEmail;
-                          
-                          // Preserve current checkout state in redirect URL
-                          const redirectParams = new URLSearchParams({
-                            mode: 'user',
-                            stage: currentStage,
-                            ...(router.query.success && { success: router.query.success as string }),
-                            ...(router.query.canceled && { canceled: router.query.canceled as string })
-                          });
-                          const redirectUrl = `${window.location.origin}/checkout?${redirectParams.toString()}`;
-                          
-                          const { error } = await supabaseAnon.auth.signInWithOtp({
-                            email: emailToUse.trim(),
-                            options: {
-                              emailRedirectTo: redirectUrl
-                            }
-                          });
-
-                          if (error) {
-                            setLoginError(error.message);
-                          } else {
-                            setLoginLinkSent(true);
-                          }
-                        } catch (err) {
-                          setLoginError('Failed to send magic link');
-                        } finally {
-                          setLoginLoading(false);
-                        }
-                      }}
-                      className="space-y-3"
-                    >
+                          <div className="font-semibold text-base text-text-primary mb-1">CREATE ACCOUNT OR SIGN IN</div>
+                          <form
+                            onSubmit={async (e) => {
+                              e.preventDefault();
+                              if (!loginEmail.trim()) {
+                                setLoginError('Email is required');
+                                return;
+                              }
+                              setLoginLoading(true);
+                              setLoginError(null);
+                              try {
+                                const emailToUse = (visitorData?.email || customerInfoQuery.data?.email) || loginEmail;
+                                const redirectParams = new URLSearchParams({
+                                  mode: 'user',
+                                  stage: currentStage,
+                                  ...(router.query.success && { success: router.query.success as string }),
+                                  ...(router.query.canceled && { canceled: router.query.canceled as string })
+                                });
+                                const redirectUrl = `${window.location.origin}/checkout?${redirectParams.toString()}`;
+                                const { error } = await supabaseAnon.auth.signInWithOtp({
+                                  email: emailToUse.trim(),
+                                  options: { emailRedirectTo: redirectUrl }
+                                });
+                                if (error) {
+                                  setLoginError(error.message);
+                                } else {
+                                  setLoginLinkSent(true);
+                                }
+                              } catch (err) {
+                                setLoginError('Failed to send magic link');
+                              } finally {
+                                setLoginLoading(false);
+                              }
+                            }}
+                            className="space-y-3"
+                          >
                             <button
                               type="submit"
                               className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -780,28 +1104,22 @@ export default function Checkout() {
                               {loginLoading ? 'Sending...' : 'Send magic link'}
                             </button>
                           </form>
-                          <p className="text-lg text-text-tertiary">We'll email you a secure link</p>
                         </div>
-
-                        {/* Email/Password Option */}
+                        {/* Password Option */}
                         <div className="space-y-3">
-                          <h5 className="text-lg font-medium text-text-secondary uppercase tracking-wide">Password Sign In</h5>
-                          <form 
-                            onSubmit={async (e: React.FormEvent) => {
+                          <div className="font-semibold text-base text-text-primary mb-1">SIGN IN WITH PASSWORD</div>
+                          <form
+                            onSubmit={async (e) => {
                               e.preventDefault();
-                              
                               if (!loginEmail.trim()) {
                                 setLoginError('Email is required');
                                 return;
                               }
-
                               if (!loginPassword.trim()) {
                                 setLoginError('Password is required');
                                 return;
                               }
-
                               setLoginError(null);
-                              
                               try {
                                 authActions.signInWithPassword(loginEmail.trim(), loginPassword);
                               } catch (err) {
@@ -810,34 +1128,27 @@ export default function Checkout() {
                             }}
                             className="space-y-3"
                           >
-                      <div>
-                              <label htmlFor="inline-password" className="block text-lg font-medium text-text-primary mb-1">
-                                Password
-                        </label>
-                        <input
-                                type="password"
-                                id="inline-password"
-                                placeholder="Enter your password"
-                                value={loginPassword}
-                                onChange={(e) => {
-                                  setLoginPassword(e.target.value);
-                                  if (loginError) setLoginError(null);
-                                }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
-                          required
-                                disabled={loginLoading || authActions.isLoading}
-                        />
-                      </div>
-                      
-                      <button
-                        type="submit"
+                            <input
+                              type="password"
+                              id="inline-password"
+                              placeholder="Password"
+                              value={loginPassword}
+                              onChange={(e) => {
+                                setLoginPassword(e.target.value);
+                                if (loginError) setLoginError(null);
+                              }}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-lg"
+                              required
+                              disabled={loginLoading || authActions.isLoading}
+                            />
+                            <button
+                              type="submit"
                               className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                               disabled={loginLoading || authActions.isLoading}
-                      >
+                            >
                               {authActions.isLoading ? 'Signing in...' : 'Sign in'}
-                      </button>
-                    </form>
-                          <p className="text-lg text-text-tertiary">Use your account password</p>
+                            </button>
+                          </form>
                         </div>
                       </div>
                     </div>
@@ -850,7 +1161,7 @@ export default function Checkout() {
                       </div>
                       <h3 className="text-lg font-semibold text-text-primary mb-2">Check your email</h3>
                       <p className="text-lg text-text-secondary mb-4">
-                        We've sent a magic link <strong>from Supabase</strong> to <strong>{(visitorData?.email || customerInfo.email) || loginEmail}</strong>. Click the link to sign in and complete your checkout.
+                        We've sent a magic link <strong>from Supabase</strong> to <strong>{(visitorData?.email || customerInfoQuery.data?.email) || loginEmail}</strong>. Click the link to sign in and complete your checkout.
                       </p>
                     </div>
                   )}
@@ -858,7 +1169,7 @@ export default function Checkout() {
               )}
 
               <button
-                onClick={() => window.location.href = '/'}
+                onClick={handleReturnToInformation}
                 className="text-lg text-brand-secondary hover:underline"
               >
                 ← Back
@@ -993,7 +1304,7 @@ export default function Checkout() {
                     try {
                       await checkoutSessionMutation.mutateAsync({
                         items,
-                        customerEmail: visitorData?.email || customerInfo.email,
+                        customerEmail: visitorData?.email || customerInfoQuery.data?.email,
                         visitorId: visitorId || undefined,
                         checkoutMode: 'guest'
                       });

@@ -52,6 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Check if user already has a visitor record
+    console.log('[visitor id] checked IN db for user', user.id);
     const { data: existingUserVisitor, error: fetchError } = await supabaseServiceRole
       .from('visitors')
       .select('id, cart, stripe_cust_id')
@@ -83,6 +84,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const stripeCustIdToUpdate = existingUserVisitor.stripe_cust_id;
 
         // Update existing visitor record with merged data
+        console.log('[visitor id] updated IN db', existingUserVisitor.id.substring(0, 4) + '...');
         const { error: updateError } = await supabaseServiceRole
           .from('visitors')
           .update({
@@ -96,6 +98,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         // Delete the temporary visitor record
+        console.log('[visitor id] removed IN db', visitor_id.substring(0, 4) + '...');
         const { error: deleteError } = await supabaseServiceRole
           .from('visitors')
           .delete()
@@ -110,6 +113,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     } else {
       // Assign visitor to user
+      console.log('[visitor id] updated IN db', visitor_id.substring(0, 4) + '...');
       const { error: updateError } = await supabaseServiceRole
         .from('visitors')
         .update({

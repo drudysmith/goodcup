@@ -22,13 +22,13 @@ console.log('🔐 Authentication/JWT');           // Auth-related operations
 ```typescript
 // ✅ Good - Clear, actionable, with context
 console.log('🔁 Updating visitor identity:', {
-  oldVisitorId: visitorId,
-  newVisitorId,
+  oldVisitorId: visitorId ? visitorId.substring(0, 4) + '...' : null,
+  newVisitorId: newVisitorId ? newVisitorId.substring(0, 4) + '...' : null,
   newJwt: '***' + newJwt.slice(-8)  // Show partial JWT for debugging
 });
 
 // ✅ Good - Sequential operations with status
-console.log('📡 Sending visitor_id to backend for registration:', currentVisitorId);
+console.log('📡 Sending visitor_id to backend for registration:', currentVisitorId ? currentVisitorId.substring(0, 4) + '...' : null);
 // ... operation happens ...
 console.log('✅ Visitor registered — JWT received');
 

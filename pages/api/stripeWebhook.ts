@@ -68,6 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       
       if (supabaseUserId) {
         // Update authenticated user's stripe_cust_id and clear cart
+        console.log('[visitor id] updated IN db for user', supabaseUserId);
         const { error: updateResult } = await supabaseServiceRole
           .from('visitors')
           .update({ stripe_cust_id: stripeCustomerId, cart: [] })
@@ -78,6 +79,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       } else if (visitorId) {
         // Update visitor's stripe_cust_id and clear cart
+        console.log('[visitor id] updated IN db', visitorId.substring(0, 4) + '...');
         const { error: updateResult } = await supabaseServiceRole
           .from('visitors')
           .update({ stripe_cust_id: stripeCustomerId, cart: [] })

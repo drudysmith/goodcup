@@ -77,7 +77,7 @@ function GlobalAuthListener() {
         // Bug Module 8C: Prevent duplicate merge for same sign-in
         if (lastProcessedSignInRef.current !== signInEventId) {
           // Add console log for verification
-          console.log('[Auth] Merging visitor', visitorIdRef.current);
+          console.log('[Auth] Merging visitor', visitorIdRef.current ? visitorIdRef.current.substring(0, 4) + '...' : 'none');
           
           // Bug Module 8C: Trigger visitor merge
           triggerMergeRef.current();
@@ -95,7 +95,7 @@ function GlobalAuthListener() {
         const signInEventId = `${session.user.id}-${Date.now()}`;
         
         if (lastProcessedSignInRef.current !== signInEventId) {
-          console.log('[Auth] Fallback merge check - merging visitor', visitorIdRef.current);
+          console.log('[Auth] Fallback merge check - merging visitor', visitorIdRef.current ? visitorIdRef.current.substring(0, 4) + '...' : 'none');
           triggerMergeRef.current();
           lastProcessedSignInRef.current = signInEventId;
         }
