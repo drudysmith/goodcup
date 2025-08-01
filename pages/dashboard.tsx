@@ -298,19 +298,21 @@ export default function Dashboard() {
             <div className="max-w-md w-full mx-4">
               <div className="bg-surface border border-neutral-border rounded-lg p-8 text-center">
                 <h1 className="text-heading-lg font-semibold text-text-primary mb-4">Access Your Dashboard</h1>
-                <p className="text-text-secondary mb-6">
+                <p className="text-text-secondary text-lg mb-6">
                   Sign in to view your orders, subscriptions, and account information.
                 </p>
                 <div className="space-y-3">
                   <button 
                     onClick={() => openAuthModal(visitorData?.email || undefined, undefined, 'signin')}
-                    className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    className="w-full bg-blue-600 text-white text-lg 
+                    py-2 px-4 rounded-full hover:bg-blue-600/90 transition-colors font-medium"
                   >
                     Sign In
                   </button>
                   <button 
                     onClick={() => openAuthModal(visitorData?.email || undefined, undefined, 'signup')}
-                    className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium"
+                    className="w-full bg-green-600 text-white text-lg
+                    py-2 px-4 rounded-full hover:bg-green-600/90 transition-colors font-medium"
                   >
                     Create Account
                   </button>
@@ -333,12 +335,12 @@ export default function Dashboard() {
                 <h1 className="text-heading-lg font-semibold text-text-primary">Dashboard</h1>
                 <button 
                   onClick={handleSignOut}
-                  className="text-text-secondary hover:text-text-primary transition-colors"
+                  className="text-white bg-gray-400 px-3 py-2 rounded-full hover:bg-gray-300/90 hover:text-gray-500 transition-colors"
                 >
                   Sign out
                 </button>
               </div>
-              <p className="text-text-secondary">Welcome back, {user?.email}</p>
+              <p className="text-text-secondary text-2xl">Welcome back, {user?.name ? user.name.split(' ')[0] : user?.email}!</p>
             </div>
 
             {/* Account Settings Section */}

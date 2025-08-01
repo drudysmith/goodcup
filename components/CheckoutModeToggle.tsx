@@ -59,8 +59,8 @@ export const CheckoutModeToggle: React.FC<CheckoutModeToggleProps> = ({
       
       <div className="text-xl text-text-tertiary mt-2 mb-3 text-center">
         {selectedMode === 'user' 
-          ? 'Log in to view dashboard'
-          : 'Quick checkout today'
+          ? 'Dashboard for managing subscriptions'
+          : 'Just a quick checkout today'
         }
       </div>
     </div>

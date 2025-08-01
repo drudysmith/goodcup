@@ -93,8 +93,8 @@ export const useAuthActions = (): AuthActionsReturn => {
   const isLoading = signUpMutation.isPending || signInWithPasswordMutation.isPending || signInWithOtpMutation.isPending;
   const error = signUpMutation.error?.message || signInWithPasswordMutation.error?.message || signInWithOtpMutation.error?.message || null;
   
-  // For email confirmation requirements (typically from sign up)
-  const requiresConfirmation = signUpMutation.isSuccess && !signUpMutation.data?.session;
+  // For email confirmation requirements (sign up or magic link sent)
+  const requiresConfirmation = (signUpMutation.isSuccess && !signUpMutation.data?.session) || signInWithOtpMutation.isSuccess;
 
   return {
     isLoading,
