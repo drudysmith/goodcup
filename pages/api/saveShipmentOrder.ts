@@ -73,8 +73,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } else {
         // Try visitor JWT
         try {
-          const decoded = jwt.verify(token, process.env.SUPABASE_JWT_SECRET!) as { visitorId: string };
-          visitorId = decoded.visitorId;
+          const decoded = jwt.verify(token, process.env.SUPABASE_JWT_SECRET!) as { visitor_id: string };
+          visitorId = decoded.visitor_id;
         } catch (jwtError) {
           return res.status(401).json({ error: 'Invalid token' });
         }
@@ -157,6 +157,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     
     const shipmentOrderPayload = {
       order_id: orderId,
+      subscription_id: null, // Will be set later when subscription is created
       recipient_name: shipmentData.recipient_name,
       address_line1: shipmentData.address_line1,
       address_line2: shipmentData.address_line2 || null,
@@ -164,13 +165,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       state: shipmentData.state,
       postal_code: shipmentData.postal_code,
       country: shipmentData.country,
-      order_info: {}, // Empty for now, will be populated later
+      order_info: shipmentData.cart_items || [],
       created_at: new Date().toISOString(),
+      fulfilled_at: null,
       gift: isGift,
       phone_number: shipmentData.phone || visitorData.phone || null,
       initial_order: true,
       purchasing_visitor_id: visitorId,
-      status: 'pending'
+      status: 'pending',
+      email: shipmentData.email
     };
 
     const { data: shipmentOrder, error: shipmentError } = await supabaseServiceRole

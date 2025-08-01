@@ -44,7 +44,7 @@ export const CheckoutModeToggle: React.FC<CheckoutModeToggleProps> = ({
           onClick={() => handleModeSelect('guest')}
           className={`flex-1 px-3 py-2 text-lg rounded-full transition-all duration-200 ${
             selectedMode === 'guest'
-              ? 'bg-brand-secondary text-white shadow-sm'
+              ? 'bg-blue-600 text-white shadow-sm'
               : 'bg-surface-background border border-neutral-border text-text-secondary hover:bg-neutral-hover'
           }`}
         >
@@ -57,10 +57,10 @@ export const CheckoutModeToggle: React.FC<CheckoutModeToggleProps> = ({
         </button>
       </div>
       
-      <div className="text-xl text-text-tertiary mt-4 text-center">
+      <div className="text-xl text-text-tertiary mt-2 mb-3 text-center">
         {selectedMode === 'user' 
-          ? '<< Faster future checkouts'
-          : 'Quick checkout today >>'
+          ? 'Log in to view dashboard'
+          : 'Quick checkout today'
         }
       </div>
     </div>

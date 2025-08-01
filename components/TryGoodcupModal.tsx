@@ -44,7 +44,7 @@ const TryGoodcupModal: React.FC<TryGoodcupModalProps> = ({ open, onClose, produc
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25 }}
-          className="fixed inset-0 z-20 flex items-center justify-center pointer-events-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center pointer-events-auto"
           style={{ background: 'transparent' }}
         >
           {/* Card stack */}

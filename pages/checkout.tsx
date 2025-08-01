@@ -960,15 +960,19 @@ export default function Checkout() {
                 onChange={(e) => updateCustomerInfoField('phone', e.target.value)} 
                 className="w-full p-3 border rounded text-lg" 
               />
-              <button onClick={handleContinueToShipping} className="w-full bg-brand-secondary text-white py-3 px-6 rounded disabled:opacity-50" disabled={!validateInformationStage() || saveContactInfoMutation.isPending}>
-                {saveContactInfoMutation.isPending ? 'Saving contact...' : 'Continue to shipping'}
-              </button>
-              <button
-                onClick={() => window.location.href = '/'}
-                className="text-lg text-brand-secondary hover:underline"
-              >
-                ← Back
-              </button>
+              <div className="flex justify-center mb-4">
+                <button onClick={handleContinueToShipping} className="w-1/2 bg-brand-secondary text-lg text-white py-3 px-6 rounded-full disabled:opacity-50" disabled={!validateInformationStage() || saveContactInfoMutation.isPending}>
+                  {saveContactInfoMutation.isPending ? 'Saving contact...' : 'Continue to shipping'}
+                </button>
+              </div>
+              <div className="flex justify-center">
+                <button
+                  onClick={() => window.location.href = '/'}
+                  className="text-xl text-brand-secondary hover:underline"
+                >
+                  ← Back
+                </button>
+              </div>
             </div>
           )}
 
@@ -1061,22 +1065,12 @@ export default function Checkout() {
                    </div>
                  </div>
                 </div>
-              {/* Checkout Mode Toggle - Only show for guests */}
-              {!userSession && (
-                <div className="mb-4">
-                  <CheckoutModeToggle
-                    onModeChange={setCheckoutMode}
-                    defaultMode={checkoutMode}
-                    className=""
-                  />
-                </div>
-              )}
               {/* Promo code reminder note - moved here */}
               {promo && promo.code && (
                 <div className="text-lg text-brand-secondary bg-brand-secondary/10 rounded px-3 py-2 mb-4 text-center font-medium">
                   <div className="space-y-1">
                     <p>
-                      Use coupon code <span className="font-bold">{promo.code}</span> at checkout.
+                      Use promo code <span className="font-bold">{promo.code}</span> at checkout.
                     </p>
                     {promo.duration && (
                       <p>
@@ -1097,21 +1091,31 @@ export default function Checkout() {
                     )}
                   </div>
                 </div>
+              )}  
+              {/* Checkout Mode Toggle - Only show for guests */}
+              {!userSession && (
+                <div className="mb-4">
+                  <CheckoutModeToggle
+                    onModeChange={setCheckoutMode}
+                    defaultMode={checkoutMode}
+                    className=""
+                  />
+                </div>
               )}
-              <button onClick={handleCheckout} disabled={checkoutLoading} className="w-full bg-brand-secondary text-white py-3 px-6 rounded disabled:opacity-50 text-lg">
+              <div className="flex justify-center mb-4">
+                <button onClick={handleCheckout} disabled={checkoutLoading} className="w-1/2 bg-brand-secondary text-lg text-white py-3 px-6 rounded-full disabled:opacity-50">
                 {checkoutLoading ? 'Processing...' : 
                   userSession ? 'Continue to payment' : 
                   checkoutMode === 'user' ? 'Sign in or create account' : 'Continue to payment'
                 }
               </button>
-
+              </div>
               {/* Module 6b.3.1 & 6b.3.2: Inline Login Form */}
               {checkoutMode === 'user' && !userSession && showInlineLogin && (
                 <div className="mt-4 p-4 border rounded bg-gray-50">
                   {!loginLinkSent ? (
                     <div className="space-y-6">
                       <h4 className="text-2xl font-medium text-text-primary">Sign in or create account</h4>
-                      <p className="text-lg text-text-secondary">Either will take you to the payment page next</p>
                       <input
                         type="email"
                         id="inline-email"
@@ -1126,93 +1130,14 @@ export default function Checkout() {
                         disabled={loginLoading || authActions.isLoading}
                         readOnly={!!(visitorData?.email || customerInfoQuery.data?.email)}
                       />
+                      <p className="text-xl text-text-secondary">Either option below redirects to payment</p>
+
                       {(loginError || authActions.error) && (
                         <div className="text-semantic-error text-lg bg-semantic-error/10 border border-semantic-error/20 rounded px-3 py-2">
                           {loginError || authActions.error}
                         </div>
                       )}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Magic Link Option */}
-                        <div className="space-y-3">
-                          <div className="font-semibold text-base text-text-primary mb-1">CREATE ACCOUNT OR SIGN IN</div>
-                          <form
-                            onSubmit={async (e) => {
-                              e.preventDefault();
-                              
-                              // GATE 1: SEND MAGIC LINK BUTTON
-                              // ================================
-                              // Before sending magic link, we must save shipment order to ensure
-                              // fulfillment data is captured before user proceeds to payment
-                              console.log('🚪 GATE 1: Send Magic Link - Starting validation and save process');
-                              
-                              if (!loginEmail.trim()) {
-                                setLoginError('Email is required');
-                                return;
-                              }
-                              
-                              // Validate shipping address is complete
-                              if (!validateShippingStage()) {
-                                setLoginError('Please complete all shipping address fields before proceeding');
-                                return;
-                              }
-                              
-                              setLoginLoading(true);
-                              setLoginError(null);
-                              
-                              try {
-                                // Step 1: Save shipment order BEFORE sending magic link
-                                console.log('🚪 GATE 1: Preparing shipment order data...');
-                                const shipmentData = prepareShipmentOrderData();
-                                const token = (userSession as any)?.access_token || jwt;
-                                
-                                if (!token) {
-                                  setLoginError('Authentication required to save shipment order');
-                                  return;
-                                }
-                                
-                                console.log('🚪 GATE 1: Saving shipment order before magic link...');
-                                await saveShipmentOrderMutation.mutateAsync({ shipmentData, token });
-                                
-                                // Step 2: Send magic link only after successful save
-                                console.log('🚪 GATE 1: Shipment order saved, sending magic link...');
-                                const emailToUse = (visitorData?.email || customerInfoQuery.data?.email) || loginEmail;
-                                const redirectParams = new URLSearchParams({
-                                  mode: 'user',
-                                  stage: currentStage,
-                                  ...(router.query.success && { success: router.query.success as string }),
-                                  ...(router.query.canceled && { canceled: router.query.canceled as string })
-                                });
-                                const redirectUrl = `${window.location.origin}/checkout?${redirectParams.toString()}`;
-                                const { error } = await supabaseAnon.auth.signInWithOtp({
-                                  email: emailToUse.trim(),
-                                  options: { emailRedirectTo: redirectUrl }
-                                });
-                                
-                                if (error) {
-                                  setLoginError(error.message);
-                                  console.log('🚪 GATE 1: Magic link send failed:', error.message);
-                                } else {
-                                  setLoginLinkSent(true);
-                                  console.log('🚪 GATE 1: Magic link sent successfully');
-                                }
-                              } catch (err) {
-                                setLoginError('Failed to save shipment order or send magic link');
-                                console.error('🚪 GATE 1: Error in magic link flow:', err);
-                              } finally {
-                                setLoginLoading(false);
-                              }
-                            }}
-                            className="space-y-3"
-                          >
-                            <button
-                              type="submit"
-                              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                              disabled={loginLoading || authActions.isLoading}
-                            >
-                              {loginLoading ? 'Sending...' : 'Send magic link'}
-                            </button>
-                          </form>
-                        </div>
                         {/* Password Option */}
                         <div className="space-y-3">
                           <div className="font-semibold text-base text-text-primary mb-1">SIGN IN WITH PASSWORD</div>
@@ -1255,7 +1180,7 @@ export default function Checkout() {
                                 }
                                 
                                 console.log('🚪 GATE 2: Saving shipment order before password auth...');
-                                await saveShipmentOrderMutation.mutateAsync({ shipmentData, token });
+                                const shipmentResult = await saveShipmentOrderMutation.mutateAsync({ shipmentData, token });
                                 
                                 // Step 2: Authenticate with password only after successful save
                                 console.log('🚪 GATE 2: Shipment order saved, attempting password authentication...');
@@ -1291,6 +1216,88 @@ export default function Checkout() {
                             </button>
                           </form>
                         </div>
+                        {/* Magic Link Option */}
+                        <div className="space-y-3">
+                          <div className="font-semibold text-base text-text-primary mb-1">CREATE ACCOUNT / SIGN IN</div>
+                          <form
+                            onSubmit={async (e) => {
+                              e.preventDefault();
+                              
+                              // GATE 1: SEND MAGIC LINK BUTTON
+                              // ================================
+                              // Before sending magic link, we must save shipment order to ensure
+                              // fulfillment data is captured before user proceeds to payment
+                              console.log('🚪 GATE 1: Send Magic Link - Starting validation and save process');
+                              
+                              if (!loginEmail.trim()) {
+                                setLoginError('Email is required');
+                                return;
+                              }
+                              
+                              // Validate shipping address is complete
+                              if (!validateShippingStage()) {
+                                setLoginError('Please complete all shipping address fields before proceeding');
+                                return;
+                              }
+                              
+                              setLoginLoading(true);
+                              setLoginError(null);
+                              
+                              try {
+                                // Step 1: Save shipment order BEFORE sending magic link
+                                console.log('🚪 GATE 1: Preparing shipment order data...');
+                                const shipmentData = prepareShipmentOrderData();
+                                const token = (userSession as any)?.access_token || jwt;
+                                
+                                if (!token) {
+                                  setLoginError('Authentication required to save shipment order');
+                                  return;
+                                }
+                                
+                                                                console.log('🚪 GATE 1: Saving shipment order before magic link...');
+                                const shipmentResult = await saveShipmentOrderMutation.mutateAsync({ shipmentData, token });
+
+                                // Step 2: Send magic link only after successful save
+                                console.log('🚪 GATE 1: Shipment order saved, sending magic link...');
+                                const emailToUse = (visitorData?.email || customerInfoQuery.data?.email) || loginEmail;
+                                const redirectParams = new URLSearchParams({
+                                  mode: 'user',
+                                  stage: currentStage,
+                                  ...(router.query.success && { success: router.query.success as string }),
+                                  ...(router.query.canceled && { canceled: router.query.canceled as string })
+                                });
+                                const redirectUrl = `${window.location.origin}/checkout?${redirectParams.toString()}`;
+                                const { error } = await supabaseAnon.auth.signInWithOtp({
+                                  email: emailToUse.trim(),
+                                  options: { emailRedirectTo: redirectUrl }
+                                });
+                                
+                                if (error) {
+                                  setLoginError(error.message);
+                                  console.log('🚪 GATE 1: Magic link send failed:', error.message);
+                                } else {
+                                  setLoginLinkSent(true);
+                                  console.log('🚪 GATE 1: Magic link sent successfully');
+                                }
+                              } catch (err) {
+                                setLoginError('Failed to save shipment order or send magic link');
+                                console.error('🚪 GATE 1: Error in magic link flow:', err);
+                              } finally {
+                                setLoginLoading(false);
+                              }
+                            }}
+                            className="space-y-3"
+                          >
+                            <button
+                              type="submit"
+                              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              disabled={loginLoading || authActions.isLoading}
+                            >
+                              {loginLoading ? 'Sending...' : 'Send magic link'}
+                            </button>
+                          </form>
+                        </div>
+
                       </div>
                     </div>
                   ) : (
@@ -1302,19 +1309,21 @@ export default function Checkout() {
                       </div>
                       <h3 className="text-lg font-semibold text-text-primary mb-2">Check your email</h3>
                       <p className="text-lg text-text-secondary mb-4">
-                        We've sent a magic link <strong>from Supabase</strong> to <strong>{(visitorData?.email || customerInfoQuery.data?.email) || loginEmail}</strong>. Click the link to sign in and complete your checkout.
+                        We've sent a magic link <strong>from Supabase</strong> to <br />{(visitorData?.email || customerInfoQuery.data?.email) || loginEmail}. <br />Click the link to sign in and complete your checkout.
                       </p>
                     </div>
                   )}
                 </div>
               )}
 
-              <button
-                onClick={handleReturnToInformation}
-                className="text-lg text-brand-secondary hover:underline"
-              >
-                ← Back
-              </button>
+              <div className="flex justify-center">
+                <button
+                  onClick={handleReturnToInformation}
+                  className="text-xl text-brand-secondary hover:underline"
+                >
+                  ← Back
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -1360,7 +1369,7 @@ export default function Checkout() {
               <div className="text-lg text-brand-secondary bg-brand-secondary/10 rounded px-3 py-2 mb-4 text-center font-medium">
                 <div className="space-y-1">
                   <p>
-                    Use coupon code <span className="font-bold">{promo.code}</span> at checkout.
+                    Use promo code <span className="font-bold">{promo.code}</span> at checkout.
                   </p>
                   {promo.duration && (
                     <p>
@@ -1468,7 +1477,7 @@ export default function Checkout() {
                       }
                       
                       console.log('🚪 GATE 3: Saving shipment order before guest checkout...');
-                      await saveShipmentOrderMutation.mutateAsync({ shipmentData, token });
+                      const shipmentResult = await saveShipmentOrderMutation.mutateAsync({ shipmentData, token });
                       
                       // Step 3: Proceed to checkout only after successful save
                       console.log('🚪 GATE 3: Shipment order saved, proceeding to guest checkout...');
@@ -1476,7 +1485,8 @@ export default function Checkout() {
                         items,
                         customerEmail: visitorData?.email || customerInfoQuery.data?.email || '',
                         visitorId: visitorId || undefined,
-                        checkoutMode: 'guest'
+                        checkoutMode: 'guest',
+                        orderId: shipmentResult.order_id
                       });
                       console.log('🚪 GATE 3: Guest checkout initiated successfully');
                       

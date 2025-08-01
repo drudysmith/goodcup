@@ -11,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { items, customerId, customerEmail, supabaseUserId, visitorId, visitorJwt, checkoutMode } = req.body;
+    const { items, customerId, customerEmail, supabaseUserId, visitorId, visitorJwt, checkoutMode, orderId } = req.body;
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'No items in cart' });
     }
@@ -41,6 +41,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (visitorId) {
       metadata.visitor_id = visitorId;
+    }
+
+    if (orderId) {
+      metadata.order_id = orderId;
     }
 
     const sessionConfig: any = {
