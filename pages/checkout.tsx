@@ -50,8 +50,7 @@ interface UserProfileResponse {
 
 interface CustomerInfo {
   email: string;
-  firstName: string;
-  lastName: string;
+  name: string;
   address: string;
   apartment?: string;
   city: string;
@@ -187,8 +186,7 @@ export default function Checkout() {
       // Initialize with empty defaults
       return {
         email: '',
-        firstName: '',
-        lastName: '',
+        name: '',
         address: '',
         apartment: '',
         city: '',
@@ -215,8 +213,7 @@ export default function Checkout() {
   const updateCustomerInfoField = (field: keyof CustomerInfo, value: string) => {
     const currentData = customerInfoQuery.data || {
       email: '',
-      firstName: '',
-      lastName: '',
+      name: '',
       address: '',
       apartment: '',
       city: '',
@@ -299,7 +296,7 @@ export default function Checkout() {
   useEffect(() => {
     // Only prefill if we haven't already and have no user-entered data
     const currentData = customerInfoQuery.data;
-    const hasUserData = currentData?.email || currentData?.firstName || currentData?.phone;
+    const hasUserData = currentData?.email || currentData?.name || currentData?.phone;
     
     if (hasPrefilledData || hasUserData) {
       return; // Don't overwrite user input or prefill twice
@@ -309,11 +306,9 @@ export default function Checkout() {
     
     if (userSession && profileData) {
       // Prefill from user profile data
-      const nameParts = profileData.name ? profileData.name.split(' ') : ['', ''];
       updateCustomerInfoMutation.mutate({
         email: userSession.user.email || profileData.email || '',
-        firstName: nameParts[0] || '',
-        lastName: nameParts.slice(1).join(' ') || '',
+        name: profileData.name || '',
         address: profileData.street || '',
         apartment: profileData.unit || '',
         city: profileData.city || '',
@@ -325,13 +320,11 @@ export default function Checkout() {
       setHasPrefilledData(true);
     } else if (visitorData && !userSession) {
       // Prefill from visitor data
-      const nameParts = visitorData.name ? visitorData.name.split(' ') : ['', ''];
       const currentData = customerInfoQuery.data || {};
       updateCustomerInfoMutation.mutate({
         ...currentData,
         email: visitorData.email || '',
-        firstName: nameParts[0] || '',
-        lastName: nameParts.slice(1).join(' ') || '',
+        name: visitorData.name || '',
         phone: visitorData.phone || '',
         // Module 6e.3: Include address fields from visitor data
         address: visitorData.street || '',
@@ -364,6 +357,21 @@ export default function Checkout() {
   const saveContactInfoMutation = useMutation({
     mutationFn: ({ contactData, token }: { contactData: any; token: string }) => saveContactInfo(contactData, token),
     onSuccess: (data) => {
+      // Update shipping address cache with new contact info
+      queryClient.setQueryData(['shippingAddress'], (currentShippingData: any) => {
+        if (!currentShippingData) return currentShippingData;
+        
+        // Extract name from the contact data that was just saved
+        const contactData = (saveContactInfoMutation.variables as any)?.contactData;
+        if (contactData?.name) {
+          return {
+            ...currentShippingData,
+            name: contactData.name,
+          };
+        }
+        return currentShippingData;
+      });
+      
       // Invalidate visitor query to refresh data with saved contact info
       queryClient.invalidateQueries({ queryKey: ['visitor', visitorId] });
       if (userSession) {
@@ -669,7 +677,7 @@ export default function Checkout() {
   }, 0);
 
   const validateInformationStage = () => {
-    return customerInfoQuery.data?.email && customerInfoQuery.data?.firstName;
+    return customerInfoQuery.data?.email && customerInfoQuery.data?.name;
   };
 
   const validateShippingStage = () => {
@@ -686,7 +694,7 @@ export default function Checkout() {
       const contactPayload = {
         email: customerInfoQuery.data?.email || '',
         phone: customerInfoQuery.data?.phone || '',
-        name: `${customerInfoQuery.data?.firstName || ''} ${customerInfoQuery.data?.lastName || ''}`.trim(),
+        name: customerInfoQuery.data?.name || '',
       };
 
       try {
@@ -927,20 +935,8 @@ export default function Checkout() {
               <input 
                 type="text" 
                 placeholder="Full name" 
-                value={customerInfoQuery.data?.firstName && customerInfoQuery.data?.lastName 
-                  ? `${customerInfoQuery.data.firstName} ${customerInfoQuery.data.lastName}`.trim()
-                  : customerInfoQuery.data?.firstName || ''
-                } 
-                onChange={(e) => {
-                  const nameParts = e.target.value.split(' ');
-                  const firstName = nameParts[0] || '';
-                  const lastName = nameParts.slice(1).join(' ') || '';
-                  updateCustomerInfoMutation.mutate({ 
-                    ...customerInfoQuery.data, 
-                    firstName, 
-                    lastName 
-                  } as CustomerInfo);
-                }} 
+                value={customerInfoQuery.data?.name || ''} 
+                onChange={(e) => updateCustomerInfoField('name', e.target.value)} 
                 className="w-full p-3 border rounded text-lg" 
               />
               <input 

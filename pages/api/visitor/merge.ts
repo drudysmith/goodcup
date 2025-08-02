@@ -107,7 +107,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log('[merge] Found existing visitor for user:', targetVisitor.id);
       
       // Guard: Check if visitor_id already belongs to this user
-      if (targetVisitor.id === visitor_id) {
+      if (targetVisitor.id === visitor_id && targetVisitor.user_id) {
         console.log('[merge] Visitor already belongs to user, no merge needed');
         // No merge needed - visitor already belongs to user
         mergedVisitorId = targetVisitor.id;
