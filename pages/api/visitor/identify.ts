@@ -71,7 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (currentCart.length > 0 && existingCart.length > 0) {
         // Merge carts by combining items and deduplicating by priceId
         const mergedCart = [...existingCart, ...currentCart].reduce((acc, item) => {
-          const existingItem = acc.find(i => i.priceId === item.priceId);
+          const existingItem = acc.find((i: any) => i.priceId === item.priceId);
           if (existingItem) {
             existingItem.quantity += item.quantity;
           } else {
