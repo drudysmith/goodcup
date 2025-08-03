@@ -23,7 +23,7 @@ const MagicLinkSentView: React.FC<MagicLinkSentViewProps> = ({ email, onClose })
         </div>
         <h3 className="text-xl font-semibold text-text-primary mb-2">Check your email</h3>
         <p className="text-base text-text-secondary mb-4">
-        We've sent a magic link to <br />{email} from <strong>Supabase</strong>. <br />Click that link to continue.
+          We've sent a magic link to <strong>{email}</strong>. Click the link to sign in and continue.
         </p>
         <button
           onClick={onClose}
@@ -52,9 +52,9 @@ const EmailConfirmationView: React.FC<EmailConfirmationViewProps> = ({ email, on
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2z" />
           </svg>
         </div>
-        <h3 className="text-xl font-semibold text-text-primary mb-2">Confirm in email</h3>
-        <p className="text-lg text-text-secondary mb-4">
-          We've sent a magic link to <br />{email} from <strong>Supabase</strong>. <br />Click that link to continue.
+        <h3 className="text-xl font-semibold text-text-primary mb-2">Confirm your email</h3>
+        <p className="text-base text-text-secondary mb-4">
+          We've sent a confirmation email to <strong>{email}</strong>. Please click the link in the email to verify your account and continue.
         </p>
         <button
           onClick={onClose}
@@ -263,13 +263,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
           </div>
           
           {/* Tab-style toggle */}
-          <div className="flex bg-neutral-muted-light rounded-full p-1">
+          <div className="flex bg-neutral-muted-light rounded-lg p-1">
             <button
               type="button"
               onClick={() => setAuthModalMode('signin')}
-              className={`flex-1 py-2 px-3 text-base font-medium rounded-full transition-colors ${
+              className={`flex-1 py-2 px-3 text-base font-medium rounded-md transition-colors ${
                 modalState.mode === 'signin'
-                  ? 'bg-white text-text-primary shadow-sm'
+                  ? 'bg-surface text-text-primary shadow-sm'
                   : 'text-text-secondary hover:text-text-primary'
               }`}
               disabled={isLoading}
@@ -279,9 +279,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
             <button
               type="button"
               onClick={() => setAuthModalMode('signup')}
-              className={`flex-1 py-2 px-3 text-base font-medium rounded-full transition-colors ${
+              className={`flex-1 py-2 px-3 text-base font-medium rounded-md transition-colors ${
                 modalState.mode === 'signup'
-                  ? 'bg-white text-text-primary shadow-sm'
+                  ? 'bg-surface text-text-primary shadow-sm'
                   : 'text-text-secondary hover:text-text-primary'
               }`}
               disabled={isLoading}
@@ -293,8 +293,42 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
 
         {/* Form */}
         <div className="px-4 py-3">
-          {/* Single Email Field */}
-          <div className="space-y-3 mb-6">
+          {/* Magic Link Option */}
+          <form onSubmit={handleMagicLink} className="space-y-3 mb-4">
+            <div>
+              <label htmlFor="magic-email" className="block text-base font-medium text-text-primary mb-1">
+                Email address
+              </label>
+              <input
+                type="email"
+                id="magic-email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-3 py-2 border border-neutral-border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-secondary focus:border-brand-secondary bg-surface text-text-primary placeholder:text-text-muted"
+                placeholder="your@email.com"
+                required
+                disabled={isLoading}
+              />
+            </div>
+            
+            <button
+              type="submit"
+              className="w-full px-4 py-2.5 bg-brand-secondary text-white rounded-md hover:bg-brand-secondary/90 focus:outline-none focus:ring-2 focus:ring-brand-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-base font-medium"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Sending...' : 'Send magic link'}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="relative flex items-center justify-center mb-4">
+            <div className="border-t border-neutral-border w-full"></div>
+            <span className="bg-surface px-3 text-base text-text-secondary">or</span>
+            <div className="border-t border-neutral-border w-full"></div>
+          </div>
+
+          {/* Email/Password Option */}
+          <form onSubmit={handleEmailPassword} className="space-y-3">
             <div>
               <label htmlFor="auth-email" className="block text-base font-medium text-text-primary mb-1">
                 Email address
@@ -304,36 +338,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                 id="auth-email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-neutral-border rounded-md 
-                shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-secondary 
-                focus:border-brand-secondary bg-white text-text-primary 
-                placeholder:text-text-muted mb-4"
+                className="w-full px-3 py-2 border border-neutral-border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-secondary focus:border-brand-secondary bg-surface text-text-primary placeholder:text-text-muted"
                 placeholder="your@email.com"
                 required
                 disabled={isLoading}
               />
             </div>
-            
-            {/* Magic Link Button */}
-            <button
-              type="button"
-              onClick={handleMagicLink}
-              className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-full hover:bg-blue-600/90 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-base font-medium"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Sending...' : 'Send magic link'}
-            </button>
-          </div>
 
-          {/* Divider */}
-          <div className="relative flex items-center justify-center mb-0">
-            <div className="border-t border-neutral-border w-full"></div>
-            <span className="bg-surface px-3 text-xl text-text-secondary">or</span>
-            <div className="border-t border-neutral-border w-full"></div>
-          </div>
-
-          {/* Password Authentication */}
-          <form onSubmit={handleEmailPassword} className="space-y-3">
             <div>
               <label htmlFor="password" className="block text-base font-medium text-text-primary mb-1">
                 Password
@@ -343,7 +354,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-neutral-border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-secondary focus:border-brand-secondary bg-white text-text-primary placeholder:text-text-muted"
+                className="w-full px-3 py-2 border border-neutral-border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-secondary focus:border-brand-secondary bg-surface text-text-primary placeholder:text-text-muted"
                 placeholder="Enter your password"
                 required
                 disabled={isLoading}
@@ -361,10 +372,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
             <div className="space-y-3">
               <button
                 type="submit"
-                className="w-full px-4 py-2.5 bg-brand-secondary text-white 
-                rounded-full hover:bg-brand-secondary/90 focus:outline-none 
-                focus:ring-2 focus:ring-brand-secondary disabled:opacity-50 
-                disabled:cursor-not-allowed transition-colors text-base font-medium mb-6"
+                className="w-full px-4 py-2.5 bg-brand-secondary text-white rounded-md hover:bg-brand-secondary/90 focus:outline-none focus:ring-2 focus:ring-brand-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-base font-medium"
                 disabled={isLoading}
               >
                 {isLoading ? (isSignUp ? 'Creating account...' : 'Signing in...') : (isSignUp ? 'Create account' : 'Sign in')}

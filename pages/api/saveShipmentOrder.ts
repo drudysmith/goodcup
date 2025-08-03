@@ -20,6 +20,7 @@ interface ShipmentOrderData {
   // Shipping mode and metadata
   shipping_mode: 'gift' | 'self';
   is_address_dirty: boolean;
+  cart_items: any[];
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -98,9 +99,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log('🚀 SaveShipmentOrder API: Shipping mode:', shipmentData.shipping_mode);
     console.log('🚀 SaveShipmentOrder API: Address dirty:', shipmentData.is_address_dirty);
 
-    // Step 1: Update visitors table if address data is dirty (changed) AND shipping to self
+    // Step 1: Update visitors table if address data is dirty (changed) and not gift shipping
     if (shipmentData.is_address_dirty && shipmentData.shipping_mode !== 'gift') {
-      console.log('🚀 SaveShipmentOrder API: Address is dirty and shipping to self, updating visitor record...');
+      console.log('🚀 SaveShipmentOrder API: Address is dirty, updating visitor record...');
       
       const visitorUpdatePayload: any = {};
       
@@ -145,8 +146,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } else {
         console.log('🚀 SaveShipmentOrder API: No changes detected in visitor data');
       }
-    } else if (shipmentData.is_address_dirty && shipmentData.shipping_mode === 'gift') {
-      console.log('🚀 SaveShipmentOrder API: Address is dirty but shipping to gift, skipping visitor update to preserve purchaser profile');
     } else {
       console.log('🚀 SaveShipmentOrder API: Address not dirty, skipping visitor update');
     }

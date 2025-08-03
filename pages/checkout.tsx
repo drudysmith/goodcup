@@ -50,7 +50,8 @@ interface UserProfileResponse {
 
 interface CustomerInfo {
   email: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   address: string;
   apartment?: string;
   city: string;
@@ -78,6 +79,7 @@ const createCheckoutSession = async (payload: {
   visitorId?: string;
   visitorJwt?: string;
   checkoutMode: 'user' | 'guest';
+  orderId?: string;
 }) => {
   const response = await fetch('/api/createCheckoutSession', {
     method: 'POST',
@@ -92,15 +94,20 @@ const createCheckoutSession = async (payload: {
   return response.json();
 };
 
-// Contact info saving function (contact-only, no address required)
-const saveContactInfo = async (contactData: any, token: string) => {
-  const response = await fetch('/api/saveContactInfo', {
+// Contact info saving function with visitor recognition and cart overwrite
+const saveContactInfo = async (contactData: any, visitorId: string, cart: CartItem[]) => {
+  const response = await fetch('/api/visitor/identifyContact', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(contactData),
+    body: JSON.stringify({
+      visitor_id: visitorId,
+      email: contactData.email,
+      phone: contactData.phone,
+      name: contactData.name,
+      cart: cart
+    }),
   });
 
   if (!response.ok) {
@@ -174,7 +181,7 @@ export default function Checkout() {
   const [showGuestConfirmation, setShowGuestConfirmation] = useState(false);
 
   // Visitor context for guest checkout
-  const { visitorId, jwt, visitorData } = useVisitor();
+  const { visitorId, jwt, visitorData, updateVisitorIdentity } = useVisitor();
 
   // Promo query for pricing
   const { data: promo } = useBannerPromoQuery();
@@ -186,7 +193,8 @@ export default function Checkout() {
       // Initialize with empty defaults
       return {
         email: '',
-        name: '',
+        firstName: '',
+        lastName: '',
         address: '',
         apartment: '',
         city: '',
@@ -213,7 +221,8 @@ export default function Checkout() {
   const updateCustomerInfoField = (field: keyof CustomerInfo, value: string) => {
     const currentData = customerInfoQuery.data || {
       email: '',
-      name: '',
+      firstName: '',
+      lastName: '',
       address: '',
       apartment: '',
       city: '',
@@ -296,7 +305,7 @@ export default function Checkout() {
   useEffect(() => {
     // Only prefill if we haven't already and have no user-entered data
     const currentData = customerInfoQuery.data;
-    const hasUserData = currentData?.email || currentData?.name || currentData?.phone;
+    const hasUserData = currentData?.email || currentData?.firstName || currentData?.phone;
     
     if (hasPrefilledData || hasUserData) {
       return; // Don't overwrite user input or prefill twice
@@ -306,9 +315,11 @@ export default function Checkout() {
     
     if (userSession && profileData) {
       // Prefill from user profile data
+      const nameParts = profileData.name ? profileData.name.split(' ') : ['', ''];
       updateCustomerInfoMutation.mutate({
         email: userSession.user.email || profileData.email || '',
-        name: profileData.name || '',
+        firstName: nameParts[0] || '',
+        lastName: nameParts.slice(1).join(' ') || '',
         address: profileData.street || '',
         apartment: profileData.unit || '',
         city: profileData.city || '',
@@ -320,11 +331,13 @@ export default function Checkout() {
       setHasPrefilledData(true);
     } else if (visitorData && !userSession) {
       // Prefill from visitor data
+      const nameParts = visitorData.name ? visitorData.name.split(' ') : ['', ''];
       const currentData = customerInfoQuery.data || {};
       updateCustomerInfoMutation.mutate({
         ...currentData,
         email: visitorData.email || '',
-        name: visitorData.name || '',
+        firstName: nameParts[0] || '',
+        lastName: nameParts.slice(1).join(' ') || '',
         phone: visitorData.phone || '',
         // Module 6e.3: Include address fields from visitor data
         address: visitorData.street || '',
@@ -355,23 +368,12 @@ export default function Checkout() {
 
   // Contact info saving mutation
   const saveContactInfoMutation = useMutation({
-    mutationFn: ({ contactData, token }: { contactData: any; token: string }) => saveContactInfo(contactData, token),
+    mutationFn: ({ contactData, visitorId, cart }: { contactData: any; visitorId: string; cart: CartItem[] }) => saveContactInfo(contactData, visitorId, cart),
     onSuccess: (data) => {
-      // Update shipping address cache with new contact info
-      queryClient.setQueryData(['shippingAddress'], (currentShippingData: any) => {
-        if (!currentShippingData) return currentShippingData;
-        
-        // Extract name from the contact data that was just saved
-        const contactData = (saveContactInfoMutation.variables as any)?.contactData;
-        if (contactData?.name) {
-          return {
-            ...currentShippingData,
-            name: contactData.name,
-          };
-        }
-        return currentShippingData;
-      });
-      
+      // Update visitor identity if merge occurred
+      if (data.visitor_id && data.jwt && data.visitor) {
+        updateVisitorIdentity(data.visitor_id, data.jwt, data.visitor);
+      }
       // Invalidate visitor query to refresh data with saved contact info
       queryClient.invalidateQueries({ queryKey: ['visitor', visitorId] });
       if (userSession) {
@@ -620,6 +622,7 @@ export default function Checkout() {
             items,
             customerEmail: session.user.email || customerInfoQuery.data?.email || '',
             supabaseUserId: session.user.id,
+            visitorId: visitorId || undefined,
             checkoutMode: 'user'
           });
         } catch (error) {
@@ -677,7 +680,7 @@ export default function Checkout() {
   }, 0);
 
   const validateInformationStage = () => {
-    return customerInfoQuery.data?.email && customerInfoQuery.data?.name;
+    return customerInfoQuery.data?.email && customerInfoQuery.data?.firstName;
   };
 
   const validateShippingStage = () => {
@@ -694,22 +697,14 @@ export default function Checkout() {
       const contactPayload = {
         email: customerInfoQuery.data?.email || '',
         phone: customerInfoQuery.data?.phone || '',
-        name: customerInfoQuery.data?.name || '',
+        name: `${customerInfoQuery.data?.firstName || ''} ${customerInfoQuery.data?.lastName || ''}`.trim(),
       };
 
       try {
-        // Determine which token to use
-        const token = userSession?.access_token || jwt;
-        
-      if (!token) {
-        alert('Authentication required to save contact info');
-        return;
-      }
-
-      // Only save if we have at least email and name
-      if (contactPayload.email && contactPayload.name) {
-        await saveContactInfoMutation.mutateAsync({ contactData: contactPayload, token });
-      }
+        // Only save if we have at least email and name and visitorId
+        if (contactPayload.email && contactPayload.name && visitorId) {
+          await saveContactInfoMutation.mutateAsync({ contactData: contactPayload, visitorId, cart: items });
+        }
           
       // Proceed to shipping stage after successful save
       setCurrentStage('shipping');
@@ -935,8 +930,20 @@ export default function Checkout() {
               <input 
                 type="text" 
                 placeholder="Full name" 
-                value={customerInfoQuery.data?.name || ''} 
-                onChange={(e) => updateCustomerInfoField('name', e.target.value)} 
+                value={customerInfoQuery.data?.firstName && customerInfoQuery.data?.lastName 
+                  ? `${customerInfoQuery.data.firstName} ${customerInfoQuery.data.lastName}`.trim()
+                  : customerInfoQuery.data?.firstName || ''
+                } 
+                onChange={(e) => {
+                  const nameParts = e.target.value.split(' ');
+                  const firstName = nameParts[0] || '';
+                  const lastName = nameParts.slice(1).join(' ') || '';
+                  updateCustomerInfoMutation.mutate({ 
+                    ...customerInfoQuery.data, 
+                    firstName, 
+                    lastName 
+                  } as CustomerInfo);
+                }} 
                 className="w-full p-3 border rounded text-lg" 
               />
               <input 
