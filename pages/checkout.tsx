@@ -432,7 +432,7 @@ export default function Checkout() {
       // Visitor/User identification
       visitor_id: visitorId,
       user_id: userSession?.user?.id || null,
-      email: visitorData?.email || '',
+      email: visitorData?.email || userSession?.user?.email || '',
       phone: visitorData?.phone || '',
       
       // Recipient address (self or guest)
@@ -721,6 +721,46 @@ export default function Checkout() {
   const handleCheckout = async () => {
     setCheckoutLoading(true);
     
+    // Gate #4: Ensure shipment order is saved for authorized users before payment
+    if (checkoutMode === 'user' && userSession) {
+      try {
+        // Validate shipping info
+        if (!validateShippingStage()) {
+          alert('Please complete all shipping address fields before proceeding');
+          setCheckoutLoading(false);
+          return;
+        }
+        // Prepare shipment order data (handles gift orders appropriately)
+        console.log('🚪 GATE 4: Preparing shipment order data for authorized user...');
+        const shipmentData = prepareShipmentOrderData();
+        const token = userSession.access_token;
+        console.log('🚪 GATE 4: shipmentData', shipmentData);
+        console.log('🚪 GATE 4: token', token);
+        if (!token) {
+          alert('Authentication required to save shipment order');
+          setCheckoutLoading(false);
+          return;
+        }
+        console.log('🚪 GATE 4: Saving shipment order before payment...');
+        const shipmentResult = await saveShipmentOrderMutation.mutateAsync({ shipmentData, token });
+        console.log('🚪 GATE 4: Shipment order saved, proceeding to payment...');
+        // Proceed to payment (Stripe checkout session, etc.)
+        await checkoutSessionMutation.mutateAsync({
+          items,
+          customerEmail: userSession.user.email || customerInfoQuery.data?.email || '',
+          supabaseUserId: userSession.user.id,
+          checkoutMode: 'user',
+          orderId: shipmentResult.order_id,
+        });
+        setCheckoutLoading(false);
+        return;
+      } catch (error) {
+        alert('Failed to save shipment order or proceed to checkout. Please try again.');
+        setCheckoutLoading(false);
+        return;
+      }
+    }
+
     // Check shipping stage validation and handle address saving logic
     const isGiftShipping = shippingToggleQuery.data;
     const isAddressDirty = addressDirtyQuery.data;
