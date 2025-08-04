@@ -63,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const { data: visitorData } = await supabaseServiceRole
           .from('visitors')
           .select('id')
-          .eq('auth_user_id', user.id)
+          .eq('user_id', user.id)
           .single();
         
         if (visitorData) {
