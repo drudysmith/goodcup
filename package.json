@@ -39,6 +39,7 @@
     "validator": "^13.15.15"
   },
   "devDependencies": {
+    "@netlify/plugin-nextjs": "^5.12.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
