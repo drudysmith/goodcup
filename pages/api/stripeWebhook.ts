@@ -70,7 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (session.discounts && session.discounts.length > 0) {
         const promoCodeId = session.discounts[0].promotion_code as string;
         if (promoCodeId && visitorId) {
-          console.log('🚀 WEBHOOK: Promo code used:', promoCodeId, 'for visitor:', visitorId);
+//           console.log('🚀 WEBHOOK: Promo code used:', promoCodeId, 'for visitor:', visitorId);
           // Find the most recent shipment order for this visitor that doesn't have a promo_used yet
           const { data: shipmentOrders, error: fetchError } = await supabaseServiceRole
             .from('shipment_orders')
@@ -82,7 +82,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
           if (!fetchError && shipmentOrders && shipmentOrders.length > 0) {
             const orderId = shipmentOrders[0].order_id;
-            console.log('🚀 WEBHOOK: Updating shipment order with promo code:', orderId);
+//             console.log('🚀 WEBHOOK: Updating shipment order with promo code:', orderId);
             // Update shipment order with promo_used
             const { error: updateError } = await supabaseServiceRole
               .from('shipment_orders')
@@ -92,7 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             if (updateError) {
               console.error('🚀 WEBHOOK: Error updating shipment order with promo code:', updateError);
             } else {
-              console.log('🚀 WEBHOOK: Successfully updated shipment order with promo code');
+//               console.log('🚀 WEBHOOK: Successfully updated shipment order with promo code');
             }
           }
         }
@@ -100,7 +100,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       
       if (supabaseUserId) {
         // Update authenticated user's stripe_cust_id and clear cart
-        console.log('[visitor id] updated IN db for user', supabaseUserId);
+//         console.log('[visitor id] updated IN db for user', supabaseUserId);
         const { error: updateResult } = await supabaseServiceRole
           .from('visitors')
           .update({ stripe_cust_id: stripeCustomerId, cart: [] })
@@ -111,7 +111,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       } else if (visitorId) {
         // Update visitor's stripe_cust_id and clear cart
-        console.log('[visitor id] updated IN db', visitorId.substring(0, 4) + '...');
+//         console.log('[visitor id] updated IN db', visitorId.substring(0, 4) + '...');
         const { error: updateResult } = await supabaseServiceRole
           .from('visitors')
           .update({ stripe_cust_id: stripeCustomerId, cart: [] })
@@ -137,7 +137,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // Handle subscription creation - update shipment order with subscription_id
       if (eventType === 'customer.subscription.created' && subscriptionStatus === 'active') {
-        console.log('🚀 WEBHOOK: Subscription created, updating shipment order with subscription_id:', subscriptionId);
+//         console.log('🚀 WEBHOOK: Subscription created, updating shipment order with subscription_id:', subscriptionId);
         
         // Get visitor_id from session metadata (from checkout.session.completed)
         const sessions = await stripe.checkout.sessions.list({
@@ -149,7 +149,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         
         if (sessionWithVisitorId?.metadata?.visitor_id) {
           const visitorId = sessionWithVisitorId.metadata.visitor_id;
-          console.log('🚀 WEBHOOK: Found visitor_id in session metadata:', visitorId);
+//           console.log('🚀 WEBHOOK: Found visitor_id in session metadata:', visitorId);
           
           // Find the most recent shipment order for this visitor that doesn't have a subscription_id yet
           const { data: shipmentOrders, error: fetchError } = await supabaseServiceRole
@@ -167,7 +167,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
           if (shipmentOrders && shipmentOrders.length > 0) {
             const orderId = shipmentOrders[0].order_id;
-            console.log('🚀 WEBHOOK: Found recent shipment order:', orderId);
+//             console.log('🚀 WEBHOOK: Found recent shipment order:', orderId);
             
             // Update shipment order with subscription_id and change status to paid
             const { error: updateError } = await supabaseServiceRole
@@ -182,13 +182,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               console.error('🚀 WEBHOOK: Error updating shipment order with subscription_id:', updateError);
               return res.status(500).json({ error: 'Failed to update shipment order with subscription_id' });
             } else {
-              console.log('🚀 WEBHOOK: Successfully updated shipment order with subscription_id');
+//               console.log('🚀 WEBHOOK: Successfully updated shipment order with subscription_id');
             }
           } else {
-            console.log('🚀 WEBHOOK: No shipment orders found for visitor without subscription_id');
+//             console.log('🚀 WEBHOOK: No shipment orders found for visitor without subscription_id');
           }
         } else {
-          console.log('🚀 WEBHOOK: No visitor_id found in recent sessions metadata');
+//           console.log('🚀 WEBHOOK: No visitor_id found in recent sessions metadata');
         }
       }
 

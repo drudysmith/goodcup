@@ -238,7 +238,7 @@ export default function Dashboard() {
     
     if (success === '1') {
       // Clear the cart with a small delay to let webhook clear database first
-      console.log('🎯 [Dashboard] Clearing cart after successful purchase');
+//       console.log('🎯 [Dashboard] Clearing cart after successful purchase');
       
       // Small delay to allow webhook to clear database first
       setTimeout(() => {

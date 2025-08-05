@@ -42,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Fetch user profile from database
-    console.log('[visitor id] checked IN db for user', user.id);
+//     console.log('[visitor id] checked IN db for user', user.id);
     const { data: visitorData, error: fetchError } = await supabaseServiceRole
       .from('visitors')
       .select('*')
@@ -76,7 +76,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const finalStripeCustomerId = customers.data[0].id;
           
           // Update database with Stripe customer ID
-          console.log('[visitor id] updated IN db for user', user.id);
+//           console.log('[visitor id] updated IN db for user', user.id);
           await supabaseServiceRole
             .from('visitors')
             .update({ stripe_cust_id: finalStripeCustomerId })

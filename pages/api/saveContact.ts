@@ -56,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       
       if (!authError && user) {
         // Find visitor record by user_id
-        console.log('[visitor id] checked IN db for user', user.id);
+//         console.log('[visitor id] checked IN db for user', user.id);
         const { data: visitorData, error: fetchError } = await supabaseServiceRole
           .from('visitors')
           .select('id, email, phone, name, street, unit, city, state, postal_code, country')
@@ -85,7 +85,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         // Only update if there are fields to update
         if (Object.keys(updatePayload).length > 0) {
-          console.log('[visitor id] updated IN db', visitorData.id.substring(0, 4) + '...');
+//           console.log('[visitor id] updated IN db', visitorData.id.substring(0, 4) + '...');
           const { error: updateError } = await supabaseServiceRole
             .from('visitors')
             .update(updatePayload)
@@ -118,7 +118,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Get current visitor data
-      console.log('[visitor id] checked IN db', visitor_id.substring(0, 4) + '...');
+//       console.log('[visitor id] checked IN db', visitor_id.substring(0, 4) + '...');
       const { data: visitorData, error: fetchError } = await supabaseServiceRole
         .from('visitors')
         .select('id, email, phone, name, street, unit, city, state, postal_code, country')
@@ -147,7 +147,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // Only update if there are fields to update
       if (Object.keys(updatePayload).length > 0) {
-        console.log('[visitor id] updated IN db', visitor_id.substring(0, 4) + '...');
+//         console.log('[visitor id] updated IN db', visitor_id.substring(0, 4) + '...');
         const { error: updateError } = await supabaseServiceRole
           .from('visitors')
           .update(updatePayload)

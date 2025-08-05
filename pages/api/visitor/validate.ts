@@ -53,7 +53,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const visitor_id = decodedToken.visitor_id;
 
     // Fetch visitor data from database
-    console.log('[visitor id] checked IN db', visitor_id.substring(0, 4) + '...');
+//     console.log('[visitor id] checked IN db', visitor_id.substring(0, 4) + '...');
     const { data: visitorData, error } = await supabaseServiceRole
       .from('visitors')
       .select('id, name, email, phone, cart, street, unit, city, state, postal_code, country, user_id')

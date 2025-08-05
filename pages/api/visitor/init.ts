@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Create visitor record in database using the visitor_id as the primary key
-    console.log('[visitor id] set IN db', visitor_id.substring(0, 4) + '...');
+//     console.log('[visitor id] set IN db', visitor_id.substring(0, 4) + '...');
     // Insert visitor record (or ignore if already exists)
     const { data: visitorRecord, error: insertError } = await supabaseServiceRole
       .from('visitors')

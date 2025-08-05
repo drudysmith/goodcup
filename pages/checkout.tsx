@@ -388,10 +388,10 @@ export default function Checkout() {
 
   // Shipment order saving function (writes to shipment_orders table)
   const saveShipmentOrder = async (shipmentData: any, token: string) => {
-    console.log('🚀 FRONTEND: saveShipmentOrder called - initiating API request to /api/saveShipmentOrder');
-    console.log('💾 SAVE SHIPMENT ORDER - API Call:', { shipmentData, token });
+//     console.log('🚀 FRONTEND: saveShipmentOrder called - initiating API request to /api/saveShipmentOrder');
+//     console.log('💾 SAVE SHIPMENT ORDER - API Call:', { shipmentData, token });
     // DEBUG: Log the shipmentData payload in detail
-    console.log('DEBUG shipmentData payload:', JSON.stringify(shipmentData, null, 2));
+//     console.log('DEBUG shipmentData payload:', JSON.stringify(shipmentData, null, 2));
     
     const response = await fetch('/api/saveShipmentOrder', {
       method: 'POST',
@@ -414,7 +414,7 @@ export default function Checkout() {
   const saveShipmentOrderMutation = useMutation({
     mutationFn: ({ shipmentData, token }: { shipmentData: any; token: string }) => saveShipmentOrder(shipmentData, token),
     onSuccess: (data) => {
-      console.log('✅ SAVE SHIPMENT ORDER - Success:', data);
+//       console.log('✅ SAVE SHIPMENT ORDER - Success:', data);
     },
     onError: (error) => {
       console.error('❌ SAVE SHIPMENT ORDER - Error:', error);
@@ -731,19 +731,19 @@ export default function Checkout() {
           return;
         }
         // Prepare shipment order data (handles gift orders appropriately)
-        console.log('🚪 GATE 4: Preparing shipment order data for authorized user...');
+//         console.log('🚪 GATE 4: Preparing shipment order data for authorized user...');
         const shipmentData = prepareShipmentOrderData();
         const token = userSession.access_token;
-        console.log('🚪 GATE 4: shipmentData', shipmentData);
-        console.log('🚪 GATE 4: token', token);
+//         console.log('🚪 GATE 4: shipmentData', shipmentData);
+//         console.log('🚪 GATE 4: token', token);
         if (!token) {
           alert('Authentication required to save shipment order');
           setCheckoutLoading(false);
           return;
         }
-        console.log('🚪 GATE 4: Saving shipment order before payment...');
+//         console.log('🚪 GATE 4: Saving shipment order before payment...');
         const shipmentResult = await saveShipmentOrderMutation.mutateAsync({ shipmentData, token });
-        console.log('🚪 GATE 4: Shipment order saved, proceeding to payment...');
+//         console.log('🚪 GATE 4: Shipment order saved, proceeding to payment...');
         // Proceed to payment (Stripe checkout session, etc.)
         await checkoutSessionMutation.mutateAsync({
           items,
@@ -774,13 +774,13 @@ export default function Checkout() {
           return;
         }
         // TODO: Save gift shipping address to shipment_orders table
-        console.log('Gift shipping - would save to shipment_orders:', shippingAddressQuery.data);
+//         console.log('Gift shipping - would save to shipment_orders:', shippingAddressQuery.data);
       } else {
         // If shipping to self
         if (isAddressDirty) {
           // Address was edited, save to visitor table
           // TODO: Call address saving API here
-          console.log('Self shipping with edits - would save to visitor table:', shippingAddressQuery.data);
+//           console.log('Self shipping with edits - would save to visitor table:', shippingAddressQuery.data);
         }
         // If not dirty, just proceed without saving
       }
@@ -1192,7 +1192,7 @@ export default function Checkout() {
                               // ====================================
                               // Before password authentication, we must save shipment order to ensure
                               // fulfillment data is captured before user proceeds to payment
-                              console.log('🚪 GATE 2: Sign In with Password - Starting validation and save process');
+//                               console.log('🚪 GATE 2: Sign In with Password - Starting validation and save process');
                               
                               if (!loginEmail.trim()) {
                                 setLoginError('Email is required');
@@ -1213,7 +1213,7 @@ export default function Checkout() {
                               
                               try {
                                 // Step 1: Save shipment order BEFORE password authentication
-                                console.log('🚪 GATE 2: Preparing shipment order data...');
+//                                 console.log('🚪 GATE 2: Preparing shipment order data...');
                                 const shipmentData = prepareShipmentOrderData();
                                 const token = (userSession as any)?.access_token || jwt;
                                 
@@ -1222,13 +1222,13 @@ export default function Checkout() {
                                   return;
                                 }
                                 
-                                console.log('🚪 GATE 2: Saving shipment order before password auth...');
+//                                 console.log('🚪 GATE 2: Saving shipment order before password auth...');
                                 const shipmentResult = await saveShipmentOrderMutation.mutateAsync({ shipmentData, token });
                                 
                                 // Step 2: Authenticate with password only after successful save
-                                console.log('🚪 GATE 2: Shipment order saved, attempting password authentication...');
+//                                 console.log('🚪 GATE 2: Shipment order saved, attempting password authentication...');
                                 authActions.signInWithPassword(loginEmail.trim(), loginPassword);
-                                console.log('🚪 GATE 2: Password authentication initiated');
+//                                 console.log('🚪 GATE 2: Password authentication initiated');
                                 
                               } catch (err) {
                                 setLoginError('Failed to save shipment order or sign in');
@@ -1270,7 +1270,7 @@ export default function Checkout() {
                               // ================================
                               // Before sending magic link, we must save shipment order to ensure
                               // fulfillment data is captured before user proceeds to payment
-                              console.log('🚪 GATE 1: Send Magic Link - Starting validation and save process');
+//                               console.log('🚪 GATE 1: Send Magic Link - Starting validation and save process');
                               
                               if (!loginEmail.trim()) {
                                 setLoginError('Email is required');
@@ -1288,7 +1288,7 @@ export default function Checkout() {
                               
                               try {
                                 // Step 1: Save shipment order BEFORE sending magic link
-                                console.log('🚪 GATE 1: Preparing shipment order data...');
+//                                 console.log('🚪 GATE 1: Preparing shipment order data...');
                                 const shipmentData = prepareShipmentOrderData();
                                 const token = (userSession as any)?.access_token || jwt;
                                 
@@ -1297,11 +1297,11 @@ export default function Checkout() {
                                   return;
                                 }
                                 
-                                                                console.log('🚪 GATE 1: Saving shipment order before magic link...');
+//                                                                 console.log('🚪 GATE 1: Saving shipment order before magic link...');
                                 const shipmentResult = await saveShipmentOrderMutation.mutateAsync({ shipmentData, token });
 
                                 // Step 2: Send magic link only after successful save
-                                console.log('🚪 GATE 1: Shipment order saved, sending magic link...');
+//                                 console.log('🚪 GATE 1: Shipment order saved, sending magic link...');
                                 const emailToUse = (visitorData?.email || customerInfoQuery.data?.email) || loginEmail;
                                 const redirectParams = new URLSearchParams({
                                   mode: 'user',
@@ -1317,10 +1317,10 @@ export default function Checkout() {
                                 
                                 if (error) {
                                   setLoginError(error.message);
-                                  console.log('🚪 GATE 1: Magic link send failed:', error.message);
+//                                   console.log('🚪 GATE 1: Magic link send failed:', error.message);
                                 } else {
                                   setLoginLinkSent(true);
-                                  console.log('🚪 GATE 1: Magic link sent successfully');
+//                                   console.log('🚪 GATE 1: Magic link sent successfully');
                                 }
                               } catch (err) {
                                 setLoginError('Failed to save shipment order or send magic link');
@@ -1495,7 +1495,7 @@ export default function Checkout() {
                     // ====================================
                     // Before proceeding to guest checkout, we must save shipment order to ensure
                     // fulfillment data is captured before user proceeds to payment
-                    console.log('🚪 GATE 3: Continue as Guest - Starting validation and save process');
+//                     console.log('🚪 GATE 3: Continue as Guest - Starting validation and save process');
                     
                     setShowGuestConfirmation(false);
                     setCheckoutLoading(true);
@@ -1509,7 +1509,7 @@ export default function Checkout() {
                       }
                       
                       // Step 2: Save shipment order BEFORE proceeding to payment
-                      console.log('🚪 GATE 3: Preparing shipment order data...');
+//                       console.log('🚪 GATE 3: Preparing shipment order data...');
                       const shipmentData = prepareShipmentOrderData();
                       const token = userSession?.access_token || jwt;
                       
@@ -1519,11 +1519,11 @@ export default function Checkout() {
                         return;
                       }
                       
-                      console.log('🚪 GATE 3: Saving shipment order before guest checkout...');
+//                       console.log('🚪 GATE 3: Saving shipment order before guest checkout...');
                       const shipmentResult = await saveShipmentOrderMutation.mutateAsync({ shipmentData, token });
                       
                       // Step 3: Proceed to checkout only after successful save
-                      console.log('🚪 GATE 3: Shipment order saved, proceeding to guest checkout...');
+//                       console.log('🚪 GATE 3: Shipment order saved, proceeding to guest checkout...');
                       await checkoutSessionMutation.mutateAsync({
                         items,
                         customerEmail: visitorData?.email || customerInfoQuery.data?.email || '',
@@ -1531,7 +1531,7 @@ export default function Checkout() {
                         checkoutMode: 'guest',
                         orderId: shipmentResult.order_id
                       });
-                      console.log('🚪 GATE 3: Guest checkout initiated successfully');
+//                       console.log('🚪 GATE 3: Guest checkout initiated successfully');
                       
                     } catch (error) {
                       console.error('🚪 GATE 3: Error in guest checkout flow:', error);

@@ -88,7 +88,7 @@ export function initMobileLogger() {
     };
   }
 
-  console.log = makeLogger('log', origLog);
-  console.warn = makeLogger('warn', origWarn);
+//   console.log = makeLogger('log', origLog);
+//   console.warn = makeLogger('warn', origWarn);
   console.error = makeLogger('error', origError);
 } 

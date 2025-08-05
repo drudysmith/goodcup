@@ -4,7 +4,7 @@ export const LOG_ENABLED = true;
 // Helper function for conditional logging
 export const log = (...args: any[]) => {
   if (LOG_ENABLED) {
-    console.log(...args);
+//     console.log(...args);
   }
 };
 
@@ -18,6 +18,6 @@ export const logError = (...args: any[]) => {
 // Helper function for conditional warning logging
 export const logWarn = (...args: any[]) => {
   if (LOG_ENABLED) {
-    console.warn(...args);
+//     console.warn(...args);
   }
 }; 

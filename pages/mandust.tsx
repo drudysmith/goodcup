@@ -295,7 +295,7 @@ function PriceSelectionModal({
         
         <div className="space-y-3">
                       {prices.map((price) => {
-              console.log('Price data:', price);
+//               console.log('Price data:', price);
               
               // Determine which note to show based on interval
               let note = '';
@@ -394,7 +394,7 @@ export default function Mandust() {
   });
 
   const handleCheckout = async () => {
-    console.log('Checkout button clicked - testing if function is called');
+//     console.log('Checkout button clicked - testing if function is called');
 
     if (!selectedPriceId) {
       alert('Please select a price option');

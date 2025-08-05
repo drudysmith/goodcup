@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (req.method === 'GET') {
       // Fetch user cart from database
-      console.log('[visitor id] checked IN db for user', user.id);
+//       console.log('[visitor id] checked IN db for user', user.id);
       const { data: visitorData, error: fetchError } = await supabaseServiceRole
         .from('visitors')
         .select('cart')
@@ -48,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'Cart data is required' });
       }
 
-      console.log('[visitor id] updated IN db for user', user.id);
+//       console.log('[visitor id] updated IN db for user', user.id);
       const { error: updateError } = await supabaseServiceRole
         .from('visitors')
         .update({ cart })

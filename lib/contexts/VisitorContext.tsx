@@ -102,7 +102,7 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
     queryFn: () => {
       if (typeof window !== 'undefined') {
         const storedId = localStorage.getItem('visitor_id') || '';
-        console.log('[visitor id] checked IN localStorage', storedId ? storedId.substring(0, 4) + '...' : 'none');
+//         console.log('[visitor id] checked IN localStorage', storedId ? storedId.substring(0, 4) + '...' : 'none');
         return storedId;
       }
       return '';
@@ -118,12 +118,12 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
   const updateVisitorIdMutation = useMutation({
     mutationFn: async (newVisitorId: string) => {
       localStorage.setItem('visitor_id', newVisitorId);
-      console.log('[visitor id] set IN localStorage', newVisitorId.substring(0, 4) + '...');
+//       console.log('[visitor id] set IN localStorage', newVisitorId.substring(0, 4) + '...');
       return newVisitorId;
     },
     onSuccess: (newVisitorId) => {
       queryClient.setQueryData(['visitorId'], newVisitorId);
-      console.log('[visitor id] updated IN state', newVisitorId.substring(0, 4) + '...');
+//       console.log('[visitor id] updated IN state', newVisitorId.substring(0, 4) + '...');
     },
   });
 
@@ -131,7 +131,7 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
   const removeVisitorIdMutation = useMutation({
     mutationFn: async () => {
       localStorage.removeItem('visitor_id');
-      console.log('[visitor id] removed IN localStorage due to invalid JWT');
+//       console.log('[visitor id] removed IN localStorage due to invalid JWT');
       return '';
     },
     onSuccess: () => {
@@ -145,7 +145,7 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
     setUserCartReady(hasValidSession);
     
     // Log state transition for debugging
-    console.log('[VisitorProvider] userCartReady:', hasValidSession, 'skipVisitor:', skipVisitor);
+//     console.log('[VisitorProvider] userCartReady:', hasValidSession, 'skipVisitor:', skipVisitor);
   }, [sessionQuery.data?.user?.id]);
 
   // User cart query - only enabled when userCartReady is true
@@ -187,7 +187,7 @@ export const VisitorProvider: React.FC<VisitorProviderProps> = ({ children }) =>
       }
 
       // Step 3: Add console log for verification
-      console.log('[VisitorProvider] Visitor ID:', visitorIdQuery.data ? visitorIdQuery.data.substring(0, 4) + '...' : 'generating...', 'skipVisitor:', session ? true : false);
+//       console.log('[VisitorProvider] Visitor ID:', visitorIdQuery.data ? visitorIdQuery.data.substring(0, 4) + '...' : 'generating...', 'skipVisitor:', session ? true : false);
     };
 
     init();

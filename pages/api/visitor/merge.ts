@@ -52,7 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Search for existing visitors with this email
-    console.log('[visitor id] checked IN db for email', user.email);
+//     console.log('[visitor id] checked IN db for email', user.email);
     const { data: existingVisitors, error: searchError } = await supabaseServiceRole
       .from('visitors')
       .select('id, cart, stripe_cust_id, user_id, name, email')
@@ -86,7 +86,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const stripeCustIdToUpdate = existingVisitor.stripe_cust_id;
 
         // Update existing visitor record with merged data and assign to user
-        console.log('[visitor id] updated IN db', existingVisitor.id.substring(0, 4) + '...');
+//         console.log('[visitor id] updated IN db', existingVisitor.id.substring(0, 4) + '...');
         const { error: updateError } = await supabaseServiceRole
           .from('visitors')
           .update({
@@ -104,7 +104,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         // Delete the current visitor record since we merged into the existing one
         if (visitor_id !== existingVisitor.id) {
-          console.log('[visitor id] removed IN db', visitor_id.substring(0, 4) + '...');
+//           console.log('[visitor id] removed IN db', visitor_id.substring(0, 4) + '...');
           const { error: deleteError } = await supabaseServiceRole
             .from('visitors')
             .delete()
@@ -120,7 +120,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     } else {
       // No existing visitor found, assign current visitor to user
-      console.log('[visitor id] updated IN db', visitor_id.substring(0, 4) + '...');
+//       console.log('[visitor id] updated IN db', visitor_id.substring(0, 4) + '...');
       const { error: updateError } = await supabaseServiceRole
         .from('visitors')
         .update({
