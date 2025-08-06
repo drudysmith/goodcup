@@ -9,6 +9,7 @@ import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { useCartStore } from '../store/cartStore';
 import TryGoodcupModal from '../components/TryGoodcupModal';
+import EntryOffer from '../components/EntryOffer';
 
 // Query function for products
 const fetchProducts = async (): Promise<{ products: Array<any> }> => {
@@ -221,9 +222,20 @@ export default function Home() {
   });
 
   const [showTryModal, setShowTryModal] = useState(false);
+  const [showEntryOffer, setShowEntryOffer] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (sessionStorage.getItem('entryOfferShown')) return;
+    const timer = setTimeout(() => {
+      setShowEntryOffer(true);
+      sessionStorage.setItem('entryOfferShown', '1');
+    }, 7400);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <Layout>
+      <EntryOffer open={showEntryOffer} onClose={() => setShowEntryOffer(false)} products={productsQuery.data?.products || []} />
       <section className="relative w-full h-[50vh] sm:h-[60vh] md:h-[70vh] lg:h-[90vh] min-h-[350px] max-h-[800px] -mt-[120px] border-b border-neutral-border transition-all duration-500 overflow-hidden">
         {/* Previous video fading out */}
         {previousVideo !== null && (

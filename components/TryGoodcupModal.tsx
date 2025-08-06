@@ -1,6 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBannerPromoQuery } from '../lib/queries/stripeQueries';
+import { useRouter } from 'next/router';
+import { useCartStore } from '../store/cartStore';
 
 interface StripeProduct {
   id: string;
@@ -26,6 +28,8 @@ interface TryGoodcupModalProps {
 const TryGoodcupModal: React.FC<TryGoodcupModalProps> = ({ open, onClose, products, addItem }) => {
   const { data: promo } = useBannerPromoQuery();
   const [expandedDescription, setExpandedDescription] = React.useState<{ description: string; productName: string } | null>(null);
+  const router = useRouter();
+  const addToCart = useCartStore((state) => state.addItem);
   
   // Filter and sort featured products
   const featured = (products || [])
@@ -40,15 +44,21 @@ const TryGoodcupModal: React.FC<TryGoodcupModalProps> = ({ open, onClose, produc
     <AnimatePresence>
       {open && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          initial={{ opacity: 0, backgroundColor: 'rgba(0, 0, 0, 0.4)' }}
+          animate={{ opacity: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.25 }}
+          transition={{ duration: 1, ease: 'easeOut' }}
           className="fixed inset-0 z-50 flex items-center justify-center pointer-events-auto"
-          style={{ background: 'transparent' }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
         >
           {/* Card stack */}
-          <div className="relative flex flex-col items-center gap-4">
+          <div 
+            className="relative flex flex-col items-center gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Close button */}
             <button
               onClick={onClose}
@@ -125,21 +135,41 @@ const TryGoodcupModal: React.FC<TryGoodcupModalProps> = ({ open, onClose, produc
                         }
                       }
                       
-                                              if (promoPrice && promoPrice < displayPrice) {
+                      const finalPrice = promoPrice && promoPrice < displayPrice ? promoPrice : displayPrice;
+                      const scoopCount = parseInt(product.metadata?.['scoop-count'] || '1');
+                      const pricePerServing = scoopCount > 0 ? finalPrice / scoopCount : finalPrice;
+                      
+                      if (promoPrice && promoPrice < displayPrice) {
                         return (
                           <>
                             <span className="line-through text-base text-text-secondary mr-1">${(displayPrice / 100).toFixed(2)}</span>
-                            <span className="text-lg font-bold text-brand-secondary">${(promoPrice / 100).toFixed(2)}</span>
+                            <span className="text-lg font-bold text-brand-secondary">
+                              ${(promoPrice / 100).toFixed(2)}
+                              {scoopCount > 1 && (
+                                <span className="text-base font-normal text-neutral-500 ml-1">
+                                  (${(pricePerServing / 100).toFixed(2)}/serving)
+                                </span>
+                              )}
+                            </span>
                           </>
                         );
                       } else {
-                        return price ? `$${(displayPrice / 100).toFixed(2)}` : '';
+                        return price ? (
+                          <span>
+                            ${(displayPrice / 100).toFixed(2)}
+                            {scoopCount > 1 && (
+                              <span className="text-base font-normal text-neutral-500 ml-1">
+                                (${(pricePerServing / 100).toFixed(2)}/serving)
+                              </span>
+                            )}
+                          </span>
+                        ) : '';
                       }
                     })()}
                   </div>
                 </div>
                 {/* Bottom right buttons container */}
-                <div className="absolute bottom-3 right-3 flex items-center gap-2">
+                <div className="absolute bottom-3 right-3 flex items-center gap-2" style={{ transform: 'translateX(-20px)' }}>
                   {/* Info button */}
                   <button
                     onClick={() => setExpandedDescription({
@@ -152,25 +182,42 @@ const TryGoodcupModal: React.FC<TryGoodcupModalProps> = ({ open, onClose, produc
                     <span className="text-lg font-bold text-neutral-100 font-serif">i</span>
                   </button>
                   
-                  {/* Try It button */}
-                  <button 
-                    onClick={(e) => {
-                      if (product.prices?.[0]) {
-                        addItem({
-                          productId: product.id,
-                          priceId: product.prices[0].id,
-                          quantity: 1
-                        }, {
-                          x: e.clientX,
-                          y: e.clientY
-                        });
-                      }
-                    }}
-                    className="bg-brand-secondary text-white px-4 py-2 rounded-full font-medium text-base shadow hover:bg-brand-secondary/90 transition"
-                  >
-                    <span className="block md:hidden">Try It</span>
-                    <span className="hidden md:block">Try It</span>
-                  </button>
+                  {/* Try It button with hover overlay */}
+                  <div className="relative group">
+                    <button 
+                      onClick={(e) => {
+                        if (product.prices?.[0]) {
+                          // Add item to cart using direct cart store
+                          addToCart({
+                            productId: product.id,
+                            priceId: product.prices[0].id,
+                            quantity: 1
+                          }, {
+                            x: e.clientX,
+                            y: e.clientY
+                          });
+                          
+                          // Close modal and redirect to checkout
+                          onClose();
+                          router.push('/checkout');
+                        }
+                      }}
+                      className="bg-brand-secondary text-white px-4 py-2 rounded-full font-medium text-base shadow hover:bg-brand-secondary/90 transition"
+                    >
+                      <span className="block md:hidden">Try It</span>
+                      <span className="hidden md:block">Try It</span>
+                    </button>
+                    
+                    {/* Hover overlay text */}
+                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                      <div 
+                        className="bg-brand-secondary text-white text-lg px-2 py-1 rounded whitespace-nowrap"
+                        style={{ transform: 'rotate(-12deg)' }}
+                      >
+                        cancel anytime
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             ))}
