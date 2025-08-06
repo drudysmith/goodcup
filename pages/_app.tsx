@@ -117,6 +117,15 @@ export default function App({ Component, pageProps }: AppProps) {
   useEffect(() => {
     initMobileLogger();
   }, []);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined' && typeof window.clarity === 'function') {
+      const env = process.env.NEXT_PUBLIC_DEPLOY_ENV || 'unknown';
+      window.clarity('set', 'env', env);
+      console.log('[Clarity] set env:', env);
+    }
+  }, []);
+  
   return (
     <QueryClientProvider client={queryClient}>
       <VisitorProvider>
