@@ -41,6 +41,9 @@ importers:
       '@types/validator':
         specifier: ^13.15.2
         version: 13.15.2
+      clarity-js:
+        specifier: ^0.8.23
+        version: 0.8.23
       dotenv:
         specifier: ^16.5.0
         version: 16.6.1
@@ -587,6 +590,9 @@ packages:
   chokidar@3.6.0:
     resolution: {integrity: sha512-7VT13fmjotKpGipCW9JEQAusEPE+Ei8nl6/g4FBAmIm0GOOLMua9NDDo/DWp0ZAxCr3cPq5ZpBqmPAQgDda2Pw==}
     engines: {node: '>= 8.10.0'}
+
+  clarity-js@0.8.23:
+    resolution: {integrity: sha512-NvkG1F7gb8uNupbni8PuBcYmL+/7RLTbvLR+wH/prvAwoaVCFjsFjul2YPZX8X1nzzXzj7BxK5m4TvQwqbLrhg==}
 
   client-only@0.0.1:
     resolution: {integrity: sha512-IV3Ou0jSMzZrd3pZ48nLkT9DA7Ag1pnPzaiQhpW7c3RbcqqzvzzVu+L8gfqMp/8IM2MQtSiqaCxrrcfu8I8rMA==}
@@ -1934,6 +1940,8 @@ snapshots:
       readdirp: 3.6.0
     optionalDependencies:
       fsevents: 2.3.3
+
+  clarity-js@0.8.23: {}
 
   client-only@0.0.1: {}
 

@@ -1134,7 +1134,17 @@ export default function Checkout() {
                     )}
                   </div>
                 </div>
-              )}  
+              )}
+              
+              {/* Account creation reminder note */}
+              <div className="text-lg text-blue-600 bg-blue-50 rounded px-3 py-2 mb-4 text-center font-medium">
+                <div className="space-y-1">
+                  <p>
+                    Create an account to <span className="font-bold">manage subscriptions</span>.
+                    <br/>Modify or cancel any time.
+                  </p>
+                </div>
+              </div>  
               {/* Checkout Mode Toggle - Only show for guests */}
               {!userSession && (
                 <div className="mb-4">
@@ -1434,6 +1444,16 @@ export default function Checkout() {
                 </div>
               </div>
             )}
+            
+            {/* Account creation reminder note */}
+            <div className="text-lg text-blue-600 bg-blue-50 rounded px-3 py-2 mb-4 text-center font-medium">
+              <div className="space-y-1">
+                <p>
+                  Create an account to <span className="font-bold">manage subscriptions</span>.
+                  <br/>Modify or cancel any time.
+                </p>
+              </div>
+            </div>
             
             <hr className="my-4" />
             <div className="flex justify-between text-xl font-bold">
