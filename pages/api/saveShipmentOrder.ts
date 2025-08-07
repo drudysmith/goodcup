@@ -95,9 +95,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ error: 'Visitor not found' });
     }
 
-     console.log('🚀 SaveShipmentOrder API: Processing request for visitor:', visitorId);
-     console.log('🚀 SaveShipmentOrder API: Shipping mode:', shipmentData.shipping_mode);
-     console.log('🚀 SaveShipmentOrder API: Address dirty:', shipmentData.is_address_dirty);
+    //     console.log('🚀 SaveShipmentOrder API: Processing request for visitor:', visitorId);
+    //     console.log('🚀 SaveShipmentOrder API: Shipping mode:', shipmentData.shipping_mode);
+    //     console.log('🚀 SaveShipmentOrder API: Address dirty:', shipmentData.is_address_dirty);
 
     // Step 1: Update visitors table if address data is dirty (changed) and not gift shipping
     if (shipmentData.is_address_dirty && shipmentData.shipping_mode !== 'gift') {
@@ -142,16 +142,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           return res.status(500).json({ error: 'Failed to update visitor data' });
         }
         
-         console.log('🚀 SaveShipmentOrder API: Visitor record updated successfully');
+//         console.log('🚀 SaveShipmentOrder API: Visitor record updated successfully');
       } else {
-         console.log('🚀 SaveShipmentOrder API: No changes detected in visitor data');
+//         console.log('🚀 SaveShipmentOrder API: No changes detected in visitor data');
       }
     } else {
-       console.log('🚀 SaveShipmentOrder API: Address not dirty, skipping visitor update');
+//       console.log('🚀 SaveShipmentOrder API: Address not dirty, skipping visitor update');
     }
 
     // Step 2: Create shipment order record
-     console.log('🚀 SaveShipmentOrder API: Creating shipment order record...');
+//     console.log('🚀 SaveShipmentOrder API: Creating shipment order record...');
     
     const orderId = uuidv4();
     const isGift = shipmentData.shipping_mode === 'gift';
