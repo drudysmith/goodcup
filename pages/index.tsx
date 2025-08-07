@@ -8,7 +8,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { useCartStore } from '../store/cartStore';
-import TryGoodcupModal from '../components/TryGoodcupModal';
 
 // Query function for products
 const fetchProducts = async (): Promise<{ products: Array<any> }> => {
@@ -399,13 +398,6 @@ export default function Home() {
           Try Goodcup
         </motion.button>
       </div>
-      {/* Try Goodcup Modal (root level, z-10) */}
-      <TryGoodcupModal
-        open={showTryModal}
-        onClose={() => setShowTryModal(false)}
-        products={productsQuery.data?.products || []}
-        addItem={addItem}
-      />
 
       {/* Carousel text overlay rendering - permanently mounted, opacity controlled to prevent layout shifts */}
       <div className="relative w-full mt-10 mb-0 md:-mt-0 md:mb-0"> {/* mb-16/mb-24: spacing below overlay - increase for more gap, decrease for less */}
