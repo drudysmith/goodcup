@@ -101,7 +101,7 @@ const TryGoodcupModal: React.FC<TryGoodcupModalProps> = ({ open, onClose, produc
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 30 }}
                 transition={{ delay: 0.1 * idx, duration: 0.4, type: 'spring', bounce: 0.2 }}
-                                className="w-[380px] md:w-[480px] bg-white/100 rounded-xl shadow-xl flex flex-row items-center gap-3 md:gap-4 p-3 border border-neutral-200 min-h-[80px] relative"
+                className="w-[380px] md:w-[480px] bg-white/100 rounded-xl shadow-xl flex flex-row items-center gap-3 md:gap-4 p-3 border border-neutral-200 min-h-[80px] relative"
               >
                 {/* Image left */}
                 <img src={product.images?.[0]} alt={product.name} className="w-20 md:w-24 h-20 md:h-24 object-cover rounded-lg flex-shrink-0" />
@@ -125,7 +125,7 @@ const TryGoodcupModal: React.FC<TryGoodcupModalProps> = ({ open, onClose, produc
                         }
                       }
                       
-                                              if (promoPrice && promoPrice < displayPrice) {
+                      if (promoPrice && promoPrice < displayPrice) {
                         return (
                           <>
                             <span className="line-through text-base text-text-secondary mr-1">${(displayPrice / 100).toFixed(2)}</span>

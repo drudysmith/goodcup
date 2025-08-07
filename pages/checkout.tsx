@@ -609,28 +609,9 @@ export default function Checkout() {
     // Listen for auth state changes and update query cache
     const { data: { subscription } } = supabaseAnon.auth.onAuthStateChange(async (event, session) => {
       setSessionData(session);
-      if (event === 'SIGNED_IN' && session && checkoutMode === 'user' && !isProcessingMerge) {
+      // Do not auto-forward to Stripe on SIGNED_IN; preserve explicit gate flow
+      if (event === 'SIGNED_IN' && session) {
         setShowInlineLogin(false);
-        
-        // Create checkout session with user ID (merge handled by global listener)
-        setIsProcessingMerge(true);
-        setCheckoutLoading(true);
-        
-        try {
-          // Create checkout session with user ID
-          await checkoutSessionMutation.mutateAsync({
-            items,
-            customerEmail: session.user.email || customerInfoQuery.data?.email || '',
-            supabaseUserId: session.user.id,
-            visitorId: visitorId || undefined,
-            checkoutMode: 'user'
-          });
-        } catch (error) {
-          alert('An error occurred during checkout. Please try again.');
-        } finally {
-          setIsProcessingMerge(false);
-          setCheckoutLoading(false);
-        }
       }
     });
 
