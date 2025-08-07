@@ -731,19 +731,19 @@ export default function Checkout() {
           return;
         }
         // Prepare shipment order data (handles gift orders appropriately)
-//         console.log('🚪 GATE 4: Preparing shipment order data for authorized user...');
+         console.log('🚪 GATE 4: Preparing shipment order data for authorized user...');
         const shipmentData = prepareShipmentOrderData();
         const token = userSession.access_token;
-//         console.log('🚪 GATE 4: shipmentData', shipmentData);
-//         console.log('🚪 GATE 4: token', token);
+         console.log('🚪 GATE 4: shipmentData', shipmentData);
+         console.log('🚪 GATE 4: token', token);
         if (!token) {
           alert('Authentication required to save shipment order');
           setCheckoutLoading(false);
           return;
         }
-//         console.log('🚪 GATE 4: Saving shipment order before payment...');
+         console.log('🚪 GATE 4: Saving shipment order before payment...');
         const shipmentResult = await saveShipmentOrderMutation.mutateAsync({ shipmentData, token });
-//         console.log('🚪 GATE 4: Shipment order saved, proceeding to payment...');
+         console.log('🚪 GATE 4: Shipment order saved, proceeding to payment...');
         // Proceed to payment (Stripe checkout session, etc.)
         await checkoutSessionMutation.mutateAsync({
           items,
