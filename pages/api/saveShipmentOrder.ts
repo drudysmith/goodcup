@@ -95,13 +95,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ error: 'Visitor not found' });
     }
 
-//     console.log('🚀 SaveShipmentOrder API: Processing request for visitor:', visitorId);
-//     console.log('🚀 SaveShipmentOrder API: Shipping mode:', shipmentData.shipping_mode);
-//     console.log('🚀 SaveShipmentOrder API: Address dirty:', shipmentData.is_address_dirty);
+    //     console.log('🚀 SaveShipmentOrder API: Processing request for visitor:', visitorId);
+    //     console.log('🚀 SaveShipmentOrder API: Shipping mode:', shipmentData.shipping_mode);
+    //     console.log('🚀 SaveShipmentOrder API: Address dirty:', shipmentData.is_address_dirty);
 
     // Step 1: Update visitors table if address data is dirty (changed) and not gift shipping
     if (shipmentData.is_address_dirty && shipmentData.shipping_mode !== 'gift') {
-//       console.log('🚀 SaveShipmentOrder API: Address is dirty, updating visitor record...');
+       console.log('🚀 SaveShipmentOrder API: Address is dirty, updating visitor record...');
       
       const visitorUpdatePayload: any = {};
       

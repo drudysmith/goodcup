@@ -411,6 +411,7 @@ export default function Home() {
           Try Goodcup
         </motion.button>
       </div>
+      
       {/* Try Goodcup Modal (root level, z-10) */}
       <TryGoodcupModal
         open={showTryModal}
