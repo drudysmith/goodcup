@@ -5,7 +5,3 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-[[redirects]]
-  from = "/api/stripeWebhook"
-  to = "/.netlify/functions/stripeWebhook"
-  status = 200
