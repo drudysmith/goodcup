@@ -23,6 +23,7 @@ import { ContactInfoPopup } from './ContactInfoPopup';
 import { AuthModal } from './AuthModal';
 import { openAuthModal, updateCachedCredentials } from '../store/authModalStore';
 import EmailSignup from './EmailSignup';
+import HighlightMarketImage from './HighlightMarketImage';
 
 // Imported constants and utilities
 import { navLinks } from '../lib/constants';
@@ -722,6 +723,9 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
         onDismiss={dismissBanner}
         collapsed={bannerCollapsed}
       />
+
+      {/* Highlight cue that points to the Cupgrades/Market icon */}
+      <HighlightMarketImage targetRef={cupgradesRef as unknown as React.RefObject<HTMLElement>} onOpen={() => { setCupgradesClosing(false); setCupgradesHovered(true); }} />
 
       {/* Fixed Header with scroll animation */}
       <header 
