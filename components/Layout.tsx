@@ -724,9 +724,6 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
         collapsed={bannerCollapsed}
       />
 
-      {/* Highlight cue that points to the Cupgrades/Market icon */}
-      <HighlightMarketImage targetRef={cupgradesRef as unknown as React.RefObject<HTMLElement>} onOpen={() => { setCupgradesClosing(false); setCupgradesHovered(true); }} />
-
       {/* Fixed Header with scroll animation */}
       <header 
         ref={headerRef}
@@ -916,6 +913,12 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
           </div>
         </nav>
       </header>
+
+      {/* Highlight cue that points to the Cupgrades/Market icon (placed after header so ref exists) */}
+      <HighlightMarketImage 
+        targetRef={cupgradesRef as unknown as React.RefObject<HTMLElement>} 
+        onOpen={() => { setCupgradesClosing(false); setCupgradesHovered(true); }} 
+      />
 
       {/* Main Content Area - adjust padding-top based on header size and banner visibility */}
       <main className={`flex-1 w-full px-0 bg-surface transition-all duration-300 ${
