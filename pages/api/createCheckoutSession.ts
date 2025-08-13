@@ -11,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { items, customerId, customerEmail, supabaseUserId, visitorId, visitorJwt, checkoutMode, orderId } = req.body;
+    const { items, customerId, customerEmail, supabaseUserId, visitorId, visitorJwt, checkoutMode, orderId, stripeMode, successRedirect, cancelRedirect } = req.body;
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'No items in cart' });
     }
@@ -49,10 +49,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const sessionConfig: any = {
       payment_method_types: ['card'],
-      mode: 'subscription',
+      mode: stripeMode === 'payment' ? 'payment' : 'subscription',
       line_items,
-      success_url: `${req.headers.origin}/dashboard?success=1`,
-      cancel_url: `${req.headers.origin}/dashboard?canceled=1`,
+      success_url: successRedirect || `${req.headers.origin}/checkout?success=1`,
+      cancel_url: cancelRedirect || `${req.headers.origin}/checkout?canceled=1`,
       ...(stripeCustomerId ? { customer: stripeCustomerId }
         : {
             customer_email: customerEmail,

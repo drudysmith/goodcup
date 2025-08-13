@@ -546,14 +546,14 @@ const RadialCarousel: React.FC<RadialCarouselProps> = ({
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div 
+                  <div 
                   className="bg-white rounded-xl shadow-2xl overflow-hidden relative"
                   style={{
-                    aspectRatio: '2/3',
+                    aspectRatio: isMobile ? '2/3.4' : '2/3',
                     width: isMobile 
                       ? `clamp(${EXPANDED_CARD_CONFIG.mobile.minWidth}, ${EXPANDED_CARD_CONFIG.mobile.viewportPercent}, ${EXPANDED_CARD_CONFIG.mobile.maxWidth})`
                       : `clamp(${EXPANDED_CARD_CONFIG.desktop.minWidth}, ${EXPANDED_CARD_CONFIG.desktop.viewportPercent}, ${EXPANDED_CARD_CONFIG.desktop.maxWidth})`,
-                    maxHeight: '80vh'
+                    maxHeight: isMobile ? '90vh' : '80vh'
                   }}
                 >
                   {/* Close button - always visible, high z-index */}

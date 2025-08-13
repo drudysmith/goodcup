@@ -49,6 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const eventType = event.type;
+    console.log('🚀 WEBHOOK: Received event', eventType);
 
     // Handle checkout.session.completed events
     if (eventType === 'checkout.session.completed') {
@@ -65,36 +66,116 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const supabaseUserId = session.metadata?.supabase_user_id;
       const visitorId = session.metadata?.visitor_id;
+      const orderIdFromSession = session.metadata?.order_id as string | undefined;
+
+      // Update shipment_orders.order_info with the FINAL paid line items from the Checkout Session
+      if (orderIdFromSession) {
+        try {
+          console.log('🚀 WEBHOOK: checkout.session.completed – fetching line items to record order_info', { sessionId: session.id, orderId: orderIdFromSession });
+          const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
+            limit: 100,
+            expand: ['data.price.product'],
+          });
+
+          const orderInfo = lineItems.data.map((li: any) => {
+            const priceId = typeof li.price === 'string' ? li.price : li.price?.id;
+            let productId: string | null = null;
+            if (li.price && typeof li.price !== 'string') {
+              const prod = li.price.product;
+              if (typeof prod === 'string') {
+                productId = prod;
+              } else if (prod && typeof prod === 'object' && prod.id) {
+                productId = prod.id;
+              }
+            }
+            return {
+              productId,
+              priceId,
+              quantity: li.quantity || 1,
+            };
+          });
+
+          const { error: updateOrderInfoError } = await supabaseServiceRole
+            .from('shipment_orders')
+            .update({ order_info: orderInfo })
+            .eq('order_id', orderIdFromSession);
+
+          if (updateOrderInfoError) {
+            console.error('🚀 WEBHOOK: Failed to update shipment_orders.order_info', { orderId: orderIdFromSession, error: updateOrderInfoError });
+          } else {
+            console.log('🚀 WEBHOOK: Updated shipment_orders.order_info from session line items', { orderId: orderIdFromSession, itemCount: orderInfo.length });
+          }
+        } catch (err) {
+          console.error('🚀 WEBHOOK: Error fetching/writing line items for order_info', { sessionId: session.id, orderId: orderIdFromSession, error: err });
+        }
+      } else {
+        console.log('🚀 WEBHOOK: checkout.session.completed – no order_id in session metadata; skipping order_info update');
+      }
       
       // Check if a promo code was used and update shipment order
       if (session.discounts && session.discounts.length > 0) {
         const promoCodeId = session.discounts[0].promotion_code as string;
-        if (promoCodeId && visitorId) {
-//           console.log('🚀 WEBHOOK: Promo code used:', promoCodeId, 'for visitor:', visitorId);
-          // Find the most recent shipment order for this visitor that doesn't have a promo_used yet
-          const { data: shipmentOrders, error: fetchError } = await supabaseServiceRole
-            .from('shipment_orders')
-            .select('order_id')
-            .eq('purchasing_visitor_id', visitorId)
-            .is('promo_used', null)
-            .order('created_at', { ascending: false })
-            .limit(1);
-
-          if (!fetchError && shipmentOrders && shipmentOrders.length > 0) {
-            const orderId = shipmentOrders[0].order_id;
-//             console.log('🚀 WEBHOOK: Updating shipment order with promo code:', orderId);
-            // Update shipment order with promo_used
-            const { error: updateError } = await supabaseServiceRole
+        if (promoCodeId) {
+          // Prefer updating by explicit order_id from session metadata
+          if (orderIdFromSession) {
+            console.log('🚀 WEBHOOK: Applying promo_used by order_id', { orderId: orderIdFromSession, promoCodeId });
+            const { error: promoByOrderIdError } = await supabaseServiceRole
               .from('shipment_orders')
               .update({ promo_used: promoCodeId })
-              .eq('order_id', orderId);
-
-            if (updateError) {
-              console.error('🚀 WEBHOOK: Error updating shipment order with promo code:', updateError);
+              .eq('order_id', orderIdFromSession);
+            if (promoByOrderIdError) {
+              console.error('🚀 WEBHOOK: Failed to set promo_used by order_id', { orderId: orderIdFromSession, error: promoByOrderIdError });
             } else {
-//               console.log('🚀 WEBHOOK: Successfully updated shipment order with promo code');
+              console.log('🚀 WEBHOOK: Set promo_used by order_id', { orderId: orderIdFromSession });
             }
+          } else if (visitorId) {
+            // Fallback: latest pending order for visitor without promo_used
+            const { data: shipmentOrders, error: fetchError } = await supabaseServiceRole
+              .from('shipment_orders')
+              .select('order_id')
+              .eq('purchasing_visitor_id', visitorId)
+              .is('promo_used', null)
+              .order('created_at', { ascending: false })
+              .limit(1);
+
+            if (!fetchError && shipmentOrders && shipmentOrders.length > 0) {
+              const orderId = shipmentOrders[0].order_id;
+              console.log('🚀 WEBHOOK: Applying promo_used by visitor fallback', { orderId, promoCodeId, visitorId });
+              const { error: updateError } = await supabaseServiceRole
+                .from('shipment_orders')
+                .update({ promo_used: promoCodeId })
+                .eq('order_id', orderId);
+
+              if (updateError) {
+                console.error('🚀 WEBHOOK: Error updating promo_used via visitor fallback', updateError);
+              } else {
+                console.log('🚀 WEBHOOK: Set promo_used via visitor fallback', { orderId });
+              }
+            }
+          } else {
+            console.log('🚀 WEBHOOK: Promo present but no order_id or visitor_id to apply');
           }
+        }
+      }
+      
+      // One-off settlement: set order_type to payment_intent id and mark paid
+      if (session.mode === 'payment' && orderIdFromSession) {
+        const paymentIntentId = typeof session.payment_intent === 'string' 
+          ? session.payment_intent 
+          : session.payment_intent?.id;
+        if (paymentIntentId) {
+          console.log('🚀 WEBHOOK: Marking one-off order paid', { orderId: orderIdFromSession, paymentIntentId });
+          const { error: updateOneOffError } = await supabaseServiceRole
+            .from('shipment_orders')
+            .update({ order_type: paymentIntentId, status: 'paid' })
+            .eq('order_id', orderIdFromSession);
+          if (updateOneOffError) {
+            console.error('🚀 WEBHOOK: Failed to update one-off order settlement', { orderId: orderIdFromSession, error: updateOneOffError });
+          } else {
+            console.log('🚀 WEBHOOK: One-off order marked paid', { orderId: orderIdFromSession });
+          }
+        } else {
+          console.log('🚀 WEBHOOK: No payment_intent id found for one-off session');
         }
       }
       
@@ -134,29 +215,49 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const stripeCustomerId = subscription.customer as string;
       const subscriptionStatus = subscription.status;
       const subscriptionId = subscription.id;
+      console.log('🚀 WEBHOOK: Subscription event details', { eventType, subscriptionId, subscriptionStatus, stripeCustomerId });
 
-      // Handle subscription creation - update shipment order with subscription_id
+      // Handle subscription creation - update shipment order with order_type
       if (eventType === 'customer.subscription.created' && subscriptionStatus === 'active') {
-//         console.log('🚀 WEBHOOK: Subscription created, updating shipment order with subscription_id:', subscriptionId);
+//         console.log('🚀 WEBHOOK: Subscription created, updating shipment order type to subscription:', subscriptionId);
         
         // Get visitor_id from session metadata (from checkout.session.completed)
         const sessions = await stripe.checkout.sessions.list({
           customer: stripeCustomerId,
           limit: 10,
         });
+        console.log('🚀 WEBHOOK: Retrieved sessions for customer', { count: sessions.data.length });
         
+        // Prefer resolving by explicit order_id in metadata
+        const sessionWithOrderId = sessions.data.find(session => session.metadata?.order_id);
+        if (sessionWithOrderId?.metadata?.order_id) {
+          const orderId = sessionWithOrderId.metadata.order_id as string;
+          console.log('🚀 WEBHOOK: Using order_id from session metadata to update shipment order', { orderId, subscriptionId });
+          const { error: updateByOrderIdError } = await supabaseServiceRole
+            .from('shipment_orders')
+            .update({ order_type: subscriptionId, status: 'paid' })
+            .eq('order_id', orderId);
+
+          if (updateByOrderIdError) {
+            console.error('🚀 WEBHOOK: Error updating shipment order by order_id:', updateByOrderIdError);
+          } else {
+            console.log('🚀 WEBHOOK: Successfully updated shipment order by order_id with order_type=subscription', { orderId, subscriptionId });
+          }
+          // Even after updating by order_id, continue to try visitor_id path as a fallback for any legacy rows
+        }
+
         const sessionWithVisitorId = sessions.data.find(session => session.metadata?.visitor_id);
         
         if (sessionWithVisitorId?.metadata?.visitor_id) {
           const visitorId = sessionWithVisitorId.metadata.visitor_id;
 //           console.log('🚀 WEBHOOK: Found visitor_id in session metadata:', visitorId);
           
-          // Find the most recent shipment order for this visitor that doesn't have a subscription_id yet
+          // Fallback: Find the most recent pending shipment order for this visitor
           const { data: shipmentOrders, error: fetchError } = await supabaseServiceRole
             .from('shipment_orders')
-            .select('order_id, created_at')
+            .select('order_id, created_at, status')
             .eq('purchasing_visitor_id', visitorId)
-            .is('subscription_id', null)
+            .eq('status', 'pending')
             .order('created_at', { ascending: false })
             .limit(1);
 
@@ -169,26 +270,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             const orderId = shipmentOrders[0].order_id;
 //             console.log('🚀 WEBHOOK: Found recent shipment order:', orderId);
             
-            // Update shipment order with subscription_id and change status to paid
+            // Update shipment order with order_type and change status to paid
+            console.log('🚀 WEBHOOK: Attempting to update shipment order to subscription', { orderId, subscriptionId, visitorId });
             const { error: updateError } = await supabaseServiceRole
               .from('shipment_orders')
               .update({ 
-                subscription_id: subscriptionId,
+                order_type: subscriptionId,
                 status: 'paid'
               })
               .eq('order_id', orderId);
 
             if (updateError) {
-              console.error('🚀 WEBHOOK: Error updating shipment order with subscription_id:', updateError);
-              return res.status(500).json({ error: 'Failed to update shipment order with subscription_id' });
+              console.error('🚀 WEBHOOK: Error updating shipment order with order_type for subscription:', updateError);
+              return res.status(500).json({ error: 'Failed to update shipment order with order_type' });
             } else {
-//               console.log('🚀 WEBHOOK: Successfully updated shipment order with subscription_id');
+              console.log('🚀 WEBHOOK: Successfully updated shipment order with order_type=subscription', { orderId, subscriptionId });
             }
           } else {
-//             console.log('🚀 WEBHOOK: No shipment orders found for visitor without subscription_id');
+            console.log('🚀 WEBHOOK: No pending shipment orders found for visitor', { visitorId });
           }
         } else {
-//           console.log('🚀 WEBHOOK: No visitor_id found in recent sessions metadata');
+          console.log('🚀 WEBHOOK: No visitor_id found in recent sessions metadata');
         }
       }
 

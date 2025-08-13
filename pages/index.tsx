@@ -392,7 +392,7 @@ export default function Home() {
           initial={{ opacity: 0, y: 20 }}
           animate={!isGraphTrigger ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="absolute bottom-[-1.5rem] md:bottom-[-.5rem] right-4 md:left-1/2 md:-translate-x-[40%] z-30 px-7 py-2 md:py-3 rounded-full text-white text-lg font-semibold bg-neutral-700/30 shadow-lg backdrop-blur-sm select-none pointer-events-auto max-w-xs"
+          className="absolute bottom-[-1.5rem] md:bottom-[-.5rem] left-4 left-[30%] z-30 px-7 py-2 md:py-3 rounded-full text-white text-lg font-semibold bg-brand-secondary shadow-lg backdrop-blur-sm select-none pointer-events-auto max-w-xs"
           style={{ pointerEvents: !isGraphTrigger ? 'auto' : 'none' }}
           onClick={() => setShowTryModal(true)}
         >
@@ -463,7 +463,7 @@ export default function Home() {
       </div>
       
       {/* Fixed positioned radial carousel */}
-      <div ref={carouselRef} className="mask-fade-sides relative z-[21] pb-20">
+      <div ref={carouselRef} className="mask-fade-sides relative z-[21] pb-4 md:pb-6">
         <RadialCarousel 
           products={productsQuery.data?.products || []}
           addItem={addItem}

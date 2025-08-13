@@ -134,71 +134,44 @@ const Card: React.FC<CardProps> = ({
           <div className="flex flex-col gap-2 mt-auto">
             {matchingProducts.map((product, index) => {
               const price = product.prices[0];
-              let displayPrice = price?.unit_amount || 0;
-              let promoPrice = null;
-              if (promo && (promo.percent_off || promo.amount_off)) {
-                if (promo.percent_off) {
-                  promoPrice = displayPrice * (1 - promo.percent_off / 100);
-                } else if (promo.amount_off) {
-                  promoPrice = displayPrice - promo.amount_off;
-                }
-              }
+              const baseAmount = price?.unit_amount || 0;
+              const promoAmount = promo && (promo.percent_off || promo.amount_off)
+                ? (promo.percent_off ? baseAmount * (1 - promo.percent_off / 100) : baseAmount - (promo.amount_off || 0))
+                : null;
+              const finalAmount = promoAmount && promoAmount < baseAmount ? promoAmount : baseAmount;
+              const productName = product.name.split('(')[0].trim();
+
               return (
                 <button
                   key={product.id}
                   ref={tryItButtonRefs[index]}
-                  className="bg-brand-secondary text-white px-4 py-2 rounded-full font-medium text-lg md:text-lg
-                           transition-all duration-200 ease-in-out 
-                           hover:scale-105 hover:shadow-lg 
-                           active:scale-95"
-                  onTouchStart={(e) => {
-                    // Touch start handler - no logging needed
-                  }}
+                  className="bg-brand-secondary text-white px-4 py-2 rounded-full font-medium text-center leading-tight text-xl md:text-lg 
+                           transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg active:scale-95"
+                  onTouchStart={() => {}}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setTimeout(() => {
-                      // Delayed handler - no logging needed
-                    }, 0);
-                    if (product.prices[0]) {
-                      addItem({
-                        productId: product.id,
-                        priceId: product.prices[0].id,
-                        quantity: 1
-                      }, {
-                        x: e.clientX,
-                        y: e.clientY
-                      });
-                    }
+                    const targetPrice = product.prices.find(p => !!p.recurring) || product.prices[0];
+                    if (!targetPrice) return;
+                    addItem({
+                      productId: product.id,
+                      priceId: targetPrice.id,
+                      quantity: 1
+                    }, { x: e.clientX, y: e.clientY });
                   }}
                   onTouchEnd={(e) => {
                     e.stopPropagation();
-                    e.preventDefault(); // Prevent synthetic click from being generated
-                    setTimeout(() => {
-                      // Delayed handler - no logging needed
-                    }, 0);
-                    if (product.prices[0]) {
-                      addItem({
-                        productId: product.id,
-                        priceId: product.prices[0].id,
-                        quantity: 1
-                      }, {
-                        x: e.changedTouches[0]?.clientX || 0,
-                        y: e.changedTouches[0]?.clientY || 0
-                      });
-                    }
+                    e.preventDefault();
+                    const targetPrice = product.prices.find(p => !!p.recurring) || product.prices[0];
+                    if (!targetPrice) return;
+                    addItem({
+                      productId: product.id,
+                      priceId: targetPrice.id,
+                      quantity: 1
+                    }, { x: e.changedTouches[0]?.clientX || 0, y: e.changedTouches[0]?.clientY || 0 });
                   }}
                 >
-                  It's in {product.name.split('(')[0].trim()}
-                  <span className="ml-2">
-                    {promoPrice && promoPrice < displayPrice ? (
-                      <>
-                        <span className="line-through text-lg opacity-60 mr-1">${(displayPrice / 100).toFixed(2)}</span>
-                        <span className="text-lg font-bold">${(promoPrice / 100).toFixed(2)}</span>
-                      </>
-                    ) : (
-                      <span className="text-lg font-bold">${(displayPrice / 100).toFixed(2)}</span>
-                    )}
-                  </span>
+                  <div>Get it in a <strong>{productName}</strong></div>
+                  <div className="opacity-95">Subscription <strong>${((finalAmount) / 100).toFixed(2)}</strong> / mo</div>
                 </button>
               );
             })}

@@ -1,6 +1,8 @@
 'use client';
 
 import React, { ReactNode, useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/router';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useSupabaseSession, useSupabaseSessionHelpers, useSessionExpiryMutation } from '../lib/queries/sessionQueries';
 import { useWebhookSync } from '../lib/queries/webhookQueries';
@@ -10,6 +12,7 @@ import { UserIcon, ShoppingBagIcon } from '@heroicons/react/24/outline';
 import { useCartStore, setCartAnimationTrigger } from '../store/cartStore';
 import { useVisitor } from '../lib/contexts/VisitorContext';
 import { CartAnimationProvider, useCartAnimation } from '../lib/contexts/CartAnimationContext';
+import HighlightMarketImage from './HighlightMarketImage';
 import CartFlyingAnimation from './CartFlyingAnimation';
 // @ts-expect-error: No types for flubber
 import * as flubber from "flubber";
@@ -136,6 +139,7 @@ const submitContactInfo = async ({
 };
 
 const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuClosing, setMenuClosing] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -150,6 +154,7 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [showContactPopup, setShowContactPopup] = useState(false);
   const [cartOpenedThisSession, setCartOpenedThisSession] = useState(false);
+  // Teaser handled by HighlightMarketImage
   
   // Module 7.5: Session status popup state
   const [showSessionPopup, setShowSessionPopup] = useState(false);
@@ -225,12 +230,15 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
     elements.forEach(el => observer.observe(el));
     return () => observer.disconnect();
   }, []);
+
+  // Teaser animation handled by HighlightMarketImage component
   
   // Optimize cart store selectors
   const items = useCartStore((state) => state.items);
   const clearCart = useCartStore((state) => state.clearCart);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const removeItem = useCartStore((state) => state.removeItem);
+  const updateItemPrice = useCartStore((state) => state.updateItemPrice);
   const addItem = useCartStore((state) => state.addItem);
   const validateAndCleanCart = useCartStore((state) => state.validateAndCleanCart);
 
@@ -733,31 +741,8 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
         <nav className={`w-full max-w-5xl xl:max-w-none xl:mx-0 flex items-center justify-between px-4 xl:px-12 transition-all duration-300 ${
           isScrolled ? 'py-2' : 'py-0'
         }`}>
-          {/* Left: Hamburger Menu and Search - now always visible */}
+          {/* Left: Cupgrades Icon only */}
           <div className="flex items-center gap-5">
-            <button
-              ref={menuButtonRef}
-              className={`flex flex-col justify-center items-center relative z-30 transition-all duration-300 ${headerStyles.iconSize} ${headerStyles.textColor} group`}
-              aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
-              onClick={toggleMenu}
-            >
-              <span
-                className={`block w-6 h-0.5 bg-current transition-all duration-300 ${
-                  menuOpen ? 'rotate-45 translate-y-1.5' : 'group-hover:translate-y-[-2px]'
-                }`}
-              />
-              <span
-                className={`block w-6 h-0.5 my-1 bg-current transition-all duration-300 ${
-                  menuOpen ? 'opacity-0' : ''
-                }`}
-              />
-              <span
-                className={`block w-6 h-0.5 bg-current transition-all duration-300 ${
-                  menuOpen ? '-rotate-45 -translate-y-1.5' : 'group-hover:translate-y-[2px]'
-                }`}
-              />
-            </button>
-
             {/* Cupgrades / Market Icon */}
             <div 
               ref={cupgradesRef}
@@ -893,7 +878,7 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
                   items={items}
                   cartClosing={cartClosing}
                   onClose={closeCart}
-                  cartActions={{ updateQuantity, removeItem }}
+                  cartActions={{ updateQuantity, removeItem, updateItemPrice }}
                   products={productsQuery.data?.products || []}
                   isOpen={cartHovered}
                 />
@@ -923,38 +908,45 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
       </main>
 
       {/* Footer */}
-      <footer className="w-full bg-brand-dark border-t border-neutral-border flex flex-col items-center py-8 z-10 relative">
+      <footer className="w-full bg-brand-dark -mt-px flex flex-col items-center py-8 z-10 relative">
         {/* Animated Logo at top-center of footer */}
-        <div className="mb-6 text-surface-background">
+        <div className="mb-12 text-surface-background -mt-32 md:-mt-48 translate-x-1/4 left-1/4">
           <div onClick={() => logoRef.current?.animateToNext()} style={{ cursor: 'pointer' }}>
-          <LogoAnimated ref={logoRef} />
+            <LogoAnimated ref={logoRef} className="w-24 h-24 md:w-32 md:h-32" />
           </div>
         </div>
         
-        {/* Main Footer Content Container */}
-        <div className="w-full max-w-4xl mx-auto px-4 text-center">
+        {/* Main Footer Content Container (pull content up without moving footer background) */}
+        <div className="w-full max-w-4xl mx-auto px-4 text-center -mt-8 md:-mt-10">
           {/* Tagline */}
-          <h3 className="text-xl font-medium text-surface-background mb-6">
-            Brew Better. Feel Better.
+          <h3 className="text-2xl md:text-3xl font-medium text-surface-background mb-6">
+            Drink good. Live good.
           </h3>
           
           {/* Social & Contact Info */}
           <div className="space-y-4 mb-8">
             {/* Instagram */}
-            <div className="text-surface-background">
-              <span className="text-base">Follow us: </span>
+            <div className="text-surface-background flex items-center justify-center gap-2">
+              <svg
+                className="w-5 h-5 md:w-6 md:h-6"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path d="M7 2C4.243 2 2 4.243 2 7v10c0 2.757 2.243 5 5 5h10c2.757 0 5-2.243 5-5V7c0-2.757-2.243-5-5-5H7zm10 2c1.654 0 3 1.346 3 3v10c0 1.654-1.346 3-3 3H7c-1.654 0-3-1.346-3-3V7c0-1.654 1.346-3 3-3h10zm-5 3a5 5 0 100 10 5 5 0 000-10zm0 2.2a2.8 2.8 0 110 5.6 2.8 2.8 0 010-5.6zM17.5 6.5a1 1 0 100 2 1 1 0 000-2z" />
+              </svg>
               <a 
                 href="https://instagram.com/goodcup.me" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-base font-medium hover:opacity-70 transition-opacity"
+                className="text-lg md:text-xl font-medium hover:opacity-70 transition-opacity"
               >
                 @goodcup.me
               </a>
             </div>
             
             {/* Location */}
-            <div className="text-base text-surface-background">
+            <div className="text-lg md:text-xl text-surface-background">
               Brea, CA
             </div>
             
@@ -962,7 +954,7 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
             <div className="text-surface-background">
               <a 
                 href="mailto:hello@goodcup.me"
-                className="text-base font-medium hover:opacity-70 transition-opacity"
+                className="text-lg md:text-xl font-medium hover:opacity-70 transition-opacity"
               >
                 hello@goodcup.me
               </a>
@@ -979,25 +971,25 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
           
           {/* Navigation Links */}
           <div className="flex flex-wrap justify-center gap-6 mb-6 text-surface-background">
-            <Link href="/" className="text-base hover:opacity-70 transition-opacity">
+            <Link href="/" className="text-lg md:text-xl hover:opacity-70 transition-opacity">
               Home
             </Link>
             <button 
-              onClick={() => {/* TODO: Open cupgrades panel */}}
-              className="text-base hover:opacity-70 transition-opacity cursor-pointer"
+              onClick={() => { setCupgradesHovered(true); }}
+              className="text-lg md:text-xl hover:opacity-70 transition-opacity cursor-pointer"
             >
               Shop
             </button>
-            <Link href="/about" className="text-base hover:opacity-70 transition-opacity">
+            <Link href="/about" className="text-lg md:text-xl hover:opacity-70 transition-opacity">
               About
             </Link>
-            <a href="mailto:hello@goodcup.me" className="text-base hover:opacity-70 transition-opacity">
+            <a href="mailto:hello@goodcup.me" className="text-lg md:text-xl hover:opacity-70 transition-opacity">
               Contact
             </a>
           </div>
           
           {/* Legal Links */}
-          <div className="flex flex-wrap justify-center gap-4 text-sm text-surface-background opacity-70">
+          <div className="flex flex-wrap justify-center gap-4 text-base md:text-lg text-surface-background opacity-70">
             <Link href="/terms" className="hover:opacity-100 transition-opacity">
               Terms
             </Link>
@@ -1038,11 +1030,11 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
         </div>
       )}
 
-      {/* Full-width Banner Dropdown Menu */}
+      {/* Full-width Banner Dropdown Menu - removed hamburger menu, keep component mounted closed */}
       <NavMenu
         ref={menuRef}
-        menuOpen={menuOpen}
-        menuClosing={menuClosing}
+        menuOpen={false}
+        menuClosing={false}
         navLinks={navLinks}
         showBanner={showBanner}
         isScrolled={isScrolled}
@@ -1055,6 +1047,10 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
         endPosition={animationState.endPosition}
         onComplete={hideAnimation}
       />
+
+      {router.pathname === '/' && (
+        <HighlightMarketImage targetRef={cupgradesRef as React.RefObject<HTMLElement>} />
+      )}
     </div>
   );
 };

@@ -13,7 +13,11 @@ const COOLDOWN_DURATION = 300; // Cooldown after animation completes
 
 const paths = [PATH_1, PATH_2, PATH_3];
 
-const LogoAnimated = forwardRef((props, ref) => {
+type LogoAnimatedProps = {
+  className?: string;
+};
+
+const LogoAnimated = forwardRef((props: LogoAnimatedProps, ref) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [path, setPath] = useState(paths[0]);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -162,7 +166,7 @@ const LogoAnimated = forwardRef((props, ref) => {
     <svg
       viewBox="0 0 100 100"
       fill="currentColor"
-      className="w-12 h-12"
+      className={props?.className ?? "w-12 h-12"}
       aria-label="Animated Logo"
       style={{ 
         cursor: 'pointer',

@@ -80,6 +80,9 @@ const createCheckoutSession = async (payload: {
   visitorJwt?: string;
   checkoutMode: 'user' | 'guest';
   orderId?: string;
+  stripeMode?: 'subscription' | 'payment';
+  successRedirect?: string;
+  cancelRedirect?: string;
 }) => {
   const response = await fetch('/api/createCheckoutSession', {
     method: 'POST',
@@ -150,11 +153,19 @@ export default function Checkout() {
   const router = useRouter();
   const items = useCartStore((s) => s.items);
   const clearCart = useCartStore((s) => s.clearCart);
+  const removeItemsByPriceIds = useCartStore((s) => s.removeItemsByPriceIds);
   const queryClient = useQueryClient();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [currentStage, setCurrentStage] = useState<CheckoutStage>('information');
   const [orderSummaryExpanded, setOrderSummaryExpanded] = useState(false);
   const [checkoutMode, setCheckoutMode] = useState<'user' | 'guest'>('user');
+  
+  // TanStack: Checkout flow state sourced from URL once
+  const checkoutFlowQuery = useQuery({
+    queryKey: ['checkoutFlow'],
+    queryFn: async () => ({ flow: 'single' as 'single' | 'dual', type: 'sub' as 'sub' | 'oneoff' }),
+    staleTime: Infinity,
+  });
 
   const [isProcessingMerge, setIsProcessingMerge] = useState(false);
   
@@ -619,18 +630,45 @@ export default function Checkout() {
   }, [checkoutMode, isProcessingMerge, items, customerInfoQuery.data?.email, setSessionData, checkoutSessionMutation]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('success') === '1') {
-        clearCart();
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    // Initialize checkout flow from URL once
+    const flowParam = params.get('flow');
+    const typeParam = params.get('type');
+    if (flowParam === 'dual' || flowParam === 'single') {
+      const next = {
+        flow: flowParam as 'single' | 'dual',
+        type: typeParam === 'oneoff' ? 'oneoff' as const : 'sub' as const,
+      };
+      queryClient.setQueryData(['checkoutFlow'], next);
+    }
+    // Set checkout mode from URL parameter
+    const modeParam = params.get('mode');
+    if (modeParam === 'guest' || modeParam === 'user') {
+      setCheckoutMode(modeParam);
+    }
+    // Handle post-Stripe return selectively
+    const successParam = params.get('success');
+    if (successParam === '1') {
+      const currentFlow = (queryClient.getQueryData(['checkoutFlow']) as any) || { flow: 'single', type: typeParam === 'oneoff' ? 'oneoff' : 'sub' };
+      // Compute purchased priceIds by type
+      const priceIdsToRemove: string[] = items
+        .filter((ci) => {
+          const { price } = getProductAndPrice(ci);
+          const isSub = !!price?.recurring;
+          return currentFlow.type === 'sub' ? isSub : !isSub;
+        })
+        .map((ci) => ci.priceId);
+      if (priceIdsToRemove.length > 0) {
+        removeItemsByPriceIds(priceIdsToRemove);
       }
-      // Set checkout mode from URL parameter
-      const modeParam = params.get('mode');
-      if (modeParam === 'guest' || modeParam === 'user') {
-        setCheckoutMode(modeParam);
+      // If dual flow and just finished sub, flip to oneoff for next leg
+      if (currentFlow.flow === 'dual' && currentFlow.type === 'sub') {
+        queryClient.setQueryData(['checkoutFlow'], { flow: 'dual', type: 'oneoff' as const });
       }
     }
-  }, [clearCart]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productsQuery.data, items]);
 
   // Helper to get product/price info for cart items
   const getProductAndPrice = (item: CartItem) => {
@@ -638,6 +676,23 @@ export default function Checkout() {
     const price = product?.prices.find((pr) => pr.id === item.priceId);
     return { product, price };
   };
+
+  // Determine current target type for this leg and filter items accordingly
+  const getCurrentTargetType = (): 'sub' | 'oneoff' => {
+    const cf = (checkoutFlowQuery.data as any);
+    if (cf?.type === 'oneoff' || cf?.type === 'sub') return cf.type;
+    const hasSub = items.some(ci => {
+      const { price } = getProductAndPrice(ci);
+      return !!price?.recurring;
+    });
+    return hasSub ? 'sub' : 'oneoff';
+  };
+
+  const filteredItems = items.filter((ci) => {
+    const { price } = getProductAndPrice(ci);
+    const isSub = !!price?.recurring;
+    return getCurrentTargetType() === 'sub' ? isSub : !isSub;
+  });
 
   // Helper to format recurring interval
   const formatRecurringInterval = (recurring: { interval: string; interval_count?: number }) => {
@@ -655,7 +710,7 @@ export default function Checkout() {
     }
   };
 
-  const cartTotal = items.reduce((sum, item) => {
+  const cartTotal = filteredItems.reduce((sum, item) => {
     const { price } = getProductAndPrice(item);
     return sum + ((price?.unit_amount || 0) * item.quantity);
   }, 0);
@@ -701,6 +756,33 @@ export default function Checkout() {
 
   const handleCheckout = async () => {
     setCheckoutLoading(true);
+    const currentFlow = (checkoutFlowQuery.data as any) || { flow: 'single', type: undefined };
+    // Determine target type
+    let targetType: 'sub' | 'oneoff' | undefined = currentFlow.type;
+    if (!targetType) {
+      // Derive from cart if not provided
+      const hasSub = items.some(ci => {
+        const pr = productsQuery.data?.products.find(p=>p.id===ci.productId)?.prices.find(pr=>pr.id===ci.priceId);
+        return !!pr?.recurring;
+      });
+      targetType = hasSub ? 'sub' : 'oneoff';
+    }
+    const stripeMode: 'subscription' | 'payment' = targetType === 'sub' ? 'subscription' : 'payment';
+    const filteredItems = items.filter(ci => {
+      const pr = productsQuery.data?.products.find(p=>p.id===ci.productId)?.prices.find(pr=>pr.id===ci.priceId);
+      const isSub = !!pr?.recurring;
+      return targetType === 'sub' ? isSub : !isSub;
+    });
+    const isSingleSub = ((currentFlow.flow || 'single') === 'single' && stripeMode === 'subscription');
+    const isDualFinalLeg = ((currentFlow.flow || 'single') === 'dual' && targetType === 'oneoff');
+    const successRedirect = typeof window !== 'undefined'
+      ? (
+          (isSingleSub || isDualFinalLeg)
+            ? `${window.location.origin}/dashboard?success=1`
+            : `${window.location.origin}/checkout?mode=${checkoutMode}&flow=${currentFlow.flow || 'single'}&type=${targetType}&success=1`
+        )
+      : undefined;
+    const cancelRedirect = typeof window !== 'undefined' ? `${window.location.origin}/checkout?mode=${checkoutMode}&flow=${currentFlow.flow || 'single'}&type=${targetType}&canceled=1` : undefined;
     
     // Gate #4: Ensure shipment order is saved for authorized users before payment
     if (checkoutMode === 'user' && userSession) {
@@ -727,11 +809,14 @@ export default function Checkout() {
 	//         console.log('🚪 GATE 4: Shipment order saved, proceeding to payment...');
         // Proceed to payment (Stripe checkout session, etc.)
         await checkoutSessionMutation.mutateAsync({
-          items,
+          items: filteredItems,
           customerEmail: userSession.user.email || customerInfoQuery.data?.email || '',
           supabaseUserId: userSession.user.id,
           checkoutMode: 'user',
           orderId: shipmentResult.order_id,
+          stripeMode,
+          successRedirect,
+          cancelRedirect,
         });
         setCheckoutLoading(false);
         return;
@@ -773,10 +858,13 @@ export default function Checkout() {
           // Module 6a: Session Short-Circuit
           try {
             await checkoutSessionMutation.mutateAsync({
-              items,
+              items: filteredItems,
               customerEmail: userSession.user.email || customerInfoQuery.data?.email || '',
               supabaseUserId: userSession.user.id,
-              checkoutMode: 'user'
+              checkoutMode: 'user',
+              stripeMode,
+              successRedirect,
+              cancelRedirect,
             });
           } finally {
             setCheckoutLoading(false);
@@ -802,11 +890,14 @@ export default function Checkout() {
 
       // Guest checkout flow using visitor context
       await checkoutSessionMutation.mutateAsync({
-        items,
+        items: filteredItems,
         customerEmail: visitorData?.email || customerInfoQuery.data?.email || '',
         visitorId: visitorId || undefined,
         visitorJwt: jwt || undefined,
-        checkoutMode: 'guest'
+        checkoutMode: 'guest',
+        stripeMode,
+        successRedirect,
+        cancelRedirect,
       });
     } finally {
       setCheckoutLoading(false);
@@ -867,7 +958,7 @@ export default function Checkout() {
             </button>
             {orderSummaryExpanded && (
               <div className="mt-4 space-y-4">
-                {items.map((item) => {
+                {filteredItems.map((item) => {
                   const { product, price } = getProductAndPrice(item);
                   if (!product || !price) return null;
                   const displayPrice = price.unit_amount || 0;
@@ -895,12 +986,13 @@ export default function Checkout() {
                           <span>${((displayPrice * item.quantity) / 100).toFixed(2)}</span>
                         )}
                       </div>
+                      <div className="text-sm text-text-tertiary mt-1">{price?.recurring ? 'Subscription' : 'One-time'} purchase</div>
                     </div>
                   );
                 })}
                 <div className="text-right font-bold text-lg">
                   {(() => {
-                    const subtotal = items.reduce((sum, item) => {
+                    const subtotal = filteredItems.reduce((sum, item) => {
                       const { price } = getProductAndPrice(item);
                       return sum + ((price?.unit_amount || 0) * item.quantity);
                     }, 0);
@@ -909,7 +1001,7 @@ export default function Checkout() {
                       if (promo.percent_off) {
                         promoSubtotal = subtotal * (1 - promo.percent_off / 100);
                       } else if (promo.amount_off) {
-                        promoSubtotal = subtotal - promo.amount_off * items.length;
+                        promoSubtotal = subtotal - promo.amount_off * filteredItems.length;
                       }
                     }
                     return promoSubtotal && promoSubtotal < subtotal ? (
@@ -985,7 +1077,7 @@ export default function Checkout() {
                 className="w-full p-3 border rounded text-lg" 
               />
               <div className="flex justify-center mb-4">
-                <button onClick={handleContinueToShipping} className="w-1/2 bg-brand-secondary text-lg text-white py-3 px-6 rounded-full disabled:opacity-50" disabled={!validateInformationStage() || saveContactInfoMutation.isPending}>
+                <button onClick={handleContinueToShipping} className="w-1/2 bg-brand-secondary text-lg text-white py-3 px-6 rounded-full disabled:opacity-50 hover:opacity-80" disabled={!validateInformationStage() || saveContactInfoMutation.isPending}>
                   {saveContactInfoMutation.isPending ? 'Saving contact...' : 'Continue to shipping'}
                 </button>
               </div>
@@ -1118,6 +1210,7 @@ export default function Checkout() {
               )}  
 
               {/* Account creation reminder note */}
+              {!(visitorData?.has_account || userSession) && (
               <div className="text-lg text-blue-600 bg-blue-50 rounded px-3 py-2 mb-4 text-center font-medium">
                 <div className="space-y-1">
                   <p>
@@ -1126,6 +1219,7 @@ export default function Checkout() {
                   </p>
                 </div>
               </div>  
+              )}
               {/* Checkout Mode Toggle - Only show for guests */}
               {!userSession && (
                 <div className="mb-4">
@@ -1137,10 +1231,10 @@ export default function Checkout() {
                 </div>
               )}
               <div className="flex justify-center mb-4">
-                <button onClick={handleCheckout} disabled={checkoutLoading} className="w-1/2 bg-brand-secondary text-lg text-white py-3 px-6 rounded-full disabled:opacity-50">
+                <button onClick={handleCheckout} disabled={checkoutLoading} className="w-1/2 bg-brand-secondary text-lg text-white py-3 px-6 rounded-full disabled:opacity-50 hover:opacity-80">
                 {checkoutLoading ? 'Processing...' : 
                   userSession ? 'Continue to payment' : 
-                  checkoutMode === 'user' ? 'Sign in or create account' : 'Continue to payment'
+                  checkoutMode === 'user' ? 'Continue as user/sign in' : 'Continue to payment'
                 }
               </button>
               </div>
@@ -1366,7 +1460,7 @@ export default function Checkout() {
         <div className="hidden lg:block">
           <div className="p-6 border rounded">
             <h3 className="text-xl font-bold mb-4">Order Summary</h3>
-            {items.map((item) => {
+            {filteredItems.map((item) => {
               const { product, price } = getProductAndPrice(item);
               if (!product || !price) return null;
               const displayPrice = price.unit_amount || 0;
@@ -1382,7 +1476,7 @@ export default function Checkout() {
                 <div key={item.priceId} className="flex justify-between mb-3">
                   <div className="flex-1">
                     <div className="text-lg font-medium">{product.name}</div>
-                    <div className="text-base text-text-secondary">Quantity: {item.quantity}</div>
+                    <div className="text-base text-text-secondary">Quantity: {item.quantity} · {price?.recurring ? 'Subscription' : 'One-time'}</div>
                   </div>
                   <div className="text-lg text-right">
                     {promoPrice && promoPrice < displayPrice ? (
@@ -1426,6 +1520,7 @@ export default function Checkout() {
               </div>
             )}
             {/* Account creation reminder note */}
+            {!(visitorData?.has_account || userSession) && (
             <div className="text-lg text-blue-600 bg-blue-50 rounded px-3 py-2 mb-4 text-center font-medium">
               <div className="space-y-1">
                 <p>
@@ -1434,13 +1529,14 @@ export default function Checkout() {
                 </p>
               </div>
             </div>  
+            )}
             
             <hr className="my-4" />
             <div className="flex justify-between text-xl font-bold">
               <span>Total</span>
               <span>
                 {(() => {
-                  const subtotal = items.reduce((sum, item) => {
+                  const subtotal = filteredItems.reduce((sum, item) => {
                     const { price } = getProductAndPrice(item);
                     return sum + ((price?.unit_amount || 0) * item.quantity);
                   }, 0);
@@ -1449,7 +1545,7 @@ export default function Checkout() {
                     if (promo.percent_off) {
                       promoSubtotal = subtotal * (1 - promo.percent_off / 100);
                     } else if (promo.amount_off) {
-                      promoSubtotal = subtotal - promo.amount_off * items.length;
+                      promoSubtotal = subtotal - promo.amount_off * filteredItems.length;
                     }
                   }
                   return promoSubtotal && promoSubtotal < subtotal ? (
@@ -1521,15 +1617,28 @@ export default function Checkout() {
                       
 //                       console.log('🚪 GATE 3: Saving shipment order before guest checkout...');
                       const shipmentResult = await saveShipmentOrderMutation.mutateAsync({ shipmentData, token });
+                      // Prepare next-leg parameters
+                      const currentFlow = (checkoutFlowQuery.data as any) || { flow: 'single', type: 'sub' };
+                      const targetType: 'sub' | 'oneoff' = 'sub';
+                      const stripeMode: 'subscription' | 'payment' = 'subscription';
+                      const filteredItems = items.filter(ci => {
+                        const { price } = getProductAndPrice(ci);
+                        return !!price?.recurring;
+                      });
+                      const successRedirect = typeof window !== 'undefined' ? `${window.location.origin}/checkout?mode=${checkoutMode}&flow=${currentFlow.flow || 'single'}&type=${targetType}&success=1` : undefined;
+                      const cancelRedirect = typeof window !== 'undefined' ? `${window.location.origin}/checkout?mode=${checkoutMode}&flow=${currentFlow.flow || 'single'}&type=${targetType}&canceled=1` : undefined;
                       
                       // Step 3: Proceed to checkout only after successful save
 //                       console.log('🚪 GATE 3: Shipment order saved, proceeding to guest checkout...');
                       await checkoutSessionMutation.mutateAsync({
-                        items,
+                        items: filteredItems,
                         customerEmail: visitorData?.email || customerInfoQuery.data?.email || '',
                         visitorId: visitorId || undefined,
                         checkoutMode: 'guest',
-                        orderId: shipmentResult.order_id
+                        orderId: shipmentResult.order_id,
+                        stripeMode,
+                        successRedirect,
+                        cancelRedirect,
                       });
 //                       console.log('🚪 GATE 3: Guest checkout initiated successfully');
                       

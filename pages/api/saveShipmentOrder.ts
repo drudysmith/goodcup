@@ -158,7 +158,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     
     const shipmentOrderPayload = {
       order_id: orderId,
-      subscription_id: null, // Will be set later when subscription is created
+      // order_type is set later by webhook based on Stripe session.mode ('subscription' | 'payment')
+      order_type: null,
       recipient_name: shipmentData.recipient_name,
       address_line1: shipmentData.address_line1,
       address_line2: shipmentData.address_line2 || null,

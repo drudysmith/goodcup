@@ -35,7 +35,9 @@ interface CartState {
   addItem: (item: CartItem, clickPosition?: { x: number; y: number }) => void;
   removeItem: (priceId: string) => void;
   updateQuantity: (priceId: string, quantity: number) => void;
+  updateItemPrice: (oldPriceId: string, newPriceId: string) => void;
   clearCart: () => void;
+  removeItemsByPriceIds: (priceIds: string[]) => void;
   validateAndCleanCart: (products: StripeProduct[]) => void;
 }
 
@@ -198,8 +200,40 @@ const updateQuantity = (priceId: string, quantity: number) => {
   }));
 };
 
+// Swap an item's priceId (e.g., toggle between subscription and one-off)
+const updateItemPrice = (oldPriceId: string, newPriceId: string) => {
+  cartStore.setState((state) => {
+    const existingOld = state.items.find((i) => i.priceId === oldPriceId);
+    if (!existingOld) return state;
+    const existingNew = state.items.find((i) => i.priceId === newPriceId);
+    // If the new price item already exists, merge quantities and remove old
+    if (existingNew) {
+      return {
+        items: state.items
+          .filter((i) => i.priceId !== oldPriceId && i.priceId !== newPriceId)
+          .concat({ ...existingNew, quantity: existingNew.quantity + existingOld.quantity }),
+      };
+    }
+    // Otherwise, replace the old item's priceId
+    return {
+      items: state.items.map((i) =>
+        i.priceId === oldPriceId ? { ...i, priceId: newPriceId } : i
+      ),
+    };
+  });
+};
+
 const clearCart = () => {
   cartStore.setState({ items: [] });
+};
+
+// Remove multiple items by priceId
+const removeItemsByPriceIds = (priceIds: string[]) => {
+  if (!Array.isArray(priceIds) || priceIds.length === 0) return;
+  const toRemove = new Set(priceIds);
+  cartStore.setState((state) => ({
+    items: state.items.filter((i) => !toRemove.has(i.priceId)),
+  }));
 };
 
 // New action to validate cart items against current product catalog and remove invalid items
@@ -231,7 +265,9 @@ export const useCartStore = <T>(selector: (state: CartState) => T) => {
     addItem,
     removeItem,
     updateQuantity,
+    updateItemPrice,
     clearCart,
+    removeItemsByPriceIds,
     validateAndCleanCart,
   };
   

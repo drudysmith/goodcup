@@ -25,11 +25,13 @@ interface StripeProduct {
   description: string | null;
   images: string[];
   prices: StripePrice[];
+  metadata?: { [key: string]: string };
 }
 
 interface CartActions {
   updateQuantity: (priceId: string, quantity: number) => void;
   removeItem: (priceId: string) => void;
+  updateItemPrice?: (oldPriceId: string, newPriceId: string) => void;
 }
 
 interface CartPanelProps {
@@ -80,6 +82,7 @@ const CartPanel: React.FC<CartPanelProps> = ({
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
   const { data: promo } = useBannerPromoQuery();
+  const [showDualCheckoutModal, setShowDualCheckoutModal] = useState(false);
 
   return (
     <>
@@ -97,7 +100,7 @@ const CartPanel: React.FC<CartPanelProps> = ({
           cartClosing ? 'animate-slide-out-right' : 'animate-slide-in-right'
         }`}
         style={{
-          width: 'min(24rem, 90vw)', // Responsive width: 24rem on desktop, 90vw on mobile
+          width: 'min(26rem, 90vw)', // Slightly wider on desktop, 90vw on mobile
           height: '100dvh', // Dynamic viewport height for mobile browser UI
           fallbacks: {
             height: '100vh' // Fallback for browsers without dvh support
@@ -142,7 +145,7 @@ const CartPanel: React.FC<CartPanelProps> = ({
           
 
           
-          <div className="pb-4">
+           <div className="pb-4 relative z-0">
             {items.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-text-secondary opacity-70 text-lg">Your experience is empty</p>
@@ -151,7 +154,7 @@ const CartPanel: React.FC<CartPanelProps> = ({
               <>
                 {/* Cart Items Group */}
                 <motion.div 
-                  className="mb-4"
+                  className="mb-4 overflow-visible relative z-10"
                   initial="hidden"
                   animate="visible"
                   variants={{
@@ -178,10 +181,12 @@ const CartPanel: React.FC<CartPanelProps> = ({
                     }
                     return (
                       <motion.div 
-                        key={item.priceId} 
+                        key={`${item.productId}:${index}`} 
                         className="cart-item"
                         style={{ 
-                          padding: '12px 16px'
+                          padding: '12px 16px',
+                          overflow: 'hidden',
+                          minHeight: '124px'
                         }}
                         variants={{
                           hidden: { 
@@ -198,10 +203,11 @@ const CartPanel: React.FC<CartPanelProps> = ({
                             }
                           }
                         }}
+                        initial={false}
                       >
-                        <div className="flex items-start gap-3">
-                          {/* Product Image - larger, aligned with content */}
-                          <div className="flex-shrink-0" style={{ width: '80px', height: '80px' }}>
+                        <div className="grid gap-y-2 w-full" style={{ gridTemplateColumns: '22% 48% 30%' }}>
+                          {/* Row 1, Col 1: Image */}
+                          <div style={{ width: '100%', height: '80px' }}>
                             {product.images[0] && (
                               <img
                                 src={product.images[0]}
@@ -210,68 +216,93 @@ const CartPanel: React.FC<CartPanelProps> = ({
                               />
                             )}
                           </div>
-
-                          {/* Product Info - flex space */}
-                          <div className="flex-1 flex flex-col justify-between h-20">
-                            <div>
-                              <h4 className="text-text-primary text-lg leading-tight font-medium">
+                          {/* Row 1, Col 2-3: Title + short copy */}
+                          <div className="row-start-1 col-start-2 col-span-2 self-center justify-self-start relative min-w-0 pl-3 md:pl-4">
+                            <h4 className="text-text-primary text-lg leading-tight font-medium">
                               {product.name.split('(')[0].trim()}
-                              </h4>
-                              <p className="text-lg text-text-tertiary mt-1">
-                                {price.recurring ? `refill ships every ${formatRecurringInterval(price.recurring)}` : product.description || '30 servings'}
-                              </p>
-                            </div>
-                            
-                            {/* Quantity and pricing row - aligned to bottom */}
-                            <div className="flex items-center justify-between">
-                              {/* Quantity Controls */}
-                              <div className="flex items-center gap-1">
-                                <button
-                                  className="w-6 h-6 rounded-full border border-neutral-border flex items-center justify-center hover:bg-surface transition-colors text-text-secondary text-sm"
-                                  onClick={() => {
-                                    if (item.quantity > 1) {
-                                      cartActions.updateQuantity(item.priceId, item.quantity - 1);
-                                    } else {
-                                      cartActions.removeItem(item.priceId);
-                                    }
-                                  }}
-                                >
-                                  −
-                                </button>
-                                <span className="w-6 text-center text-lg font-medium text-text-primary">
-                                  {item.quantity}
-                                </span>
-                                <button
-                                  className="w-6 h-6 rounded-full border border-neutral-border flex items-center justify-center hover:bg-surface transition-colors text-text-secondary text-sm"
-                                  onClick={() => cartActions.updateQuantity(item.priceId, item.quantity + 1)}
-                                >
-                                  +
-                                </button>
-                              </div>
-
-                              {/* Pricing */}
-                              <div className="text-right">
+                            </h4>
+                            <p className="text-lg text-text-tertiary mt-1">
+                              {product.metadata?.['short-copy'] || product.description || '30 servings'}
+                            </p>
+                          </div>
+                          {/* Row 2, Col 1: Quantity controls */}
+                          <div className="row-start-2 col-start-1 flex items-center gap-1 justify-self-center self-center">
+                            <button
+                              className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-neutral-muted-bg flex items-center justify-center transition-colors text-text-primary text-base md:text-lg hover:opacity-80"
+                              onClick={() => {
+                                if (item.quantity > 1) {
+                                  cartActions.updateQuantity(item.priceId, item.quantity - 1);
+                                } else {
+                                  cartActions.removeItem(item.priceId);
+                                }
+                              }}
+                            >
+                              −
+                            </button>
+                            <span className="w-6 text-center text-lg font-medium text-text-primary">
+                              {item.quantity}
+                            </span>
+                            <button
+                              className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-neutral-muted-bg flex items-center justify-center transition-colors text-text-primary text-base md:text-lg hover:opacity-80"
+                              onClick={() => cartActions.updateQuantity(item.priceId, item.quantity + 1)}
+                            >
+                              +
+                            </button>
+                          </div>
+                          {/* Row 2, Col 2: Pricing (no wrap) */}
+                          <div className="row-start-2 col-start-2 self-center justify-self-center text-center min-w-0">
+                            <div className="flex items-baseline gap-2 whitespace-nowrap overflow-hidden text-ellipsis justify-center">
                                 {promoPrice && promoPrice < displayPrice ? (
                                   <>
-                                    <span className="line-through text-base opacity-60 text-text-secondary mr-1">${((displayPrice * item.quantity) / 100).toFixed(2)}</span>
-                                    <span className="text-lg text-green-600 font-medium">${((promoPrice * item.quantity) / 100).toFixed(2)}</span>
+                                    <span className="line-through text-xl text-text-secondary opacity-60">${((displayPrice * item.quantity) / 100).toFixed(2)}</span>
+                                    <span className="text-xl text-brand-secondary font-semibold">${((promoPrice * item.quantity) / 100).toFixed(2)}</span>
                                   </>
                                 ) : (
-                                  <span className="text-lg text-text-primary font-medium">{displayPrice !== null ? ((displayPrice * item.quantity) / 100).toFixed(2) : 'N/A'}</span>
+                                  <span className="text-xl text-text-primary font-semibold">{displayPrice !== null ? ((displayPrice * item.quantity) / 100).toFixed(2) : 'N/A'}</span>
                                 )}
                               </div>
+                          </div>
+                          {/* Row 2, Col 3: Toggle */}
+                          <div className="row-start-2 col-start-3 self-center justify-self-center w-full">
+                            {(() => {
+                                const oneoffPrice = product.prices.find(p => !p.recurring);
+                                const subPrice = product.prices.find(p => !!p.recurring);
+                                const hasBoth = !!oneoffPrice && !!subPrice;
+                                if (!hasBoth) {
+                                  return (
+                                  <span className={`${price.recurring ? 'bg-brand-secondary text-white' : 'bg-neutral-muted-bg text-text-primary'} px-3 py-1 rounded-md text-sm w-full inline-flex justify-center text-center`}>
+                                    {price.recurring ? 'Subscribe' : '1x Order'}
+                                  </span>
+                                  );
+                                }
+                                const isSub = !!price.recurring;
+                                const targetPriceId = isSub ? (oneoffPrice as any).id : (subPrice as any).id;
+                                return (
+                                <button
+                                  className={`relative inline-flex items-center justify-center w-full pl-6 pr-6 py-1 rounded-full text-sm transition-colors overflow-hidden ${isSub ? 'bg-brand-secondary text-white' : 'bg-neutral-muted-bg text-text-primary'}`}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      cartActions.updateItemPrice && cartActions.updateItemPrice(item.priceId, targetPriceId);
+                                    }}
+                                    aria-label="Toggle price type"
+                                  >
+                                    <span className="z-10">{isSub ? 'Subscribe' : '1x Order'}</span>
+                                    <span className={`absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white transition-all duration-300 ${isSub ? 'right-1' : 'left-1'}`}></span>
+                                  </button>
+                              );
+                            })()}
+                          </div>
+                          {/* Row 3, single col: subscription note right-aligned */}
+                          <div className="row-start-3 col-start-1 col-end-4 justify-self-end self-center">
+                            <div className="text-lg text-text-secondary -mt-2">
+                              {price.recurring ? (
+                                <>refill ships every month, <span className="text-brand-secondary">cancel anytime</span></>
+                              ) : (
+                                <><span className="text-brand-secondary">toggle subscription ^ price</span></>
+                              )}
                             </div>
                           </div>
-
-                          {/* Delete Button - aligned with top */}
-                          <button
-                            className="w-5 h-5 flex items-center justify-center text-text-secondary hover:opacity-100 transition-opacity mt-1"
-                            onClick={() => cartActions.removeItem(item.priceId)}
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
                         </div>
                       </motion.div>
                     );
@@ -279,7 +310,7 @@ const CartPanel: React.FC<CartPanelProps> = ({
                 </motion.div>
                 {/* Promo code reminder note */}
 		{promo && promo.code && (
-		  <div className="text-lg text-brand-secondary bg-brand-secondary/10 rounded px-3 py-2 mb-2 text-center font-medium">
+                  <div className="text-lg text-brand-secondary bg-brand-secondary/10 rounded px-3 py-2 mb-2 text-center font-medium relative z-0">
 		    <div className="space-y-1">
 		      <p>
 			   Use coupon code <span className="font-bold">{promo.code}</span> at checkout.
@@ -361,9 +392,25 @@ const CartPanel: React.FC<CartPanelProps> = ({
               <button 
                 className="bg-green-600 hover:bg-green-700 text-white font-medium px-8 py-3 text-lg rounded-full transition-colors duration-200"
                 onClick={() => {
+                  // Determine presence of subscription and one-off items
+                  let hasSubscription = false;
+                  let hasOneOff = false;
+                  for (const item of items) {
+                    const { price } = getProductAndPrice(item);
+                    if (!price) continue;
+                    if (price.recurring) hasSubscription = true; else hasOneOff = true;
+                  }
+
+                  // If both types exist, show dual-checkout modal (subscription first)
+                  if (hasSubscription && hasOneOff) {
+                    setShowDualCheckoutModal(true);
+                    return;
+                  }
+
+                  // Otherwise, single-pass checkout with explicit flags
+                  const type = hasSubscription ? 'sub' : 'oneoff';
                   onClose();
-                  // Default to user checkout mode
-                  window.location.href = '/checkout?mode=user';
+                  window.location.href = `/checkout?mode=user&flow=single&type=${type}`;
                 }}
               >
                 cupgrade now
@@ -377,6 +424,42 @@ const CartPanel: React.FC<CartPanelProps> = ({
           </div>
         )}
       </div>
+
+      {/* Dual-checkout modal - anchored just above the checkout button */}
+      {showDualCheckoutModal && (
+        <div className="pointer-events-none fixed inset-0" style={{ zIndex: 1000 }}>
+          {/* No full-screen dark overlay; a light shadowed popover near the button */}
+          <div className="absolute right-0 bottom-[132px] mr-6" style={{ width: 'min(26rem, 90vw)' }}>
+            <div className="pointer-events-auto bg-white rounded-xl shadow-2xl border border-neutral-border">
+              <div className="px-4 py-3">
+                <h3 className="text-2xl font-semibold text-text-primary mb-1">Two quick payments</h3>
+                <p className="text-xl text-text-secondary">
+                  Your subscription will check out first.<br/>
+                  Then you’ll return for the one-time order.
+                </p>
+              </div>
+              <div className="px-4 pb-4 pt-1 flex gap-2">
+                <button
+                  className="flex-1 bg-brand-secondary text-white rounded-full py-2 text-lg hover:opacity-90 transition"
+                  onClick={() => {
+                    setShowDualCheckoutModal(false);
+                    onClose();
+                    window.location.href = '/checkout?mode=user&flow=dual&type=sub';
+                  }}
+                >
+                  Continue
+                </button>
+                <button
+                  className="flex-1 bg-neutral-muted-bg text-text-primary rounded-full py-2 text-lg hover:opacity-90 transition"
+                  onClick={() => setShowDualCheckoutModal(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </>
   );
