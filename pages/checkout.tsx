@@ -17,6 +17,7 @@ import { openAuthModal } from '../store/authModalStore';
 import { useVisitor } from '../lib/contexts/VisitorContext';
 import { useAuthActions } from '../lib/hooks/useAuthActions';
 import { supabaseAnon } from '../lib/supabaseClient';
+import SamplePack from '../components/SamplePack';
 
 interface StripePrice {
   id: string;
@@ -31,6 +32,7 @@ interface StripeProduct {
   description: string | null;
   images: string[];
   prices: StripePrice[];
+  metadata?: { [key: string]: string };
 }
 
 // SMU 4.3b: User profile response interface
@@ -470,6 +472,7 @@ export default function Checkout() {
       
       // Metadata
       created_at: new Date().toISOString(),
+      sample_note: sampleNote,
     };
   };
 
@@ -795,10 +798,11 @@ export default function Checkout() {
       return targetType === 'sub' ? isSub : !isSub;
     });
     const isSingleSub = ((currentFlow.flow || 'single') === 'single' && stripeMode === 'subscription');
+    const isSingleOneOff = ((currentFlow.flow || 'single') === 'single' && stripeMode === 'payment');
     const isDualFinalLeg = ((currentFlow.flow || 'single') === 'dual' && targetType === 'oneoff');
     const successRedirect = typeof window !== 'undefined'
       ? (
-          (isSingleSub || isDualFinalLeg)
+          (isSingleSub || isSingleOneOff || isDualFinalLeg)
             ? `${window.location.origin}/dashboard?success=1`
             : `${window.location.origin}/checkout?mode=${checkoutMode}&flow=${currentFlow.flow || 'single'}&type=${targetType}&success=1&stage=shipping`
         )
@@ -979,10 +983,12 @@ export default function Checkout() {
     if (filteredItemsForResume.length === 0) return;
 
     // Build redirects
+    const isSingleSub = ((currentFlow.flow || 'single') === 'single' && stripeMode === 'subscription');
+    const isSingleOneOff = ((currentFlow.flow || 'single') === 'single' && stripeMode === 'payment');
     const isDualFinalLeg = ((currentFlow.flow || 'single') === 'dual' && targetType === 'oneoff');
     const successRedirect = typeof window !== 'undefined'
       ? (
-          ((currentFlow.flow || 'single') === 'single' && stripeMode === 'subscription') || isDualFinalLeg
+          (isSingleSub || isSingleOneOff || isDualFinalLeg)
             ? `${window.location.origin}/dashboard?success=1`
             : `${window.location.origin}/checkout?mode=${checkoutMode}&flow=${currentFlow.flow || 'single'}&type=${targetType}&success=1&stage=shipping`
         )
@@ -1031,6 +1037,24 @@ export default function Checkout() {
       attemptResumePayment();
     }
   }, [userSession, attemptResumePayment]);
+
+  const [showSamplePackModal, setShowSamplePackModal] = useState(false);
+  const [sampleNote, setSampleNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Only check for sample pack when we're in the shipping stage
+    if (currentStage === 'shipping' && !productsQuery.isLoading && productsQuery.data) {
+      // Check if any product has the metadata `sample_pack: 'true'`
+      const hasSamplePack = items.some(item => {
+        const product = productsQuery.data.products.find(p => p.id === item.productId);
+        return product?.metadata?.sample_pack === 'true';
+      });
+
+      if (hasSamplePack) {
+        setShowSamplePackModal(true);
+      }
+    }
+  }, [currentStage, productsQuery.isLoading, productsQuery.data, items]);
 
   if (productsQuery.isLoading) return <div className="text-center py-16">Loading...</div>;
   if (productsQuery.isError) return <div className="text-center py-16">Error loading products</div>;
@@ -1771,10 +1795,12 @@ export default function Checkout() {
                         const isSub = !!price?.recurring;
                         return targetType === 'sub' ? isSub : !isSub;
                       });
+                      const isSingleSub = ((currentFlow.flow || 'single') === 'single' && stripeMode === 'subscription');
+                      const isSingleOneOff = ((currentFlow.flow || 'single') === 'single' && stripeMode === 'payment');
                       const isDualFinalLeg = ((currentFlow.flow || 'single') === 'dual' && targetType === 'oneoff');
                       const successRedirect = typeof window !== 'undefined'
                         ? (
-                            isDualFinalLeg
+                            (isSingleSub || isSingleOneOff || isDualFinalLeg)
                               ? `${window.location.origin}/dashboard?success=1`
                               : `${window.location.origin}/checkout?mode=${checkoutMode}&flow=${currentFlow.flow || 'single'}&type=${targetType}&success=1&stage=shipping`
                           )
@@ -1827,6 +1853,22 @@ export default function Checkout() {
         </div>
       )}
 
+              {showSamplePackModal && (
+          <SamplePack 
+            open={showSamplePackModal} 
+            onClose={(selectedFlavors?: { secondFlavor: string; thirdFlavor: string }) => {
+              if (selectedFlavors) {
+                // Generate sample note based on selections
+                const { secondFlavor, thirdFlavor } = selectedFlavors;
+                const isStandardPack = (secondFlavor === 'Sweet' && thirdFlavor === 'Fire') || 
+                                     (secondFlavor === 'Fire' && thirdFlavor === 'Sweet');
+                const note = isStandardPack ? 'standard' : `${secondFlavor}, ${thirdFlavor}`;
+                setSampleNote(note);
+              }
+              setShowSamplePackModal(false);
+            }} 
+          />
+        )}
 
     </div>
   );

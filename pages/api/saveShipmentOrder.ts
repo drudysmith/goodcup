@@ -25,6 +25,7 @@ interface ShipmentOrderData {
   order_id?: string;
   orderId?: string;
   intended_type?: 'subscription' | 'one_off';
+  sample_note?: string;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -179,6 +180,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       purchasing_visitor_id: visitorId,
       status: 'pending' as 'pending',
       email: shipmentData.email,
+      sample_note: shipmentData.sample_note || null,
     };
 
     let resolvedOrderId = incomingOrderId || '';
@@ -199,7 +201,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } else {
         // Find existing pending row by visitor (and intended_type if provided)
         let query = supabaseServiceRole
-          .from('shipment_orders')
+      .from('shipment_orders')
           .select('order_id')
           .eq('purchasing_visitor_id', visitorId)
           .eq('status', 'pending')
@@ -237,7 +239,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             .insert(insertPayload);
           if (insertError) {
             console.error('🚀 SaveShipmentOrder API: Error creating new shipment order:', insertError);
-            return res.status(500).json({ error: 'Failed to create shipment order' });
+      return res.status(500).json({ error: 'Failed to create shipment order' });
           }
           // console.log('🚀 SaveShipmentOrder API: Created new shipment order', resolvedOrderId);
         }
@@ -247,11 +249,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Failed to save shipment order' });
     }
 
-    return res.status(200).json({
-      success: true,
+    return res.status(200).json({ 
+      success: true, 
       order_id: resolvedOrderId,
       gift: isGift,
-      message: 'Shipment order saved successfully'
+      message: 'Shipment order saved successfully' 
     });
 
   } catch (error) {
