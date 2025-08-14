@@ -6,7 +6,7 @@
 // - Uses TanStack Query for products and API operations
 // - Uses local customer info state to simulate user identity
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSupabaseSession, useSupabaseSessionHelpers, useSessionExpiryMutation } from '../lib/queries/sessionQueries';
@@ -168,6 +168,8 @@ export default function Checkout() {
   });
 
   const [isProcessingMerge, setIsProcessingMerge] = useState(false);
+  // Module 2: Resume-to-payment local storage control
+  const resumeInvokedRef = useRef(false);
   
   // State Mgmt Update 2: Use centralized session query
   const sessionQuery = useSupabaseSession();
@@ -647,6 +649,11 @@ export default function Checkout() {
     if (modeParam === 'guest' || modeParam === 'user') {
       setCheckoutMode(modeParam);
     }
+    // Respect stage=shipping to land on Shipping view
+    const stageParam = params.get('stage');
+    if (stageParam === 'shipping') {
+      setCurrentStage('shipping');
+    }
     // Handle post-Stripe return selectively
     const successParam = params.get('success');
     if (successParam === '1') {
@@ -666,6 +673,20 @@ export default function Checkout() {
       if (currentFlow.flow === 'dual' && currentFlow.type === 'sub') {
         queryClient.setQueryData(['checkoutFlow'], { flow: 'dual', type: 'oneoff' as const });
       }
+      // Module 2/3: Clear any stored resume data for the active leg on completion
+      try {
+        const legKey = currentFlow.type === 'oneoff' ? 'checkout_resume_oneoff' : 'checkout_resume_sub';
+        sessionStorage.removeItem(legKey);
+      } catch {}
+    }
+    // On cancel, also clear resume state to avoid unintended resumes
+    const canceledParam = params.get('canceled');
+    if (canceledParam === '1') {
+      try {
+        const currentFlow = (queryClient.getQueryData(['checkoutFlow']) as any);
+        const legKey = currentFlow?.type === 'oneoff' ? 'checkout_resume_oneoff' : 'checkout_resume_sub';
+        sessionStorage.removeItem(legKey);
+      } catch {}
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productsQuery.data, items]);
@@ -779,10 +800,25 @@ export default function Checkout() {
       ? (
           (isSingleSub || isDualFinalLeg)
             ? `${window.location.origin}/dashboard?success=1`
-            : `${window.location.origin}/checkout?mode=${checkoutMode}&flow=${currentFlow.flow || 'single'}&type=${targetType}&success=1`
+            : `${window.location.origin}/checkout?mode=${checkoutMode}&flow=${currentFlow.flow || 'single'}&type=${targetType}&success=1&stage=shipping`
         )
       : undefined;
-    const cancelRedirect = typeof window !== 'undefined' ? `${window.location.origin}/checkout?mode=${checkoutMode}&flow=${currentFlow.flow || 'single'}&type=${targetType}&canceled=1` : undefined;
+    const cancelRedirect = typeof window !== 'undefined' ? `${window.location.origin}/checkout?mode=${checkoutMode}&flow=${currentFlow.flow || 'single'}&type=${targetType}&canceled=1&stage=shipping` : undefined;
+    // Debug context for checkout initiation
+    try {
+      console.log('[Checkout] Attempting session', {
+        flow: currentFlow.flow || 'single',
+        type: targetType,
+        stripeMode,
+        productsLoaded: !!productsQuery.data,
+        filteredItemsCount: filteredItems.length,
+        firstPriceIds: filteredItems.slice(0, 2).map(ci => ci.priceId),
+        checkoutMode,
+        hasUserSession: !!userSession,
+        hasVisitorId: !!visitorId,
+        hasJwt: !!jwt,
+      });
+    } catch {}
     
     // Gate #4: Ensure shipment order is saved for authorized users before payment
     if (checkoutMode === 'user' && userSession) {
@@ -805,7 +841,7 @@ export default function Checkout() {
           return;
         }
 	//         console.log('🚪 GATE 4: Saving shipment order before payment...');
-        const shipmentResult = await saveShipmentOrderMutation.mutateAsync({ shipmentData, token });
+        const shipmentResult = await saveShipmentOrderMutation.mutateAsync({ shipmentData: { ...shipmentData, intended_type: targetType === 'sub' ? 'subscription' : 'one_off' }, token });
 	//         console.log('🚪 GATE 4: Shipment order saved, proceeding to payment...');
         // Proceed to payment (Stripe checkout session, etc.)
         await checkoutSessionMutation.mutateAsync({
@@ -857,6 +893,13 @@ export default function Checkout() {
         if (userSession) {
           // Module 6a: Session Short-Circuit
           try {
+            console.log('[Checkout] Payload (gate4)', {
+              items: filteredItems.map(i => ({ priceId: i.priceId, quantity: i.quantity })),
+              customerEmail: userSession.user.email || customerInfoQuery.data?.email || '',
+              mode: 'user',
+              stripeMode,
+              orderIdHint: '(from shipmentResult)',
+            });
             await checkoutSessionMutation.mutateAsync({
               items: filteredItems,
               customerEmail: userSession.user.email || customerInfoQuery.data?.email || '',
@@ -889,6 +932,12 @@ export default function Checkout() {
       }
 
       // Guest checkout flow using visitor context
+      console.log('[Checkout] Payload (guest)', {
+        items: filteredItems.map(i => ({ priceId: i.priceId, quantity: i.quantity })),
+        customerEmail: visitorData?.email || customerInfoQuery.data?.email || '',
+        mode: 'guest',
+        stripeMode,
+      });
       await checkoutSessionMutation.mutateAsync({
         items: filteredItems,
         customerEmail: visitorData?.email || customerInfoQuery.data?.email || '',
@@ -903,6 +952,84 @@ export default function Checkout() {
       setCheckoutLoading(false);
     }
   };
+
+  // Module 2: Helper to resume straight to payment (skip re-save)
+  const attemptResumePayment = useCallback(async () => {
+    if (resumeInvokedRef.current) return;
+    // Read resume payload
+    let resume: { orderId?: string; stage?: string } | null = null;
+    try {
+      const legKey = getCurrentTargetType() === 'oneoff' ? 'checkout_resume_oneoff' : 'checkout_resume_sub';
+      const raw = sessionStorage.getItem(legKey);
+      resume = raw ? JSON.parse(raw) : null;
+    } catch {}
+    if (!resume || resume.stage !== 'payment' || !resume.orderId) return;
+    // Ensure products are loaded and we have items to charge
+    if (!productsQuery.data) return;
+
+    // Build leg context
+    const currentFlow = (checkoutFlowQuery.data as any) || { flow: 'single' };
+    const targetType: 'sub' | 'oneoff' = getCurrentTargetType();
+    const stripeMode: 'subscription' | 'payment' = targetType === 'sub' ? 'subscription' : 'payment';
+    const filteredItemsForResume = items.filter(ci => {
+      const { price } = getProductAndPrice(ci);
+      const isSub = !!price?.recurring;
+      return targetType === 'sub' ? isSub : !isSub;
+    });
+    if (filteredItemsForResume.length === 0) return;
+
+    // Build redirects
+    const successRedirect = typeof window !== 'undefined'
+      ? (
+          ((currentFlow.flow || 'single') === 'single' && stripeMode === 'subscription')
+            ? `${window.location.origin}/dashboard?success=1`
+            : `${window.location.origin}/checkout?mode=${checkoutMode}&flow=${currentFlow.flow || 'single'}&type=${targetType}&success=1&stage=shipping`
+        )
+      : undefined;
+    const cancelRedirect = typeof window !== 'undefined' ? `${window.location.origin}/checkout?mode=${checkoutMode}&flow=${currentFlow.flow || 'single'}&type=${targetType}&canceled=1&stage=shipping` : undefined;
+
+    // Determine identity/email
+    const customerEmail = userSession?.user?.email || customerInfoQuery.data?.email || visitorData?.email || '';
+
+    // Trigger checkout session directly
+    resumeInvokedRef.current = true;
+    try {
+      console.log('[Checkout] Payload (resume)', {
+        items: filteredItemsForResume.map(i => ({ priceId: i.priceId, quantity: i.quantity })),
+        customerEmail,
+        mode: userSession ? 'user' : 'guest',
+        stripeMode,
+        orderId: resume.orderId,
+      });
+      await checkoutSessionMutation.mutateAsync({
+        items: filteredItemsForResume,
+        customerEmail,
+        ...(userSession?.user?.id ? { supabaseUserId: userSession.user.id } : {}),
+        ...(visitorId && !userSession ? { visitorId } : {}),
+        checkoutMode: userSession ? 'user' : 'guest',
+        orderId: resume.orderId,
+        stripeMode,
+        successRedirect,
+        cancelRedirect,
+      });
+      // Clear resume after initiating
+      try {
+        const legKey = getCurrentTargetType() === 'oneoff' ? 'checkout_resume_oneoff' : 'checkout_resume_sub';
+        sessionStorage.removeItem(legKey);
+      } catch {}
+    } catch {
+      // On failure, allow normal flow
+      resumeInvokedRef.current = false;
+    }
+  }, [items, productsQuery.data, checkoutFlowQuery.data, checkoutMode, userSession, customerInfoQuery.data?.email, visitorData?.email, visitorId, checkoutSessionMutation]);
+
+  // Resume on mount if returning from auth (Module 2)
+  useEffect(() => {
+    // If user is signed in (after magic link) and we have resume info, attempt resume
+    if (userSession) {
+      attemptResumePayment();
+    }
+  }, [userSession, attemptResumePayment]);
 
   if (productsQuery.isLoading) return <div className="text-center py-16">Loading...</div>;
   if (productsQuery.isError) return <div className="text-center py-16">Error loading products</div>;
@@ -924,7 +1051,7 @@ export default function Checkout() {
               <div className="flex items-center gap-2">
                 <span className="text-lg">
                   {(() => {
-                    const subtotal = items.reduce((sum, item) => {
+                    const subtotal = filteredItems.reduce((sum, item) => {
                       const { price } = getProductAndPrice(item);
                       return sum + ((price?.unit_amount || 0) * item.quantity);
                     }, 0);
@@ -933,7 +1060,7 @@ export default function Checkout() {
                       if (promo.percent_off) {
                         promoSubtotal = subtotal * (1 - promo.percent_off / 100);
                       } else if (promo.amount_off) {
-                        promoSubtotal = subtotal - promo.amount_off * items.length;
+                        promoSubtotal = subtotal - promo.amount_off * filteredItems.length;
                       }
                     }
                     return promoSubtotal && promoSubtotal < subtotal ? (
@@ -1308,7 +1435,14 @@ export default function Checkout() {
                                 }
                                 
 //                                 console.log('🚪 GATE 2: Saving shipment order before password auth...');
-                                const shipmentResult = await saveShipmentOrderMutation.mutateAsync({ shipmentData, token });
+                                const targetTypePwd: 'sub' | 'oneoff' = getCurrentTargetType();
+                                const intendedTypePwd = targetTypePwd === 'sub' ? 'subscription' : 'one_off';
+                                const shipmentResult = await saveShipmentOrderMutation.mutateAsync({ shipmentData: { ...shipmentData, intended_type: intendedTypePwd }, token });
+                                // Store resume locally for return after password auth
+                                try {
+                                  const legKey = targetTypePwd === 'oneoff' ? 'checkout_resume_oneoff' : 'checkout_resume_sub';
+                                  sessionStorage.setItem(legKey, JSON.stringify({ orderId: shipmentResult?.order_id, stage: 'payment' }));
+                                } catch {}
                                 
                                 // Step 2: Authenticate with password only after successful save
 //                                 console.log('🚪 GATE 2: Shipment order saved, attempting password authentication...');
@@ -1383,16 +1517,23 @@ export default function Checkout() {
                                 }
                                 
 //                                                                 console.log('🚪 GATE 1: Saving shipment order before magic link...');
-                                const shipmentResult = await saveShipmentOrderMutation.mutateAsync({ shipmentData, token });
+                                const targetTypeMagic: 'sub' | 'oneoff' = getCurrentTargetType();
+                                const intendedTypeMagic = targetTypeMagic === 'sub' ? 'subscription' : 'one_off';
+                                const shipmentResult = await saveShipmentOrderMutation.mutateAsync({ shipmentData: { ...shipmentData, intended_type: intendedTypeMagic }, token });
+                      console.log('[Checkout] Payload (gate3-guest-save)', {
+                        orderId: shipmentResult?.order_id,
+                        intended_type: 'subscription',
+                      });
 
                                 // Step 2: Send magic link only after successful save
 //                                 console.log('🚪 GATE 1: Shipment order saved, sending magic link...');
                                 const emailToUse = (visitorData?.email || customerInfoQuery.data?.email) || loginEmail;
                                 const redirectParams = new URLSearchParams({
                                   mode: 'user',
-                                  stage: currentStage,
-                                  ...(router.query.success && { success: router.query.success as string }),
-                                  ...(router.query.canceled && { canceled: router.query.canceled as string })
+                                  flow: (checkoutFlowQuery.data as any)?.flow || 'single',
+                                  type: targetTypeMagic === 'sub' ? 'sub' : 'oneoff',
+                                  stage: 'shipping',
+                                  orderId: shipmentResult?.order_id || ''
                                 });
                                 const redirectUrl = `${window.location.origin}/checkout?${redirectParams.toString()}`;
                                 const { error } = await supabaseAnon.auth.signInWithOtp({
@@ -1615,25 +1756,51 @@ export default function Checkout() {
                         return;
                       }
                       
+                      // Determine active leg and mode (dual or single)
+                      const currentFlow = (checkoutFlowQuery.data as any) || { flow: 'single' };
+                      const targetType: 'sub' | 'oneoff' = getCurrentTargetType();
+                      const stripeMode: 'subscription' | 'payment' = targetType === 'sub' ? 'subscription' : 'payment';
+                      const intendedType = targetType === 'sub' ? 'subscription' : 'one_off';
+
 //                       console.log('🚪 GATE 3: Saving shipment order before guest checkout...');
-                      const shipmentResult = await saveShipmentOrderMutation.mutateAsync({ shipmentData, token });
+                      const shipmentResult = await saveShipmentOrderMutation.mutateAsync({ shipmentData: { ...shipmentData, intended_type: intendedType }, token });
                       // Prepare next-leg parameters
-                      const currentFlow = (checkoutFlowQuery.data as any) || { flow: 'single', type: 'sub' };
-                      const targetType: 'sub' | 'oneoff' = 'sub';
-                      const stripeMode: 'subscription' | 'payment' = 'subscription';
                       const filteredItems = items.filter(ci => {
                         const { price } = getProductAndPrice(ci);
-                        return !!price?.recurring;
+                        const isSub = !!price?.recurring;
+                        return targetType === 'sub' ? isSub : !isSub;
                       });
-                      const successRedirect = typeof window !== 'undefined' ? `${window.location.origin}/checkout?mode=${checkoutMode}&flow=${currentFlow.flow || 'single'}&type=${targetType}&success=1` : undefined;
-                      const cancelRedirect = typeof window !== 'undefined' ? `${window.location.origin}/checkout?mode=${checkoutMode}&flow=${currentFlow.flow || 'single'}&type=${targetType}&canceled=1` : undefined;
+                      const isDualFinalLeg = ((currentFlow.flow || 'single') === 'dual' && targetType === 'oneoff');
+                      const successRedirect = typeof window !== 'undefined'
+                        ? (
+                            isDualFinalLeg
+                              ? `${window.location.origin}/dashboard?success=1`
+                              : `${window.location.origin}/checkout?mode=${checkoutMode}&flow=${currentFlow.flow || 'single'}&type=${targetType}&success=1&stage=shipping`
+                          )
+                        : undefined;
+                      const cancelRedirect = typeof window !== 'undefined' ? `${window.location.origin}/checkout?mode=${checkoutMode}&flow=${currentFlow.flow || 'single'}&type=${targetType}&canceled=1&stage=shipping` : undefined;
                       
                       // Step 3: Proceed to checkout only after successful save
 //                       console.log('🚪 GATE 3: Shipment order saved, proceeding to guest checkout...');
+                      console.log('[Checkout] Payload (gate3-guest)', {
+                        items: filteredItems.map(i => ({ priceId: i.priceId, quantity: i.quantity })),
+                        customerEmail: visitorData?.email || customerInfoQuery.data?.email || '',
+                        mode: 'guest',
+                        stripeMode,
+                        orderId: shipmentResult.order_id,
+                      });
+                      console.log('[Checkout] Payload (gate3-guest)', {
+                        items: filteredItems.map(i => ({ priceId: i.priceId, quantity: i.quantity })),
+                        customerEmail: visitorData?.email || customerInfoQuery.data?.email || '',
+                        mode: 'guest',
+                        stripeMode,
+                        orderId: shipmentResult.order_id,
+                      });
                       await checkoutSessionMutation.mutateAsync({
                         items: filteredItems,
                         customerEmail: visitorData?.email || customerInfoQuery.data?.email || '',
                         visitorId: visitorId || undefined,
+                        visitorJwt: jwt || undefined,
                         checkoutMode: 'guest',
                         orderId: shipmentResult.order_id,
                         stripeMode,

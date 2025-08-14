@@ -1,0 +1,26 @@
+### Checkout redirects (magic link and second leg)
+
+| Flow trigger | Gate (shipping ➝ payment) | Generated in | Redirect built as | Landing target | Mechanism (data passing) |
+|---|---|---|---|---|---|
+| Inline “Send magic link” from checkout | Gate 1 | `pages/checkout.tsx` (inline magic-link form) | `/checkout?mode=user&flow={single|dual}&type={sub|oneoff}&stage=payment&orderId={uuid}` | Checkout page | URL params carry `mode`, `flow`, `type`, `stage`, `orderId` (TanStack reads `flow/type`; currently stage/orderId not consumed for stage UI) |
+| Second leg (dual) inline “Send magic link” | Gate 1 | `pages/checkout.tsx` (same as above, now with `type=oneoff`) | `/checkout?...&stage=payment&orderId={secondLegUuid}` | Checkout page | Same as above; per-leg context via URL; intended to resume that leg |
+| Guest “Continue as visitor” (Stripe) | Gate 3 | `pages/checkout.tsx` (guest path) | success_url/cancel_url passed to session creation | Success: `/checkout?mode=guest&flow={...}&type={...}&success=1` or Dashboard in final-leg cases; Cancel: `/checkout?...&canceled=1` | Stripe success/cancel URLs; client reads URL to remove leg’s items and flip leg if needed; webhook settles order |
+| Authorized user “Continue to payment” (Stripe) | Gate 4 | `pages/checkout.tsx` (user path) | success_url/cancel_url passed to session creation | Success: Dashboard for single sub or dual final leg; otherwise `/checkout?...&success=1`; Cancel: `/checkout?...&canceled=1` | Same as above; URL used for client cart cleanup; webhook handles status |
+| Auto-resume helper (if used) | Gate 4-equivalent jump | `pages/checkout.tsx` `attemptResumePayment()` | success_url/cancel_url passed to session creation | Same as Gate 3/4 | sessionStorage key per leg (`checkout_resume_sub/oneoff`) + URL for success/cancel; metadata carries `orderId` |
+| Global AuthModal magic link opened while on checkout | Gate 1-style | `components/AuthModal.tsx` | `${currentPath}${currentSearch}` (no stage/orderId added) | Same page it was opened from | Plain URL echo; no resume metadata; relies on whatever was already in the query |
+
+- Note: We recently removed forwarding of `success`/`canceled` into the Gate 1 magic-link URL to avoid clearing the second leg’s cart on auth return.
+
+- If you want second-leg returns to land on the Shipping view explicitly, add `stage=shipping` to the checkout-return URLs (for non-dashboard paths) and set the stage on mount when `stage=shipping` is present.
+
+- If you do not want auto-resume to payment at all (for guest-address considerations), keep Gate 1 using `stage=shipping` instead of `payment`, and avoid resume logic on SIGNED_IN.
+
+- Webhook processing is independent of these redirects; it settles orders by `order_id` set in the session metadata.
+
+- In `pages/checkout.tsx`, redirect builders live in:
+  - Gate 1 magic link: inline form near the sign-in section
+  - Gate 3 guest: inside the “continue as visitor” handler
+  - Gate 4 user: inside the user path of `handleCheckout`
+  - Resume helper: in `attemptResumePayment()` when constructing Stripe session redirects
+
+- In all Stripe cases, the redirect URLs are passed from the client to `/api/createCheckoutSession`, which uses them as `success_url`/`cancel_url`.

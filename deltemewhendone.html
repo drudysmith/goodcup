@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<title>deltemewhendone.html</title>
+<meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1"/>
+
+</head>
+
+<body>
+
+<h3 id="checkout-redirects-magic-link-and-second-leg">Checkout redirects
+(magic link and second leg)</h3>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+</colgroup>
+<thead>
+<tr>
+<th>Flow trigger</th>
+<th>Gate (shipping payment)</th>
+<th>Generated in</th>
+<th>Redirect built as</th>
+<th>Landing target</th>
+<th>Mechanism (data passing)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Inline Send magic link from checkout</td>
+<td>Gate 1</td>
+<td><code>pages/checkout.tsx</code> (inline magic-link form)</td>
+<td><code>/checkout?mode=user&amp;flow={single|dual}&amp;type={sub|oneoff}&amp;stage=payment&amp;orderId={uuid}</code></td>
+<td>Checkout page</td>
+<td>URL params carry <code>mode</code>, <code>flow</code>,
+<code>type</code>, <code>stage</code>, <code>orderId</code> (TanStack
+reads <code>flow/type</code>; currently stage/orderId not consumed for
+stage UI)</td>
+</tr>
+<tr>
+<td>Second leg (dual) inline Send magic link</td>
+<td>Gate 1</td>
+<td><code>pages/checkout.tsx</code> (same as above, now with
+<code>type=oneoff</code>)</td>
+<td><code>/checkout?...&amp;stage=payment&amp;orderId={secondLegUuid}</code></td>
+<td>Checkout page</td>
+<td>Same as above; per-leg context via URL; intended to resume that
+leg</td>
+</tr>
+<tr>
+<td>Guest Continue as visitor (Stripe)</td>
+<td>Gate 3</td>
+<td><code>pages/checkout.tsx</code> (guest path)</td>
+<td>success_url/cancel_url passed to session creation</td>
+<td>Success:
+<code>/checkout?mode=guest&amp;flow={...}&amp;type={...}&amp;success=1</code>
+or Dashboard in final-leg cases; Cancel:
+<code>/checkout?...&amp;canceled=1</code></td>
+<td>Stripe success/cancel URLs; client reads URL to remove leg s items
+and flip leg if needed; webhook settles order</td>
+</tr>
+<tr>
+<td>Authorized user Continue to payment (Stripe)</td>
+<td>Gate 4</td>
+<td><code>pages/checkout.tsx</code> (user path)</td>
+<td>success_url/cancel_url passed to session creation</td>
+<td>Success: Dashboard for single sub or dual final leg; otherwise
+<code>/checkout?...&amp;success=1</code>; Cancel:
+<code>/checkout?...&amp;canceled=1</code></td>
+<td>Same as above; URL used for client cart cleanup; webhook handles
+status</td>
+</tr>
+<tr>
+<td>Auto-resume helper (if used)</td>
+<td>Gate 4-equivalent jump</td>
+<td><code>pages/checkout.tsx</code>
+<code>attemptResumePayment()</code></td>
+<td>success_url/cancel_url passed to session creation</td>
+<td>Same as Gate 3/4</td>
+<td>sessionStorage key per leg (<code>checkout_resume_sub/oneoff</code>)
++ URL for success/cancel; metadata carries <code>orderId</code></td>
+</tr>
+<tr>
+<td>Global AuthModal magic link opened while on checkout</td>
+<td>Gate 1-style</td>
+<td><code>components/AuthModal.tsx</code></td>
+<td><code>${currentPath}${currentSearch}</code> (no stage/orderId
+added)</td>
+<td>Same page it was opened from</td>
+<td>Plain URL echo; no resume metadata; relies on whatever was already
+in the query</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><p>Note: We recently removed forwarding of
+<code>success</code>/<code>canceled</code> into the Gate 1 magic-link
+URL to avoid clearing the second leg s cart on auth return.</p></li>
+<li><p>If you want second-leg returns to land on the Shipping view
+explicitly, add <code>stage=shipping</code> to the checkout-return URLs
+(for non-dashboard paths) and set the stage on mount when
+<code>stage=shipping</code> is present.</p></li>
+<li><p>If you do not want auto-resume to payment at all (for
+guest-address considerations), keep Gate 1 using
+<code>stage=shipping</code> instead of <code>payment</code>, and avoid
+resume logic on SIGNED_IN.</p></li>
+<li><p>Webhook processing is independent of these redirects; it settles
+orders by <code>order_id</code> set in the session metadata.</p></li>
+<li><p>In <code>pages/checkout.tsx</code>, redirect builders live
+in:</p>
+<ul>
+<li>Gate 1 magic link: inline form near the sign-in section</li>
+<li>Gate 3 guest: inside the continue as visitor handler</li>
+<li>Gate 4 user: inside the user path of
+<code>handleCheckout</code></li>
+<li>Resume helper: in <code>attemptResumePayment()</code> when
+constructing Stripe session redirects</li>
+</ul></li>
+<li><p>In all Stripe cases, the redirect URLs are passed from the client
+to <code>/api/createCheckoutSession</code>, which uses them as
+<code>success_url</code>/<code>cancel_url</code>.</p></li>
+</ul>
+
+</body>
+</html>

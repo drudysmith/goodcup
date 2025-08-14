@@ -21,6 +21,10 @@ interface ShipmentOrderData {
   shipping_mode: 'gift' | 'self';
   is_address_dirty: boolean;
   cart_items: any[];
+  // Optional idempotency and leg intent
+  order_id?: string;
+  orderId?: string;
+  intended_type?: 'subscription' | 'one_off';
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -150,16 +154,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 //       console.log('🚀 SaveShipmentOrder API: Address not dirty, skipping visitor update');
     }
 
-    // Step 2: Create shipment order record
-//     console.log('🚀 SaveShipmentOrder API: Creating shipment order record...');
-    
-    const orderId = uuidv4();
+    // Step 2: Create or update shipment order record (idempotent per visitor/leg)
     const isGift = shipmentData.shipping_mode === 'gift';
-    
-    const shipmentOrderPayload = {
-      order_id: orderId,
+    const incomingOrderId = shipmentData.order_id || shipmentData.orderId || null;
+    const intendedType = shipmentData.intended_type || null;
+
+    const basePayload = {
       // order_type is set later by webhook based on Stripe session.mode ('subscription' | 'payment')
-      order_type: null,
+      order_type: null as string | null,
+      intended_type: intendedType || null,
       recipient_name: shipmentData.recipient_name,
       address_line1: shipmentData.address_line1,
       address_line2: shipmentData.address_line2 || null,
@@ -169,33 +172,86 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       country: shipmentData.country,
       order_info: shipmentData.cart_items || [],
       created_at: new Date().toISOString(),
-      fulfilled_at: null,
+      fulfilled_at: null as string | null,
       gift: isGift,
       phone_number: shipmentData.phone || visitorData.phone || null,
       initial_order: true,
       purchasing_visitor_id: visitorId,
-      status: 'pending',
-      email: shipmentData.email
+      status: 'pending' as 'pending',
+      email: shipmentData.email,
     };
 
-    const { data: shipmentOrder, error: shipmentError } = await supabaseServiceRole
-      .from('shipment_orders')
-      .insert([shipmentOrderPayload])
-      .select()
-      .single();
+    let resolvedOrderId = incomingOrderId || '';
 
-    if (shipmentError) {
-      console.error('🚀 SaveShipmentOrder API: Error creating shipment order:', shipmentError);
-      return res.status(500).json({ error: 'Failed to create shipment order' });
+    try {
+      if (incomingOrderId) {
+        // Upsert by explicit order_id
+        const upsertPayload = [{ order_id: incomingOrderId, ...basePayload }];
+        const { error: upsertError } = await supabaseServiceRole
+          .from('shipment_orders')
+          .upsert(upsertPayload, { onConflict: 'order_id' });
+        if (upsertError) {
+          console.error('🚀 SaveShipmentOrder API: Upsert by order_id failed:', upsertError);
+          return res.status(500).json({ error: 'Failed to save shipment order' });
+        }
+        resolvedOrderId = incomingOrderId;
+        // console.log('🚀 SaveShipmentOrder API: Upserted shipment order by order_id', resolvedOrderId);
+      } else {
+        // Find existing pending row by visitor (and intended_type if provided)
+        let query = supabaseServiceRole
+          .from('shipment_orders')
+          .select('order_id')
+          .eq('purchasing_visitor_id', visitorId)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (intendedType) {
+          query = query.eq('intended_type', intendedType);
+        }
+
+        const { data: existingRows, error: findError } = await query;
+        if (findError) {
+          console.error('🚀 SaveShipmentOrder API: Error finding existing pending order:', findError);
+          return res.status(500).json({ error: 'Failed to save shipment order' });
+        }
+
+        if (existingRows && existingRows.length > 0) {
+          // Update existing pending order
+          resolvedOrderId = existingRows[0].order_id;
+          const { error: updateError } = await supabaseServiceRole
+            .from('shipment_orders')
+            .update(basePayload)
+            .eq('order_id', resolvedOrderId);
+          if (updateError) {
+            console.error('🚀 SaveShipmentOrder API: Error updating existing pending order:', updateError);
+            return res.status(500).json({ error: 'Failed to update shipment order' });
+          }
+          // console.log('🚀 SaveShipmentOrder API: Updated existing pending order', resolvedOrderId);
+        } else {
+          // Insert new order with generated UUID
+          resolvedOrderId = uuidv4();
+          const insertPayload = [{ order_id: resolvedOrderId, ...basePayload }];
+          const { error: insertError } = await supabaseServiceRole
+            .from('shipment_orders')
+            .insert(insertPayload);
+          if (insertError) {
+            console.error('🚀 SaveShipmentOrder API: Error creating new shipment order:', insertError);
+            return res.status(500).json({ error: 'Failed to create shipment order' });
+          }
+          // console.log('🚀 SaveShipmentOrder API: Created new shipment order', resolvedOrderId);
+        }
+      }
+    } catch (e) {
+      console.error('🚀 SaveShipmentOrder API: Unexpected error saving/updating order:', e);
+      return res.status(500).json({ error: 'Failed to save shipment order' });
     }
 
-//     console.log('🚀 SaveShipmentOrder API: Shipment order created successfully:', orderId);
-
-    return res.status(200).json({ 
-      success: true, 
-      order_id: orderId,
+    return res.status(200).json({
+      success: true,
+      order_id: resolvedOrderId,
       gift: isGift,
-      message: 'Shipment order saved successfully' 
+      message: 'Shipment order saved successfully'
     });
 
   } catch (error) {

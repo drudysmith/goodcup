@@ -111,7 +111,7 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
         
         const currentTime = Date.now();
         const elapsed = currentTime - startTime;
-        const scrollAmount = elapsed * 0.03; // 0.05 pixels per millisecond
+        const scrollAmount = elapsed * 0.01; // 0.05 pixels per millisecond
         
         const container = scrollContainerRef.current;
         const maxScroll = container.scrollHeight - container.clientHeight;
