@@ -105,7 +105,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Step 1: Update visitors table if address data is dirty (changed) and not gift shipping
     if (shipmentData.is_address_dirty && shipmentData.shipping_mode !== 'gift') {
-       console.log('🚀 SaveShipmentOrder API: Address is dirty, updating visitor record...');
+//       console.log('🚀 SaveShipmentOrder API: Address is dirty, updating visitor record...');
       
       const visitorUpdatePayload: any = {};
       

@@ -547,6 +547,8 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+            <div className="bg-transparent pb-48">
+            </div>
           </div>
         </div>
       </div>

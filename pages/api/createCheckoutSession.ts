@@ -14,14 +14,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { items, customerId, customerEmail, supabaseUserId, visitorId, visitorJwt, checkoutMode, orderId, stripeMode, successRedirect, cancelRedirect } = req.body;
     if (!items || !Array.isArray(items) || items.length === 0) {
       try {
-        console.log('[CreateCheckoutSession] Early guard: no items', {
+        /*console.log('[CreateCheckoutSession] Early guard: no items', {
           hasItems: !!items,
           isArray: Array.isArray(items),
           length: Array.isArray(items) ? items.length : undefined,
           bodyKeys: Object.keys(req.body || {}),
           checkoutMode,
           stripeMode,
-        });
+        });*/
       } catch {}
       return res.status(400).json({ error: 'No items in cart' });
     }
@@ -72,15 +72,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     };
 
     // Debug log for server context
-    try {
-      console.log('[CreateCheckoutSession] Incoming', {
-        mode: sessionConfig.mode,
-        lineItemsCount: line_items?.length,
-        hasCustomer: !!sessionConfig.customer,
-        hasCustomerEmail: !!sessionConfig.customer_email,
-        metadata,
-      });
-    } catch {}
+//    try {
+//      console.log('[CreateCheckoutSession] Incoming', {
+//        mode: sessionConfig.mode,
+//        lineItemsCount: line_items?.length,
+//        hasCustomer: !!sessionConfig.customer,
+//        hasCustomerEmail: !!sessionConfig.customer_email,
+//        metadata,
+//      });
+//    } catch {}
 
     const session = await stripe.checkout.sessions.create(sessionConfig);
 

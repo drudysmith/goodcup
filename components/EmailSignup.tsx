@@ -57,8 +57,8 @@ const EmailSignup: React.FC<EmailSignupProps> = ({ user, visitorId, jwt, updateV
   };
 
   return (
-    <div className="mb-8">
-      <p className="text-base text-surface-background mb-4">
+    <div className="mb-8 text-lg">
+      <p className=" text-surface-background mb-4 text-xl">
         Be first to know — Join our list
       </p>
       <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
@@ -79,10 +79,10 @@ const EmailSignup: React.FC<EmailSignupProps> = ({ user, visitorId, jwt, updateV
         </button>
       </div>
       {newsletterSuccess && (
-        <div className="text-green-400 text-sm mt-2">Thank you for subscribing!</div>
+        <div className="text-green-400 mt-2">Thank you for subscribing!</div>
       )}
       {newsletterError && (
-        <div className="text-red-400 text-sm mt-2">{newsletterError}</div>
+        <div className="text-red-400 mt-2">{newsletterError}</div>
       )}
     </div>
   );

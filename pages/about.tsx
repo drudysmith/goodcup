@@ -7,7 +7,7 @@ const IMAGE_2 = "https://res.cloudinary.com/drtaph2gu/image/upload/v1712345678/g
 export default function About() {
   return (
     <Layout>
-      <div className="site-section-bg -mt-[120px] pt-[120px]">
+      <div className="site-section-bg -mt-[120px] pt-[120px] pb-32 md:pb-48">
 
         {/* First section: image left, text right */}
         <Section

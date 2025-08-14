@@ -805,7 +805,7 @@ export default function Checkout() {
       : undefined;
     const cancelRedirect = typeof window !== 'undefined' ? `${window.location.origin}/checkout?mode=${checkoutMode}&flow=${currentFlow.flow || 'single'}&type=${targetType}&canceled=1&stage=shipping` : undefined;
     // Debug context for checkout initiation
-    try {
+    /*try {
       console.log('[Checkout] Attempting session', {
         flow: currentFlow.flow || 'single',
         type: targetType,
@@ -818,7 +818,7 @@ export default function Checkout() {
         hasVisitorId: !!visitorId,
         hasJwt: !!jwt,
       });
-    } catch {}
+    } catch {}*/
     
     // Gate #4: Ensure shipment order is saved for authorized users before payment
     if (checkoutMode === 'user' && userSession) {
@@ -893,13 +893,13 @@ export default function Checkout() {
         if (userSession) {
           // Module 6a: Session Short-Circuit
           try {
-            console.log('[Checkout] Payload (gate4)', {
+            /*console.log('[Checkout] Payload (gate4)', {
               items: filteredItems.map(i => ({ priceId: i.priceId, quantity: i.quantity })),
               customerEmail: userSession.user.email || customerInfoQuery.data?.email || '',
               mode: 'user',
               stripeMode,
               orderIdHint: '(from shipmentResult)',
-            });
+            });*/
             await checkoutSessionMutation.mutateAsync({
               items: filteredItems,
               customerEmail: userSession.user.email || customerInfoQuery.data?.email || '',
@@ -932,12 +932,12 @@ export default function Checkout() {
       }
 
       // Guest checkout flow using visitor context
-      console.log('[Checkout] Payload (guest)', {
+      /*console.log('[Checkout] Payload (guest)', {
         items: filteredItems.map(i => ({ priceId: i.priceId, quantity: i.quantity })),
         customerEmail: visitorData?.email || customerInfoQuery.data?.email || '',
         mode: 'guest',
         stripeMode,
-      });
+      });*/
       await checkoutSessionMutation.mutateAsync({
         items: filteredItems,
         customerEmail: visitorData?.email || customerInfoQuery.data?.email || '',
@@ -979,9 +979,10 @@ export default function Checkout() {
     if (filteredItemsForResume.length === 0) return;
 
     // Build redirects
+    const isDualFinalLeg = ((currentFlow.flow || 'single') === 'dual' && targetType === 'oneoff');
     const successRedirect = typeof window !== 'undefined'
       ? (
-          ((currentFlow.flow || 'single') === 'single' && stripeMode === 'subscription')
+          ((currentFlow.flow || 'single') === 'single' && stripeMode === 'subscription') || isDualFinalLeg
             ? `${window.location.origin}/dashboard?success=1`
             : `${window.location.origin}/checkout?mode=${checkoutMode}&flow=${currentFlow.flow || 'single'}&type=${targetType}&success=1&stage=shipping`
         )
@@ -994,13 +995,13 @@ export default function Checkout() {
     // Trigger checkout session directly
     resumeInvokedRef.current = true;
     try {
-      console.log('[Checkout] Payload (resume)', {
+      /*console.log('[Checkout] Payload (resume)', {
         items: filteredItemsForResume.map(i => ({ priceId: i.priceId, quantity: i.quantity })),
         customerEmail,
         mode: userSession ? 'user' : 'guest',
         stripeMode,
         orderId: resume.orderId,
-      });
+      });*/
       await checkoutSessionMutation.mutateAsync({
         items: filteredItemsForResume,
         customerEmail,
@@ -1520,10 +1521,10 @@ export default function Checkout() {
                                 const targetTypeMagic: 'sub' | 'oneoff' = getCurrentTargetType();
                                 const intendedTypeMagic = targetTypeMagic === 'sub' ? 'subscription' : 'one_off';
                                 const shipmentResult = await saveShipmentOrderMutation.mutateAsync({ shipmentData: { ...shipmentData, intended_type: intendedTypeMagic }, token });
-                      console.log('[Checkout] Payload (gate3-guest-save)', {
+                      /*console.log('[Checkout] Payload (gate3-guest-save)', {
                         orderId: shipmentResult?.order_id,
                         intended_type: 'subscription',
-                      });
+                      });*/
 
                                 // Step 2: Send magic link only after successful save
 //                                 console.log('🚪 GATE 1: Shipment order saved, sending magic link...');
@@ -1782,7 +1783,7 @@ export default function Checkout() {
                       
                       // Step 3: Proceed to checkout only after successful save
 //                       console.log('🚪 GATE 3: Shipment order saved, proceeding to guest checkout...');
-                      console.log('[Checkout] Payload (gate3-guest)', {
+                      /*console.log('[Checkout] Payload (gate3-guest)', {
                         items: filteredItems.map(i => ({ priceId: i.priceId, quantity: i.quantity })),
                         customerEmail: visitorData?.email || customerInfoQuery.data?.email || '',
                         mode: 'guest',
@@ -1795,7 +1796,7 @@ export default function Checkout() {
                         mode: 'guest',
                         stripeMode,
                         orderId: shipmentResult.order_id,
-                      });
+                      });*/
                       await checkoutSessionMutation.mutateAsync({
                         items: filteredItems,
                         customerEmail: visitorData?.email || customerInfoQuery.data?.email || '',

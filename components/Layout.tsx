@@ -23,6 +23,8 @@ import CupgradesPanel from './CupgradesPanel';
 import NotificationBanner from './NotificationBanner';
 import NavMenu from './NavMenu';
 import { ContactInfoPopup } from './ContactInfoPopup';
+import PrivacyPolicyModal from './PrivacyPolicyModal';
+import TermsOfServiceModal from './TermsOfServiceModal';
 import { AuthModal } from './AuthModal';
 import { openAuthModal, updateCachedCredentials } from '../store/authModalStore';
 import EmailSignup from './EmailSignup';
@@ -153,6 +155,8 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
   const [cupgradesClosing, setCupgradesClosing] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showContactPopup, setShowContactPopup] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const [cartOpenedThisSession, setCartOpenedThisSession] = useState(false);
   // Teaser handled by HighlightMarketImage
   
@@ -945,11 +949,6 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
               </a>
             </div>
             
-            {/* Location */}
-            <div className="text-lg md:text-xl text-surface-background">
-              Brea, CA
-            </div>
-            
             {/* Contact Email */}
             <div className="text-surface-background">
               <a 
@@ -969,6 +968,12 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
             updateVisitorIdentity={updateVisitorIdentity}
           />
           
+          {/* Location */}
+          <div className="text-lg md:text-xl mb-6 text-surface-background">
+            Goodcup Nutrition - Brea, CA
+            <br /> 
+          </div>
+
           {/* Navigation Links */}
           <div className="flex flex-wrap justify-center gap-6 mb-6 text-surface-background">
             <Link href="/" className="text-lg md:text-xl hover:opacity-70 transition-opacity">
@@ -990,13 +995,21 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
           
           {/* Legal Links */}
           <div className="flex flex-wrap justify-center gap-4 text-base md:text-lg text-surface-background opacity-70">
-            <Link href="/terms" className="hover:opacity-100 transition-opacity">
+            <button
+              type="button"
+              onClick={() => setShowTermsModal(true)}
+              className="hover:opacity-100 transition-opacity"
+            >
               Terms
-            </Link>
+            </button>
             <span>•</span>
-            <Link href="/privacy" className="hover:opacity-100 transition-opacity">
+            <button
+              type="button"
+              onClick={() => setShowPrivacyModal(true)}
+              className="hover:opacity-100 transition-opacity"
+            >
               Privacy
-            </Link>
+            </button>
           </div>
         </div>
         
@@ -1019,6 +1032,10 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
           onSubmit={handleContactInfoSubmit}
         />
       )}
+
+      {/* Privacy & Terms Modals */}
+      <PrivacyPolicyModal open={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
+      <TermsOfServiceModal open={showTermsModal} onClose={() => setShowTermsModal(false)} />
 
       {/* UxAuth 1: Universal Auth Modal */}
       <AuthModal />

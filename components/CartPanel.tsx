@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import { LOG_ENABLED } from '../lib/utils/log';
 import { useBannerPromoQuery } from '../lib/queries/stripeQueries';
 
@@ -83,6 +84,13 @@ const CartPanel: React.FC<CartPanelProps> = ({
 
   const { data: promo } = useBannerPromoQuery();
   const [showDualCheckoutModal, setShowDualCheckoutModal] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Ensure component is mounted before rendering portal
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   return (
     <>
@@ -425,17 +433,23 @@ const CartPanel: React.FC<CartPanelProps> = ({
         )}
       </div>
 
-      {/* Dual-checkout modal - anchored just above the checkout button */}
-      {showDualCheckoutModal && (
-        <div className="pointer-events-none fixed inset-0" style={{ zIndex: 1000 }}>
-          {/* No full-screen dark overlay; a light shadowed popover near the button */}
-          <div className="absolute right-0 bottom-[132px] mr-6" style={{ width: 'min(26rem, 90vw)' }}>
-            <div className="pointer-events-auto bg-white rounded-xl shadow-2xl border border-neutral-border">
+      {/* Dual-checkout modal - rendered via portal to document.body */}
+      {showDualCheckoutModal && mounted && createPortal(
+        <div className="fixed inset-0 z-[1000]">
+          {/* Dark overlay */}
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-50"
+            onClick={() => setShowDualCheckoutModal(false)}
+          />
+          
+          {/* Modal content - positioned relative to viewport */}
+          <div className="absolute right-4 bottom-32 w-100 max-w-[92vw]">
+            <div className="bg-white rounded-xl shadow-2xl border border-neutral-border">
               <div className="px-4 py-3">
                 <h3 className="text-2xl font-semibold text-text-primary mb-1">Two quick payments</h3>
                 <p className="text-xl text-text-secondary">
                   Your subscription will check out first.<br/>
-                  Then you’ll return for the one-time order.
+                  Then you'll return for the one-time order.
                 </p>
               </div>
               <div className="px-4 pb-4 pt-1 flex gap-2">
@@ -458,7 +472,8 @@ const CartPanel: React.FC<CartPanelProps> = ({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </>

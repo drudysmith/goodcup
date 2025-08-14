@@ -85,7 +85,40 @@ const formatPrice = (price: MandustPrice): string => {
   return `$${amount.toFixed(2)}`;
 };
 
+// Responsive utility to detect desktop viewport
+function useIsDesktop(): boolean {
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mediaQuery = window.matchMedia('(min-width: 768px)');
+    const update = () => setIsDesktop(mediaQuery.matches);
+    update();
+    try {
+      mediaQuery.addEventListener('change', update);
+      return () => mediaQuery.removeEventListener('change', update);
+    } catch {
+      // Safari fallback
+      mediaQuery.addListener(update);
+      return () => mediaQuery.removeListener(update);
+    }
+  }, []);
+  return isDesktop;
+}
+
 function FlipCard({ isFlipped, front, back }: { isFlipped: boolean; front: React.ReactNode; back: React.ReactNode }) {
+  // Prepare separate scale controls for mobile vs desktop (card size unchanged)
+  const isDesktop = useIsDesktop();
+  const mobileScaleXWhenFlipped = 1.25;
+  const desktopScaleXWhenFlipped = 1.85; // keep desktop card width the same
+  const mobileTextScaleX = 1.2;
+  const desktopTextScaleX = 1.1; // widen text on desktop
+  const mobileTextScaleY = 0.65;
+  const desktopTextScaleY = 0.50; // shorten text on desktop
+  // Back-face text wrapping controls (set different max text width for mobile vs desktop)
+  // FIND ME: FlipCard back text wrap width
+  const mobileBackTextWidthPercent = 0.9; // 90% of card width on mobile -> more wrap
+  const desktopBackTextWidthPercent = 1.0; // 75% of card width on desktop -> more wrap
+
   return (
     // CARD CONTAINER - Controls overall card size
     <div className="w-full md:w-100 h-12 md:h-16 flex items-center justify-center">
@@ -98,7 +131,7 @@ function FlipCard({ isFlipped, front, back }: { isFlipped: boolean; front: React
         }}
         animate={{ 
           rotateX: isFlipped ? 180 : 0, // Y-axis flip (horizontal rotation)
-          scaleX: isFlipped ? 1.25 : 1, // Horizontal expansion when flipped
+          scaleX: isFlipped ? (isDesktop ? desktopScaleXWhenFlipped : mobileScaleXWhenFlipped) : 1, // Responsive horizontal expansion
           scaleY: isFlipped ? 2.75 : 1  // Vertical expansion when flipped (more than horizontal)
         }}
         transition={{ duration: 0.5, ease: 'easeInOut' }} // Animation timing
@@ -124,7 +157,16 @@ function FlipCard({ isFlipped, front, back }: { isFlipped: boolean; front: React
           }}
         >
           {/* TEXT CONTAINER - Counter-transform to prevent text scaling */}
-          <div className="transform-none " style={{ transform: 'scaleX(1.2) scaleY(0.65)' }}>
+          <div
+            className="transform-none px-4 md:px-3 lg:px-2"
+            style={{
+              // FIND ME: FlipCard back text scale (separate mobile/desktop)
+              transform: `scaleX(${isDesktop ? desktopTextScaleX : mobileTextScaleX}) scaleY(${isDesktop ? desktopTextScaleY : mobileTextScaleY})`,
+              // Apply responsive max width to increase wrapping
+              width: `${(isDesktop ? desktopBackTextWidthPercent : mobileBackTextWidthPercent) * 100}%`,
+              margin: '0 auto'
+            }}
+          >
             {back}
           </div>
         </div>
@@ -228,7 +270,7 @@ function BenefitsFlipStack({ setShowModal, cartItems, mandustProduct }: { setSho
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ delay: 4.3, duration: 0.7 }}
-                className="absolute -bottom-6 -right-14 bg-blue-600/80 text-white text-base font-bold px-3 py-3 rounded-full shadow-lg hover:bg-blue-700/80 transition-colors z-30"
+                className="absolute md:-bottom-12 md:-right-36 -bottom-6 -right-14 bg-blue-600/80 text-white text-base font-bold px-3 py-3 rounded-full shadow-lg hover:bg-blue-700/80 transition-colors z-30"
                 onClick={() => {
                   // Open subscription modal
                   setShowModal(true);
@@ -561,7 +603,7 @@ export default function Mandust() {
       {/* Main content (z-10) */}
       <div className="min-h-screen flex flex-col font-sans relative z-10" style={{ fontFamily: 'Manrope, Arial, Helvetica, sans-serif' }}>
         {/* Hero Section */}
-        <section className="flex flex-col items-center justify-center text-center py-20 px-4 md:mx-24 mx-8 text-text-soft">
+        <section className="flex flex-col justify-center py-20 text-text-soft w-full max-w-6xl mx-auto px-6 lg:px-12 text-center md:text-left">
           <h1 className="text-5xl font-normal tracking-tight mb-6">MANDUST — The Best Testosterone Supplement Ever</h1>
           <p className="text-2xl font-normal mb-8">Real energy. Real edge. Built from years of trial, not theory.</p>
                 <button
@@ -574,11 +616,11 @@ export default function Mandust() {
         </section>
 
         {/* Intro Copy Section */}
-        <section className="md:mx-24 mx-8 my-12 text-text-soft">
+        <section className="w-full max-w-6xl mx-auto px-6 lg:px-12 my-12 text-text-soft md:text-left">
           <div className="w-full bg-transparent">
 	    <h2 className="text-4xl font-normal mb-4">Why Mandust?</h2>
             <p className="text-xl mb-3 font-normal">
-		Once you hit 30 as a man — sometimes earlier depending on stress and lifestyle — your testosterone starts dropping fast. Low T means lower energy, slower metabolism, foggy focus, and less drive. There are three pillars to healthy testosterone: 
+		Once you hit 30 as a man — sometimes earlier depending on stress and lifestyle — your testosterone production begins to slow down. Low T means lower energy, slower metabolism, foggy focus, and less drive. There are three pillars to healthy testosterone: 
             </p>
 	    <p className="text-xl mb-3 font-normal">
 		Exercise, Mental-emotional mastery (especially masculine work) and Nutrition. Supplementation is part of pillar three. And Mandust does it right. It's the most complete, ratio-corrected T-support stack on the market. No fluff, no trendy filler — just results.
@@ -587,7 +629,7 @@ export default function Mandust() {
         </section>
 
         {/* Founder's Story Block */}
-        <section className="md:mx-24 mx-8 my-12 text-text-soft">
+        <section className="w-full max-w-6xl mx-auto px-6 lg:px-12 my-12 text-text-soft md:text-left">
           <div className="w-full bg-transparent">
             <h2 className="text-4xl font-normal mb-4">Founder's Story</h2>
             <p className="text-xl mb-3 font-normal">
@@ -602,13 +644,13 @@ export default function Mandust() {
         </section>
 
         {/* Flavor/Rite of Passage Block */}
-        <section className="md:mx-24 mx-8 my-12 text-text-soft">
+        <section className="w-full max-w-6xl mx-auto px-6 lg:px-12 my-12 text-text-soft md:text-left">
           <div className="w-full bg-transparent">
             <h2 className="text-4xl font-normal mb-4">Mandust is not formulated for taste, but for effect.</h2>
             <p className="text-xl mb-3 font-normal">
               It won't taste like cotton candy. It's a down-to-earth taste.
-              It actually tends to smell different for each man, 
-              but always reminiscent of something, let's say stereotypically masculine.
+              It smells different for each man, 
+              but always reminiscent of something stereotypically masculine from their past experiences, no kidding.
               Real quotes from first-timers:</p>
             <p className="text-xl font-normal mb-6">
               "motor oil"<br />
@@ -618,20 +660,20 @@ export default function Mandust() {
               "locker room"
             </p>
             <p className="text-xl font-normal mt-8">I've thought of putting it into a capsule, 
-              to make it easier. But it really is an accquired taste and you quickly learn to look forward to it, 
-              once you begin to associate the feeling with the taste.
-              Take a look at the back of the ingredient cards below to see what I mean.</p>
+              to make it easier. But it's an accquired taste that you quickly learn to look forward to, 
+              once you feel the difference and your mind associated the feeling with the taste.
+              <br /> The back of the ingredient cards below describe the proven and time-tested benefits you feel from each ingredient.</p>
           </div>
         </section>
 
         {/* Ingredient Grid Section (now Benefits List) */}
-        <section className="max-w-5xl mx-auto py-12 md:mx-24 mx-8 text-text-soft">
+        <section className="max-w-5xl mx-auto py-12 px-6 lg:px-12 text-text-soft">
           <h2 className="text-4xl font-normal mb-10 text-center tracking-tight">What does Mandust do?</h2>
           <BenefitsFlipStack setShowModal={setShowModal} cartItems={cartItems} mandustProduct={mandustProduct} />
         </section>
 
         {/* New Try It Block */}
-        <section className="md:mx-24 mx-8 my-12 text-text-soft">
+        <section className="w-full max-w-6xl mx-auto px-6 lg:px-12 my-12 text-text-soft text-center mb-48">
           <div className="w-full bg-transparent">
             <h2 className="text-4xl font-normal mb-4">Ready to Try Mandust?</h2>
             <p className="text-xl mb-3 font-normal">
