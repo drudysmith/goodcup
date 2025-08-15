@@ -1,6 +1,7 @@
 import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useBannerPromoQuery } from '../lib/queries/stripeQueries';
+import IngredientsListModal from './IngredientsListModal';
 
 interface StripePrice {
   id: string;
@@ -94,6 +95,24 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
 
   const { data: promo } = useBannerPromoQuery();
   const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({});
+
+  // Ingredients modal hover state management (Options 2 + 4: hover on/off with debounced hiding)
+  const [hoveredProduct, setHoveredProduct] = useState<StripeProduct | null>(null);
+  const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showIngredients = (product: StripeProduct, event: React.MouseEvent) => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    setHoveredProduct(product);
+    setCursorPosition({ x: event.clientX, y: event.clientY });
+  };
+
+  const hideIngredients = () => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setHoveredProduct(null);
+      setCursorPosition(null);
+    }, 200); // Small delay to prevent flickering
+  };
 
   // Auto-scroll logic
   useEffect(() => {
@@ -311,7 +330,9 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
                       <img
                         src={featuredProduct.images[0]}
                         alt={featuredProduct.name}
-                        className="w-24 h-24 object-cover rounded-xl block"
+                        className="w-24 h-24 object-cover rounded-xl block wobble-animation cursor-pointer"
+                        onMouseEnter={(e) => showIngredients(featuredProduct, e)}
+                        onMouseLeave={hideIngredients}
                       />
                     )}
                     <div className="flex-1">
@@ -415,7 +436,9 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
                     <img
                       src={product.images[0]}
                       alt={product.name}
-                      className="w-24 h-24 object-cover rounded-lg"
+                      className="w-24 h-24 object-cover rounded-lg wobble-animation cursor-pointer"
+                      onMouseEnter={(e) => showIngredients(product, e)}
+                      onMouseLeave={hideIngredients}
                     />
                   )}
                     <div className="flex-1">
@@ -609,6 +632,15 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Ingredients List Modal */}
+      <IngredientsListModal 
+        open={hoveredProduct !== null}
+        onClose={() => setHoveredProduct(null)}
+        product={hoveredProduct}
+        position="cursor"
+        cursorPosition={cursorPosition || undefined}
+      />
     </>
   );
 };

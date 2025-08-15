@@ -450,3 +450,25 @@ body.hide-wireframes .border-8 {
   }
 }
 
+/* 🎭 WOBBLE TILT ANIMATION - Z-axis focused tilt with 3D depth effect */
+@keyframes wobbleTilt {
+  0% { transform: perspective(600px) rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+  15% { transform: perspective(600px) rotateX(3deg) rotateY(1deg) rotateZ(1deg); }
+  30% { transform: perspective(600px) rotateX(-1deg) rotateY(-0.5deg) rotateZ(-0.6deg); }
+  45% { transform: perspective(600px) rotateX(1.5deg) rotateY(0.5deg) rotateZ(0.4deg); }
+  60% { transform: perspective(600px) rotateX(-0.5deg) rotateY(-0.2deg) rotateZ(-0.2deg); }
+  75% { transform: perspective(600px) rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+  100% { transform: perspective(600px) rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+}
+
+.wobble-animation {
+  animation: wobbleTilt 1.5s ease-in-out infinite;
+  transform-style: preserve-3d;
+  transition: transform 0.1s ease-out;
+}
+
+/* Enhanced hover effect with prominent Z-axis tilt and 3D lift */
+.wobble-animation:hover {
+  transform: perspective(600px) rotateX(8deg) rotateY(4deg) rotateZ(3deg) scale(1.02);
+}
+
