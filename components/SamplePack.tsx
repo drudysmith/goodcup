@@ -13,7 +13,7 @@ const SamplePack: React.FC<SamplePackProps> = ({ open, onClose }) => {
   const flavorOptions = [
     { name: 'Daily', servings: 26 },
     { name: 'Sweet', servings: 10 },
-    { name: 'Fire', servings: 21 }
+    { name: 'Fire', servings: 13 }
   ];
 
   const getServings = (flavorName: string) => {

@@ -351,11 +351,11 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
                           Single Order
                         </button>
                         <div className="mt-2 text-center leading-tight">
-                          <div className="text-base text-text-secondary opacity-70 line-through">
-                            {`$${(oneoff.base / 100).toFixed(2)}`} <span className="opacity-70">Promo</span>
+                          <div className="text-lg text-text-secondary opacity-70 line-through">
+                            {`$${(oneoff.base / 100).toFixed(2)}`}
                           </div>
                           <div className="text-lg font-medium text-text-secondary">
-                            {`$${((oneoff.promo ?? oneoff.base) / 100).toFixed(2)}`}
+                            <span className="opacity-70">Promo</span> {`$${((oneoff.promo ?? oneoff.base) / 100).toFixed(2)}`}
                           </div>
                         </div>
                       </div>
@@ -378,11 +378,11 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
                           Subscription
                         </button>
                         <div className="mt-2 text-center leading-tight">
-                          <div className="text-base text-text-secondary opacity-70 line-through">
-                            {`$${(sub.base / 100).toFixed(2)}`} <span className="opacity-70">Promo</span>
+                          <div className="text-lg text-text-secondary opacity-70 line-through">
+                            {`$${(sub.base / 100).toFixed(2)}`}
                           </div>
                           <div className="text-lg font-bold text-brand-secondary">
-                            {`$${((sub.promo ?? sub.base) / 100).toFixed(2)}`}
+                            <span className="opacity-70">Promo</span> {`$${((sub.promo ?? sub.base) / 100).toFixed(2)}`}
                           </div>
                         </div>
                       </div>
@@ -482,11 +482,11 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
                             Single Order
                           </button>
                           <div className="mt-2 text-center leading-tight">
-                            <div className="text-base text-text-secondary opacity-70 line-through">
-                              {`$${(oneoff.base / 100).toFixed(2)}`} <span className="opacity-70">Promo</span>
+                            <div className="text-lg text-text-secondary opacity-70 line-through">
+                              {`$${(oneoff.base / 100).toFixed(2)}`}
                             </div>
                             <div className="text-lg font-medium text-text-secondary">
-                              {`$${((oneoff.promo ?? oneoff.base) / 100).toFixed(2)}`}
+                              <span className="opacity-70">Promo</span> {`$${((oneoff.promo ?? oneoff.base) / 100).toFixed(2)}`}
                             </div>
                           </div>
                         </div>
@@ -509,11 +509,11 @@ const CupgradesPanel: React.FC<CupgradesPanelProps> = ({
                             Subscription
                           </button>
                           <div className="mt-2 text-center leading-tight">
-                            <div className="text-base text-text-secondary opacity-70 line-through">
-                              {`$${(sub.base / 100).toFixed(2)}`} <span className="opacity-70">Promo</span>
+                            <div className="text-lg text-text-secondary opacity-70 line-through">
+                              {`$${(sub.base / 100).toFixed(2)}`}
                             </div>
                             <div className="text-lg font-bold text-brand-secondary">
-                              {`$${((sub.promo ?? sub.base) / 100).toFixed(2)}`}
+                              <span className="opacity-70">Promo</span> {`$${((sub.promo ?? sub.base) / 100).toFixed(2)}`}
                             </div>
                           </div>
                         </div>
