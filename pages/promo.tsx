@@ -29,24 +29,6 @@ export default function Promo() {
           <div className="card">
             <a href="https://buy.stripe.com/8x2bJ26sAbQ631fev9bEA01?prefilled_promo_code=market10">
               <Image
-                src="/media/payment_link_imgs/sweet_goodcup.png"
-                alt="Sweet Goodcup"
-                width={600}
-                height={600}
-                style={{ width: "100%", height: "auto", maxWidth: 280 }}
-              />
-            </a>
-            <a
-              className="name"
-              href="https://buy.stripe.com/8x2bJ26sAbQ631fev9bEA01?prefilled_promo_code=market10"
-            >
-              Sweet Goodcup
-            </a>
-          </div>
-
-          <div className="card">
-            <a href="https://buy.stripe.com/00w9AUdV2bQ66dr72HbEA02?prefilled_promo_code=market10">
-              <Image
                 src="/media/payment_link_imgs/daily_goodcup.png"
                 alt="Daily Goodcup"
                 width={600}
@@ -56,14 +38,14 @@ export default function Promo() {
             </a>
             <a
               className="name"
-              href="https://buy.stripe.com/00w9AUdV2bQ66dr72HbEA02?prefilled_promo_code=market10"
+              href="https://buy.stripe.com/8x2bJ26sAbQ631fev9bEA01?prefilled_promo_code=market10"
             >
               Daily Goodcup
             </a>
           </div>
 
           <div className="card">
-            <a href="https://buy.stripe.com/dRm5kE7wEbQ66draeTbEA03?prefilled_promo_code=market10">
+            <a href="https://buy.stripe.com/00w9AUdV2bQ66dr72HbEA02?prefilled_promo_code=market10">
               <Image
                 src="/media/payment_link_imgs/fire_goodcup.png"
                 alt="Fire Goodcup"
@@ -74,9 +56,27 @@ export default function Promo() {
             </a>
             <a
               className="name"
-              href="https://buy.stripe.com/dRm5kE7wEbQ66draeTbEA03?prefilled_promo_code=market10"
+              href="https://buy.stripe.com/00w9AUdV2bQ66dr72HbEA02?prefilled_promo_code=market10"
             >
               Fire Goodcup
+            </a>
+          </div>
+
+          <div className="card">
+            <a href="https://buy.stripe.com/dRm5kE7wEbQ66draeTbEA03?prefilled_promo_code=market10">
+              <Image
+                src="/media/payment_link_imgs/sweet_goodcup.png"
+                alt="Sweet Goodcup"
+                width={600}
+                height={600}
+                style={{ width: "100%", height: "auto", maxWidth: 280 }}
+              />
+            </a>
+            <a
+              className="name"
+              href="https://buy.stripe.com/dRm5kE7wEbQ66draeTbEA03?prefilled_promo_code=market10"
+            >
+              Sweet Goodcup
             </a>
           </div>
         </div>
