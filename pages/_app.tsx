@@ -3,6 +3,7 @@ import type { AppProps } from "next/app";
 import { useEffect, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { VisitorProvider, useVisitor } from '../lib/contexts/VisitorContext';
+import { AdminProvider } from '../components/AdminGuard';
 import { useSupabaseSessionHelpers } from '../lib/queries/sessionQueries';
 import { useVisitorMerge } from '../lib/hooks/useVisitorMerge';
 import { supabaseAnon } from '../lib/supabaseClient';
@@ -119,10 +120,12 @@ export default function App({ Component, pageProps }: AppProps) {
   }, []);
   return (
     <QueryClientProvider client={queryClient}>
-      <VisitorProvider>
-        <GlobalAuthListener />
-        <Component {...pageProps} />
-      </VisitorProvider>
+      <AdminProvider>
+        <VisitorProvider>
+          <GlobalAuthListener />
+          <Component {...pageProps} />
+        </VisitorProvider>
+      </AdminProvider>
     </QueryClientProvider>
   );
 }
