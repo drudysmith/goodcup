@@ -1,11 +1,16 @@
 import Image from "next/image";
 import Head from "next/head";
 
-export default function Promo() {
+export default function Kiosk() {
   return (
     <>
       <Head>
-        <title>Goodcup Promo</title>
+        <title>Goodcup Kiosk</title>
+        <link rel="manifest" href="/kiosk/manifest.json" />
+        <meta name="theme-color" content="#ffffff" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <link rel="apple-touch-icon" href="/kiosk/icon-192.png" />
       </Head>
       <main
         style={{
@@ -29,7 +34,7 @@ export default function Promo() {
           <div className="card">
             <a href="https://buy.stripe.com/8x2bJ26sAbQ631fev9bEA01?prefilled_promo_code=market10">
               <Image
-                src="/media/payment_link_imgs/daily_goodcup.png"
+                src="/media/kiosk/daily_goodcup.webp"
                 alt="Daily Goodcup"
                 width={600}
                 height={600}
@@ -47,7 +52,7 @@ export default function Promo() {
           <div className="card">
             <a href="https://buy.stripe.com/00w9AUdV2bQ66dr72HbEA02?prefilled_promo_code=market10">
               <Image
-                src="/media/payment_link_imgs/fire_goodcup.png"
+                src="/media/kiosk/fire_goodcup.webp"
                 alt="Fire Goodcup"
                 width={600}
                 height={600}
@@ -65,7 +70,7 @@ export default function Promo() {
           <div className="card">
             <a href="https://buy.stripe.com/dRm5kE7wEbQ66draeTbEA03?prefilled_promo_code=market10">
               <Image
-                src="/media/payment_link_imgs/sweet_goodcup.png"
+                src="/media/kiosk/sweet_goodcup.webp"
                 alt="Sweet Goodcup"
                 width={600}
                 height={600}
@@ -115,5 +120,4 @@ export default function Promo() {
     </>
   );
 }
-
 
