@@ -1,4 +1,4 @@
-yuii9/nimport Link from "next/link";
+import Link from "next/link";
 import Head from "next/head";
 
 export default function KioskInfo() {
