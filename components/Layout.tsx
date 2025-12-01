@@ -923,7 +923,7 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
         {/* Main Footer Content Container (pull content up without moving footer background) */}
         <div className="w-full max-w-4xl mx-auto px-4 text-center -mt-8 md:-mt-10">
           {/* Tagline */}
-          <h3 className="text-2xl md:text-3xl font-medium text-surface-background mb-6">
+          <h3 className="text-2xl md:text-3xl font-light text-surface-background mb-6">
             Drink good. Live good.
           </h3>
           
@@ -943,7 +943,7 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
                 href="https://instagram.com/goodcup.me" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-lg md:text-xl font-medium hover:opacity-70 transition-opacity"
+                className="text-lg md:text-xl font-light hover:opacity-70 transition-opacity"
               >
                 @goodcup.me
               </a>
@@ -953,7 +953,7 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
             <div className="text-surface-background">
               <a 
                 href="mailto:hello@goodcup.me"
-                className="text-lg md:text-xl font-medium hover:opacity-70 transition-opacity"
+                className="text-lg md:text-xl font-light hover:opacity-70 transition-opacity"
               >
                 hello@goodcup.me
               </a>
@@ -970,7 +970,7 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
           
           {/* Location */}
           <div className="text-lg md:text-xl mb-6 text-surface-background">
-            Goodcup Nutrition - Brea, CA
+            Good Enterprises Group - Brea, CA
             <br /> 
           </div>
 

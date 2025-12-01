@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
 
 interface PrivacyPolicyModalProps {
 	open: boolean;
@@ -43,8 +44,13 @@ const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ open, onClose }
 							</button>
 							<h2 className="text-2xl font-semibold mb-3">Privacy Policy</h2>
 							<div className="text-lg text-text-secondary space-y-4 leading-relaxed max-h-[60vh] overflow-y-auto pr-1">
-								<p>We collect only the information needed to process your orders — such as your name, email address, and shipping details — and to notify you about specials or updates if you’ve opted in. We never sell or share your information with unrelated third parties. Any sharing is limited to trusted service providers who help us run Goodcup, such as payment processors and shipping partners. Your data is stored securely and accessed only by those who need it to serve you.</p>
+								<p>We collect only the information needed to process your orders — such as your name, email address, and shipping details — and to notify you about specials or updates if you've opted in. We never sell or share your information with unrelated third parties. Any sharing is limited to trusted service providers who help us run Goodcup, such as payment processors and shipping partners. Your data is stored securely and accessed only by those who need it to serve you.</p>
 								<p>This policy may change at any time, and the version you are reading is current as of August 2025. For any privacy-related questions or requests, contact us at <a href="mailto:hello@goodcup.me" className="underline hover:no-underline">hello@goodcup.me</a>.</p>
+								<div className="pt-4 mt-4 border-t border-neutral-border">
+									<Link href="/policy" className="underline hover:no-underline text-text-primary">
+										View full policy page
+									</Link>
+								</div>
 							</div>
 						</div>
 					</motion.div>

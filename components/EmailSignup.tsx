@@ -59,7 +59,7 @@ const EmailSignup: React.FC<EmailSignupProps> = ({ user, visitorId, jwt, updateV
   return (
     <div className="mb-8 text-lg">
       <p className=" text-surface-background mb-4 text-xl">
-        Be first to know — Join our list
+        Be first to know — Join goodcup family
       </p>
       <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
         <input
@@ -71,11 +71,11 @@ const EmailSignup: React.FC<EmailSignupProps> = ({ user, visitorId, jwt, updateV
           disabled={!!user}
         />
         <button
-          className="px-6 py-2 bg-brand-secondary text-white rounded font-medium hover:opacity-90 transition-opacity disabled:opacity-60"
+          className="px-6 py-2 bg-brand-secondary text-white rounded-full font-light hover:opacity-90 transition-opacity disabled:opacity-60"
           onClick={handleNewsletterSubmit}
           disabled={!!user || newsletterMutation.isPending}
         >
-          {user ? 'Already Subscribed' : newsletterMutation.isPending ? 'Subscribing...' : 'Subscribe'}
+          {user ? 'Already Subscribed' : newsletterMutation.isPending ? 'Subscribing...' : 'join ;)'}
         </button>
       </div>
       {newsletterSuccess && (

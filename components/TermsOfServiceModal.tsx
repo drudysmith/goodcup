@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
 
 interface TermsOfServiceModalProps {
 	open: boolean;
@@ -43,9 +44,14 @@ const TermsOfServiceModal: React.FC<TermsOfServiceModalProps> = ({ open, onClose
 							</button>
 							<h2 className="text-2xl font-semibold mb-3">Terms of Service</h2>
 							<div className="text-lg text-text-secondary space-y-4 leading-relaxed max-h-[60vh] overflow-y-auto pr-1">
-								<p>Welcome to Goodcup — we make the best drinks, in powder and liquid form, for your health, body, and mind. By using our site or products, you agree to these terms. If you have any health conditions or concerns, it’s your responsibility to review our ingredient list and check for any contraindications or substances you shouldn’t consume. Our products are intended for personal, lawful use only.</p>
+								<p>Welcome to Goodcup — we make the best drinks, in powder and liquid form, for your health, body, and mind. By using our site or products, you agree to these terms. If you have any health conditions or concerns, it's your responsibility to review our ingredient list and check for any contraindications or substances you shouldn't consume. Our products are intended for personal, lawful use only.</p>
 								<p>Payments are processed securely through the Stripe portal. Refunds are available within 30 days of purchase; requests can be sent to <a href="mailto:refunds@goodcup.me" className="underline hover:no-underline">refunds@goodcup.me</a>. Subscriptions can be renewed or managed by creating an account and accessing your dashboard, where you can also view past orders. We do our best to provide accurate information and quality products, but we are not liable for indirect, incidental, or special damages resulting from the use of our products or services.</p>
 								<p>These terms may change at any time. The version you are reading is current as of August 2025. For any questions, email us at <a href="mailto:hello@goodcup.me" className="underline hover:no-underline">hello@goodcup.me</a>.</p>
+								<div className="pt-4 mt-4 border-t border-neutral-border">
+									<Link href="/policy" className="underline hover:no-underline text-text-primary">
+										View full policy page
+									</Link>
+								</div>
 							</div>
 						</div>
 					</motion.div>
