@@ -1,6 +1,9 @@
 [build]
-  command = "pnpm build"
-  publish = ".next"
+  command = "pnpm build --webpack"
+  publish = "public"
+
+[build.environment]
+  NODE_VERSION = "20"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
