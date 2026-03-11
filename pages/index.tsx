@@ -9,6 +9,7 @@ import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { useCartStore } from '../store/cartStore';
 import TryGoodcupModal from '../components/TryGoodcupModal';
+import SocialPopup from '../components/SocialPopup';
 
 // Query function for products
 const fetchProducts = async (): Promise<{ products: Array<any> }> => {
@@ -21,6 +22,7 @@ const fetchProducts = async (): Promise<{ products: Array<any> }> => {
 
 export default function Home() {
   const [showOrder, setShowOrder] = useState(false);
+  const [showSocialPopup, setShowSocialPopup] = useState(true);
   useEffect(() => {
     const t = setTimeout(() => setShowOrder(true), 1000);
     return () => clearTimeout(t);
@@ -224,6 +226,10 @@ export default function Home() {
 
   return (
     <Layout>
+      <SocialPopup
+        open={showSocialPopup}
+        onClose={() => setShowSocialPopup(false)}
+      />
       <section className="relative w-full h-[50vh] sm:h-[60vh] md:h-[70vh] lg:h-[90vh] min-h-[350px] max-h-[800px] -mt-[120px] border-b border-neutral-border transition-all duration-500 overflow-hidden">
         {/* Previous video fading out */}
         {previousVideo !== null && (
