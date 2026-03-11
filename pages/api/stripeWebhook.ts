@@ -4,7 +4,7 @@ import { supabaseServiceRole } from '../../lib/supabaseClient';
 import { QueryClient } from '@tanstack/react-query';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: '2025-07-30.basil',
+  apiVersion: '2025-08-27.basil',
 });
 
 // Disable body parsing to handle raw body for Stripe signature verification
