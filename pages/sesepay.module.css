@@ -1,0 +1,63 @@
+/* Scoped to /sesepay only — overrides global Manrope * rule for descendants */
+.root {
+  min-height: 100vh;
+}
+
+.root * {
+  font-family: var(--font-sesepay), ui-sans-serif, system-ui, sans-serif !important;
+}
+
+.jobOption {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  border-radius: 9999px;
+  padding: 0.9rem 1.1rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(250, 232, 255, 0.9));
+  box-shadow: 0 8px 20px rgba(217, 70, 239, 0.14);
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.jobOption:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(168, 85, 247, 0.2);
+  border-color: rgba(192, 132, 252, 0.65);
+}
+
+.jobOption input[type='radio'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 9999px;
+  border: 2px solid rgba(192, 132, 252, 0.95);
+  background: white;
+  display: grid;
+  place-content: center;
+  flex: 0 0 auto;
+}
+
+.jobOption input[type='radio']::before {
+  content: '';
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 9999px;
+  transform: scale(0);
+  transition: transform 120ms ease;
+  box-shadow: inset 1rem 1rem #d946ef;
+}
+
+.jobOption input[type='radio']:checked {
+  border-color: #c026d3;
+  box-shadow: 0 0 0 4px rgba(217, 70, 239, 0.2);
+}
+
+.jobOption input[type='radio']:checked::before {
+  transform: scale(1);
+}
+
+.jobOption input[type='radio']:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
