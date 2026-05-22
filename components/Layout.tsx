@@ -988,6 +988,9 @@ const LayoutContent: React.FC<LayoutProps> = ({ children, overlay }) => {
             <Link href="/about" className="text-lg md:text-xl hover:opacity-70 transition-opacity">
               About
             </Link>
+            <Link href="/blog" className="text-lg md:text-xl hover:opacity-70 transition-opacity">
+              Blog
+            </Link>
             <a href="mailto:hello@goodcup.me" className="text-lg md:text-xl hover:opacity-70 transition-opacity">
               Contact
             </a>
