@@ -1,11 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Quicksand } from 'next/font/google';
 import {
   formatHourlyRate,
   getSelectableSesePayJobs,
   type SesePayJobId,
 } from '../lib/sesepay/jobConfig';
-import { mockSaveSesePayDaySession } from '../lib/sesepay/mockSaveDaySession';
+import { saveSesePayEndDayToSupabase } from '../lib/sesepay/saveDaySessionToSupabase';
+import {
+  computeSesePayReportSummary,
+  fetchSesePayReportRows,
+  type SesePayReportRow,
+} from '../lib/sesepay/sesePayReport';
 import {
   clearSesepayPersistedSession,
   getSesepayLocalDateKey,
@@ -26,6 +31,236 @@ const sesepayFont = Quicksand({
   weight: ['400', '500', '600', '700'],
   variable: '--font-sesepay',
 });
+
+function defaultReportDateRange(): { start: string; end: string } {
+  const end = new Date();
+  const start = new Date(end.getFullYear(), end.getMonth(), 1);
+  return {
+    start: getSesepayLocalDateKey(start),
+    end: getSesepayLocalDateKey(end),
+  };
+}
+
+function formatReportSessionDate(ymd: string): string {
+  if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd || '—';
+  const [y, m, d] = ymd.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function paidStatusLabel(paid: boolean | null): string {
+  if (paid === true) return 'Paid';
+  if (paid === false) return 'Unpaid';
+  return 'Unpaid';
+}
+
+/** Module 9 — read-only report; separate from live clock UI above. */
+function SesePayReportingSection() {
+  const defaults = useMemo(() => defaultReportDateRange(), []);
+  const [reportSectionOpen, setReportSectionOpen] = useState(true);
+  const [rangeStart, setRangeStart] = useState(defaults.start);
+  const [rangeEnd, setRangeEnd] = useState(defaults.end);
+  const [reportRows, setReportRows] = useState<SesePayReportRow[] | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+
+  const summary = useMemo(
+    () => (reportRows ? computeSesePayReportSummary(reportRows) : null),
+    [reportRows]
+  );
+
+  const loadReport = useCallback(async () => {
+    setReportError(null);
+    setReportLoading(true);
+    const result = await fetchSesePayReportRows(rangeStart, rangeEnd);
+    setReportLoading(false);
+    if (result.ok) {
+      setReportRows(result.rows);
+    } else {
+      setReportRows(null);
+      setReportError(result.message);
+    }
+  }, [rangeStart, rangeEnd]);
+
+  return (
+    <section
+      className="border-t-4 border-dashed border-fuchsia-400/60 mt-10 pt-10 pb-16"
+      aria-labelledby="sesepay-report-heading"
+    >
+      <div className="max-w-3xl w-full mx-auto px-4">
+        <button
+          type="button"
+          id="sesepay-report-heading"
+          aria-expanded={reportSectionOpen}
+          aria-controls="sesepay-report-panel"
+          onClick={() => setReportSectionOpen((o) => !o)}
+          className="w-full flex items-center justify-between gap-4 rounded-2xl border-2 border-violet-400/80 bg-white/80 backdrop-blur-md px-5 py-4 mb-4 text-left shadow-md transition hover:bg-white hover:border-fuchsia-400/70 hover:shadow-lg active:scale-[0.99]"
+        >
+          <span className="text-3xl sm:text-4xl font-bold text-violet-900">Earnings report</span>
+          <svg
+            className={`w-8 h-8 shrink-0 text-violet-700 transition-transform duration-200 ${
+              reportSectionOpen ? 'rotate-180' : ''
+            }`}
+            fill="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden
+          >
+            <path d="M7 10l5 5 5-5H7z" />
+          </svg>
+        </button>
+
+        {reportSectionOpen && (
+          <div id="sesepay-report-panel">
+        <p className="text-lg text-violet-800/90 mb-6">
+          Saved segments from the database for worker <strong>Sese</strong> (read-only). This does
+          not affect your live clock above.
+        </p>
+
+        <div className="rounded-2xl border border-indigo-300/70 bg-white/70 backdrop-blur-md p-6 mb-6 shadow-md">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4 mb-4">
+            <div>
+              <label htmlFor="sesepay-report-start" className="block text-lg font-semibold text-violet-900 mb-1">
+                From
+              </label>
+              <input
+                id="sesepay-report-start"
+                type="date"
+                value={rangeStart}
+                onChange={(e) => setRangeStart(e.target.value)}
+                disabled={reportLoading}
+                className="rounded-xl border border-violet-300 px-3 py-2 text-lg text-violet-950 bg-white disabled:opacity-50"
+              />
+            </div>
+            <div>
+              <label htmlFor="sesepay-report-end" className="block text-lg font-semibold text-violet-900 mb-1">
+                To
+              </label>
+              <input
+                id="sesepay-report-end"
+                type="date"
+                value={rangeEnd}
+                onChange={(e) => setRangeEnd(e.target.value)}
+                disabled={reportLoading}
+                className="rounded-xl border border-violet-300 px-3 py-2 text-lg text-violet-950 bg-white disabled:opacity-50"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => void loadReport()}
+              disabled={reportLoading}
+              className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-600 px-8 py-3 text-lg font-bold text-white shadow-md disabled:opacity-50 disabled:cursor-not-allowed sm:ml-auto"
+            >
+              {reportLoading ? 'Loading…' : 'Load report'}
+            </button>
+          </div>
+
+          {reportError && (
+            <p role="alert" className="rounded-xl border border-red-400/70 bg-red-100 px-4 py-3 text-lg text-red-900 font-medium">
+              {reportError}
+            </p>
+          )}
+        </div>
+
+        {summary && (
+          <>
+            <div className="rounded-2xl border border-white/60 bg-white/65 backdrop-blur-md p-6 mb-6 shadow-md">
+              <h3 className="text-2xl font-bold text-violet-900 mb-4">Totals (selected range)</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="rounded-xl border border-fuchsia-200/80 bg-fuchsia-50/80 p-4">
+                  <p className="text-violet-700 font-semibold">Total earned</p>
+                  <p className="text-3xl font-bold tabular-nums text-violet-950 mt-1">
+                    {formatMoneyDollarsFromCents(summary.totalEarnedCents)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-green-200/80 bg-green-50/80 p-4">
+                  <p className="text-violet-700 font-semibold">Total paid</p>
+                  <p className="text-3xl font-bold tabular-nums text-green-900 mt-1">
+                    {formatMoneyDollarsFromCents(summary.totalPaidCents)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-amber-200/80 bg-amber-50/80 p-4">
+                  <p className="text-violet-700 font-semibold">Total unpaid</p>
+                  <p className="text-3xl font-bold tabular-nums text-amber-950 mt-1">
+                    {formatMoneyDollarsFromCents(summary.totalUnpaidCents)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/60 bg-white/65 backdrop-blur-md p-6 mb-6 shadow-md">
+              <h3 className="text-2xl font-bold text-violet-900 mb-4">By job</h3>
+              {summary.byJob.length === 0 ? (
+                <p className="text-lg text-violet-700">No rows in this range.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {summary.byJob.map((j) => (
+                    <li
+                      key={j.jobLabel}
+                      className="flex flex-wrap justify-between gap-2 text-xl font-semibold text-violet-950 border-b border-violet-100 pb-2"
+                    >
+                      <span>{j.jobLabel}</span>
+                      <span className="tabular-nums text-fuchsia-700">
+                        {formatMoneyDollarsFromCents(j.payCents)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-white/60 bg-white/65 backdrop-blur-md p-6 shadow-md">
+              <h3 className="text-2xl font-bold text-violet-900 mb-4">Saved segments</h3>
+              {reportRows!.length === 0 ? (
+                <p className="text-lg text-violet-700">No segments in this range.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {reportRows!.map((row) => (
+                    <li
+                      key={row.rowKey}
+                      className="rounded-xl border border-violet-200/80 bg-violet-50/50 p-4"
+                    >
+                      <div className="flex flex-wrap justify-between gap-2 gap-y-1">
+                        <span className="text-xl font-semibold text-violet-950">
+                          {formatReportSessionDate(row.session_date)}
+                        </span>
+                        <span
+                          className={`text-lg font-bold px-2 py-0.5 rounded-lg ${
+                            row.paid === true
+                              ? 'bg-green-200/80 text-green-900'
+                              : 'bg-amber-200/80 text-amber-950'
+                          }`}
+                        >
+                          {paidStatusLabel(row.paid)}
+                        </span>
+                      </div>
+                      <p className="text-xl text-violet-900 mt-2 font-semibold">{row.job_label}</p>
+                      <p className="text-lg text-violet-800 mt-1 tabular-nums">
+                        Duration {formatElapsedHMS(Math.floor(row.duration_ms / 1000))} ·{' '}
+                        {formatMoneyDollarsFromCents(row.pay_cents)}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </>
+        )}
+
+        {!reportLoading && reportRows === null && !reportError && (
+          <p className="text-lg text-violet-700 text-center">
+            Pick dates and tap <strong>Load report</strong> to fetch saved rows.
+          </p>
+        )}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
 
 function resolveInitialJobId(
   persisted: SesepayPersistedV1 | null,
@@ -113,6 +348,8 @@ function SesePaySessionContent({ persisted }: SesePaySessionContentProps) {
   const [endDayModalOpen, setEndDayModalOpen] = useState(false);
   const [endDaySaveInProgress, setEndDaySaveInProgress] = useState(false);
   const [endDayModalError, setEndDayModalError] = useState<string | null>(null);
+  /** Blocks duplicate Confirm clicks before React re-renders disabled state. */
+  const endDaySaveInFlightRef = useRef(false);
   const [daySaveNotice, setDaySaveNotice] = useState<{
     kind: 'success' | 'error';
     message: string;
@@ -136,41 +373,45 @@ function SesePaySessionContent({ persisted }: SesePaySessionContentProps) {
   }, [endDaySaveInProgress]);
 
   const handleConfirmEndDay = useCallback(async () => {
-    if (endDaySaveInProgress || completedSegments.length === 0) return;
+    if (completedSegments.length === 0) return;
+    if (endDaySaveInFlightRef.current) return;
+
+    endDaySaveInFlightRef.current = true;
     setEndDayModalError(null);
+    setDaySaveNotice(null);
     setEndDaySaveInProgress(true);
 
-    const result = await mockSaveSesePayDaySession({
-      dateLabel: todayLabel,
-      segments: completedSegments,
-      completedDurationMs,
-      completedPayCents,
-    });
-
-    setEndDaySaveInProgress(false);
-
-    if (result.ok) {
-      setCompletedSegments([]);
-      setEndDayModalOpen(false);
-      clearSesepayPersistedSession();
-      setDaySaveNotice({
-        kind: 'success',
-        message: 'Day record finalized and saved (mock). You can start a new day.',
+    try {
+      const result = await saveSesePayEndDayToSupabase({
+        segments: completedSegments,
+        sessionDate: getSesepayLocalDateKey(),
       });
-    } else {
-      setEndDayModalError(result.message);
-      setDaySaveNotice({
-        kind: 'error',
-        message: result.message,
-      });
+
+      if (result.ok) {
+        setCompletedSegments([]);
+        setEndDayModalOpen(false);
+        setEndDayModalError(null);
+        clearSesepayPersistedSession();
+        setDaySaveNotice({
+          kind: 'success',
+          message: 'Saved. Your day is stored and you can start fresh.',
+        });
+      } else {
+        setEndDayModalError(result.message);
+        setDaySaveNotice({
+          kind: 'error',
+          message: `Save failed: ${result.message}`,
+        });
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Something went wrong while saving.';
+      setEndDayModalError(msg);
+      setDaySaveNotice({ kind: 'error', message: `Save failed: ${msg}` });
+    } finally {
+      setEndDaySaveInProgress(false);
+      endDaySaveInFlightRef.current = false;
     }
-  }, [
-    completedDurationMs,
-    completedPayCents,
-    completedSegments,
-    endDaySaveInProgress,
-    todayLabel,
-  ]);
+  }, [completedSegments]);
 
   return (
     <>
@@ -178,14 +419,18 @@ function SesePaySessionContent({ persisted }: SesePaySessionContentProps) {
         <div className="max-w-3xl w-full">
           {daySaveNotice && (
             <div
-              role="status"
+              role={daySaveNotice.kind === 'error' ? 'alert' : 'status'}
+              aria-live={daySaveNotice.kind === 'error' ? 'assertive' : 'polite'}
               className={`rounded-2xl border p-4 mb-6 text-xl sm:text-2xl font-semibold ${
                 daySaveNotice.kind === 'success'
                   ? 'border-green-500/60 bg-green-100/90 text-green-900'
                   : 'border-red-500/60 bg-red-100/90 text-red-900'
               }`}
             >
-              <p>{daySaveNotice.message}</p>
+              <p className="font-bold">
+                {daySaveNotice.kind === 'success' ? 'Success' : 'Save error'}
+              </p>
+              <p className="mt-2 font-semibold">{daySaveNotice.message}</p>
               <button
                 type="button"
                 onClick={() => setDaySaveNotice(null)}
@@ -336,7 +581,9 @@ function SesePaySessionContent({ persisted }: SesePaySessionContentProps) {
                 <button
                   type="button"
                   onClick={openEndDayModal}
-                  className="rounded-full bg-gradient-to-r from-pink-400 via-fuchsia-500 to-purple-500 px-10 py-4 text-2xl sm:text-3xl font-bold text-white shadow-lg shadow-fuchsia-400/45 transition hover:brightness-105 active:scale-[0.98]"
+                  disabled={endDaySaveInProgress}
+                  aria-busy={endDaySaveInProgress}
+                  className="rounded-full bg-gradient-to-r from-pink-400 via-fuchsia-500 to-purple-500 px-10 py-4 text-2xl sm:text-3xl font-bold text-white shadow-lg shadow-fuchsia-400/45 transition hover:brightness-105 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:brightness-100"
                 >
                   End Day
                 </button>
@@ -356,6 +603,7 @@ function SesePaySessionContent({ persisted }: SesePaySessionContentProps) {
             role="dialog"
             aria-modal="true"
             aria-labelledby="sesepay-end-day-title"
+            aria-busy={endDaySaveInProgress}
             className="max-w-lg w-full rounded-2xl border border-white/60 bg-white/95 p-6 shadow-xl text-violet-950"
             onClick={(e) => e.stopPropagation()}
           >
@@ -374,7 +622,16 @@ function SesePaySessionContent({ persisted }: SesePaySessionContentProps) {
               <strong>{formatMoneyDollarsFromCents(completedPayCents)}</strong>
             </p>
 
-            {endDayModalError && (
+            {endDaySaveInProgress && (
+              <div
+                className="mt-4 rounded-xl border border-violet-300 bg-violet-50 px-4 py-3 text-lg text-violet-900 font-semibold"
+                aria-live="polite"
+              >
+                Saving your day… please wait.
+              </div>
+            )}
+
+            {endDayModalError && !endDaySaveInProgress && (
               <p
                 role="alert"
                 className="mt-4 rounded-xl border border-red-400/70 bg-red-100 px-4 py-3 text-lg text-red-900 font-medium"
@@ -396,6 +653,7 @@ function SesePaySessionContent({ persisted }: SesePaySessionContentProps) {
                 type="button"
                 onClick={() => void handleConfirmEndDay()}
                 disabled={endDaySaveInProgress}
+                aria-busy={endDaySaveInProgress}
                 className="rounded-full bg-gradient-to-r from-pink-400 via-fuchsia-500 to-purple-500 px-6 py-3 text-lg font-bold text-white shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {endDaySaveInProgress ? 'Saving…' : 'Confirm & save'}
@@ -430,7 +688,10 @@ export default function SesePayPage() {
           Loading…
         </div>
       ) : (
-        <SesePaySessionContent persisted={persisted} />
+        <>
+          <SesePaySessionContent persisted={persisted} />
+          <SesePayReportingSection />
+        </>
       )}
     </div>
   );
