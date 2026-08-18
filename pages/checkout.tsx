@@ -942,12 +942,26 @@ export default function Checkout() {
         mode: 'guest',
         stripeMode,
       });*/
+      if (!validateShippingStage()) {
+        alert('Please complete all shipping address fields before proceeding');
+        return;
+      }
+      if (!jwt) {
+        alert('Your checkout session expired. Please refresh and try again.');
+        return;
+      }
+      const shipmentData = prepareShipmentOrderData();
+      const shipmentResult = await saveShipmentOrderMutation.mutateAsync({
+        shipmentData: { ...shipmentData, intended_type: targetType === 'sub' ? 'subscription' : 'one_off' },
+        token: jwt,
+      });
       await checkoutSessionMutation.mutateAsync({
         items: filteredItems,
         customerEmail: visitorData?.email || customerInfoQuery.data?.email || '',
         visitorId: visitorId || undefined,
-        visitorJwt: jwt || undefined,
+        visitorJwt: jwt,
         checkoutMode: 'guest',
+        orderId: shipmentResult.order_id,
         stripeMode,
         successRedirect,
         cancelRedirect,

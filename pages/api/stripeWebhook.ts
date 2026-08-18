@@ -68,6 +68,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const visitorId = session.metadata?.visitor_id;
       const orderIdFromSession = session.metadata?.order_id as string | undefined;
 
+      // Link the exact paid Stripe object to the exact fulfillment row carried
+      // in Checkout metadata. If the row is unexpectedly missing, return an
+      // error so Stripe retries the webhook instead of recording a false success.
+      if (orderIdFromSession) {
+        const stripeReference = session.mode === 'subscription'
+          ? (typeof session.subscription === 'string' ? session.subscription : session.subscription?.id)
+          : (typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id);
+
+        if (!stripeReference) {
+          throw new Error(`Completed Checkout Session ${session.id} has no Stripe order reference`);
+        }
+
+        const { data: linkedOrder, error: linkOrderError } = await supabaseServiceRole
+          .from('shipment_orders')
+          .update({ order_type: stripeReference, status: 'paid' })
+          .eq('order_id', orderIdFromSession)
+          .select('order_id')
+          .maybeSingle();
+
+        if (linkOrderError) throw linkOrderError;
+        if (!linkedOrder) {
+          throw new Error(`Shipment order ${orderIdFromSession} is missing for completed Checkout Session ${session.id}`);
+        }
+      } else {
+        throw new Error(`Completed Checkout Session ${session.id} is missing order_id metadata`);
+      }
+
       // Update shipment_orders.order_info with the FINAL paid line items from the Checkout Session
       if (orderIdFromSession) {
         try {
@@ -158,27 +185,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
       
-      // One-off settlement: set order_type to payment_intent id and mark paid
-      if (session.mode === 'payment' && orderIdFromSession) {
-        const paymentIntentId = typeof session.payment_intent === 'string' 
-          ? session.payment_intent 
-          : session.payment_intent?.id;
-        if (paymentIntentId) {
-//          console.log('🚀 WEBHOOK: Marking one-off order paid', { orderId: orderIdFromSession, paymentIntentId });
-          const { error: updateOneOffError } = await supabaseServiceRole
-            .from('shipment_orders')
-            .update({ order_type: paymentIntentId, status: 'paid' })
-            .eq('order_id', orderIdFromSession);
-          if (updateOneOffError) {
-            console.error('🚀 WEBHOOK: Failed to update one-off order settlement', { orderId: orderIdFromSession, error: updateOneOffError });
-          } else {
-//            console.log('🚀 WEBHOOK: One-off order marked paid', { orderId: orderIdFromSession });
-          }
-        } else {
-//          console.log('🚀 WEBHOOK: No payment_intent id found for one-off session');
-        }
-      }
-      
       if (supabaseUserId) {
         // Update authenticated user's stripe_cust_id and clear cart
 //         console.log('[visitor id] updated IN db for user', supabaseUserId);
@@ -221,76 +227,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (eventType === 'customer.subscription.created' && subscriptionStatus === 'active') {
 //         console.log('🚀 WEBHOOK: Subscription created, updating shipment order type to subscription:', subscriptionId);
         
-        // Get visitor_id from session metadata (from checkout.session.completed)
+        // Match the Checkout Session to this exact subscription. Matching the
+        // customer's most recent session can attach a subscription to the wrong
+        // recipient when the same purchaser has placed more than one order.
         const sessions = await stripe.checkout.sessions.list({
           customer: stripeCustomerId,
           limit: 10,
         });
-//        console.log('🚀 WEBHOOK: Retrieved sessions for customer', { count: sessions.data.length });
-        
-        // Prefer resolving by explicit order_id in metadata
-        const sessionWithOrderId = sessions.data.find(session => session.metadata?.order_id);
-        if (sessionWithOrderId?.metadata?.order_id) {
-          const orderId = sessionWithOrderId.metadata.order_id as string;
-//          console.log('🚀 WEBHOOK: Using order_id from session metadata to update shipment order', { orderId, subscriptionId });
-          const { error: updateByOrderIdError } = await supabaseServiceRole
+        const exactSession = sessions.data.find((session) => {
+          const sessionSubscriptionId = typeof session.subscription === 'string'
+            ? session.subscription
+            : session.subscription?.id;
+          return sessionSubscriptionId === subscriptionId;
+        });
+
+        const orderId = exactSession?.metadata?.order_id;
+        if (orderId) {
+          const { data: linkedOrder, error: updateError } = await supabaseServiceRole
             .from('shipment_orders')
             .update({ order_type: subscriptionId, status: 'paid' })
-            .eq('order_id', orderId);
+            .eq('order_id', orderId)
+            .select('order_id')
+            .maybeSingle();
 
-          if (updateByOrderIdError) {
-            console.error('🚀 WEBHOOK: Error updating shipment order by order_id:', updateByOrderIdError);
-          } else {
-//            console.log('🚀 WEBHOOK: Successfully updated shipment order by order_id with order_type=subscription', { orderId, subscriptionId });
-          }
-          // Even after updating by order_id, continue to try visitor_id path as a fallback for any legacy rows
-        }
-
-        const sessionWithVisitorId = sessions.data.find(session => session.metadata?.visitor_id);
-        
-        if (sessionWithVisitorId?.metadata?.visitor_id) {
-          const visitorId = sessionWithVisitorId.metadata.visitor_id;
-//           console.log('🚀 WEBHOOK: Found visitor_id in session metadata:', visitorId);
-          
-          // Fallback: Find the most recent pending shipment order for this visitor
-          const { data: shipmentOrders, error: fetchError } = await supabaseServiceRole
-            .from('shipment_orders')
-            .select('order_id, created_at, status')
-            .eq('purchasing_visitor_id', visitorId)
-            .eq('status', 'pending')
-            .order('created_at', { ascending: false })
-            .limit(1);
-
-          if (fetchError) {
-            console.error('🚀 WEBHOOK: Error fetching shipment orders:', fetchError);
-            return res.status(500).json({ error: 'Failed to fetch shipment orders' });
-          }
-
-          if (shipmentOrders && shipmentOrders.length > 0) {
-            const orderId = shipmentOrders[0].order_id;
-//             console.log('🚀 WEBHOOK: Found recent shipment order:', orderId);
-            
-            // Update shipment order with order_type and change status to paid
-//            console.log('🚀 WEBHOOK: Attempting to update shipment order to subscription', { orderId, subscriptionId, visitorId });
-            const { error: updateError } = await supabaseServiceRole
-              .from('shipment_orders')
-              .update({ 
-                order_type: subscriptionId,
-                status: 'paid'
-              })
-              .eq('order_id', orderId);
-
-            if (updateError) {
-              console.error('🚀 WEBHOOK: Error updating shipment order with order_type for subscription:', updateError);
-              return res.status(500).json({ error: 'Failed to update shipment order with order_type' });
-            } else {
-//              console.log('🚀 WEBHOOK: Successfully updated shipment order with order_type=subscription', { orderId, subscriptionId });
-            }
-          } else {
-//            console.log('🚀 WEBHOOK: No pending shipment orders found for visitor', { visitorId });
-          }
-        } else {
-//          console.log('🚀 WEBHOOK: No visitor_id found in recent sessions metadata');
+          if (updateError) throw updateError;
+          if (!linkedOrder) throw new Error(`Shipment order ${orderId} is missing for subscription ${subscriptionId}`);
         }
       }
 
@@ -305,6 +266,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     res.status(200).json({ received: true });
   } catch (error: any) {
+    console.error('Stripe webhook processing failed:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-} 
+}

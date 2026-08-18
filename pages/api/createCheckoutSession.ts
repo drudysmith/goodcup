@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
+import { getSupabaseServiceRole } from '../../lib/supabaseClient';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: '2025-08-27.basil',
@@ -24,6 +25,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });*/
       } catch {}
       return res.status(400).json({ error: 'No items in cart' });
+    }
+
+    // Never create a paid Stripe order unless its fulfillment record already exists.
+    // This makes a missing shipment order a visible checkout error instead of a
+    // silent webhook mismatch after the customer has paid.
+    if (!orderId) {
+      return res.status(400).json({ error: 'A saved shipment order is required before checkout' });
+    }
+
+    const supabase = getSupabaseServiceRole();
+    const { data: shipmentOrder, error: shipmentOrderError } = await supabase
+      .from('shipment_orders')
+      .select('order_id')
+      .eq('order_id', orderId)
+      .maybeSingle();
+
+    if (shipmentOrderError) {
+      console.error('Unable to verify shipment order before Stripe checkout:', shipmentOrderError);
+      return res.status(500).json({ error: 'Unable to verify shipment order' });
+    }
+
+    if (!shipmentOrder) {
+      return res.status(409).json({ error: 'Shipment order was not saved; checkout was not created' });
     }
 
     let stripeCustomerId = customerId || null;
