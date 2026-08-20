@@ -254,6 +254,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!shipment) warnings.push('Stripe subscription has no matching Supabase shipment order');
       if (!address?.line1 || !address.city || !address.state || !address.postalCode) warnings.push('Shipping address is incomplete');
       if (ATTENTION_STATUSES.has(subscription.status)) warnings.push(`Subscription is ${subscription.status.replaceAll('_', ' ')}`);
+      if (shipment && shipment.status !== 'paid' && shipment.status !== 'fulfilled') warnings.push(`Payment is not confirmed in the shipment record (${shipment.status || 'pending'})`);
       if (subscription.cancel_at_period_end) warnings.push('Subscription is scheduled to cancel');
 
       return {
@@ -311,6 +312,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!shipment) warnings.push('Stripe payment has no matching Supabase shipment order');
       if (!address?.line1 || !address.city || !address.state || !address.postalCode) warnings.push('Shipping address is incomplete');
       if (status !== 'paid' && status !== 'complete') warnings.push(`Payment is ${status.replaceAll('_', ' ')}`);
+      if (shipment && shipment.status !== 'paid' && shipment.status !== 'fulfilled') warnings.push(`Payment is not confirmed in the shipment record (${shipment.status || 'pending'})`);
 
       rows.push({
         id: `one_off:${session.id}`,
@@ -351,6 +353,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const warnings = ['Supabase shipment order has no matching Stripe record'];
       const address = shipmentAddress(shipment);
       if (!address?.line1 || !address.city || !address.state || !address.postalCode) warnings.push('Shipping address is incomplete');
+      if (shipment.status !== 'paid' && shipment.status !== 'fulfilled') warnings.push(`Payment is not confirmed in the shipment record (${shipment.status || 'pending'})`);
       rows.push({
         id: `supabase:${shipment.order_id}`,
         kind: shipment.intended_type || 'unknown',

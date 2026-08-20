@@ -112,22 +112,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'order_id is required' });
       }
 
-      const updatePayload: any = {};
-      if (fulfilled_at !== undefined) {
-        updatePayload.fulfilled_at = fulfilled_at;
+      if (fulfilled_at === undefined) {
+        return res.status(400).json({ error: 'fulfilled_at is required' });
       }
 
-      const { error } = await supabaseServiceRole
+      if (fulfilled_at !== null && (typeof fulfilled_at !== 'string' || Number.isNaN(Date.parse(fulfilled_at)))) {
+        return res.status(400).json({ error: 'fulfilled_at must be a valid date or null' });
+      }
+
+      const { data: updatedOrder, error } = await supabaseServiceRole
         .from('shipment_orders')
-        .update(updatePayload)
-        .eq('order_id', order_id);
+        .update({ fulfilled_at })
+        .eq('order_id', order_id)
+        .select('order_id, fulfilled_at')
+        .maybeSingle();
 
       if (error) {
         console.error('Error updating shipment order:', error);
         return res.status(500).json({ error: 'Failed to update shipment order' });
       }
 
-      res.status(200).json({ success: true });
+      if (!updatedOrder) {
+        return res.status(404).json({ error: 'Shipment order not found' });
+      }
+
+      res.status(200).json({ success: true, order: updatedOrder });
     } catch (error) {
       console.error('Error updating shipment order:', error);
       res.status(500).json({ error: 'Internal server error' });
