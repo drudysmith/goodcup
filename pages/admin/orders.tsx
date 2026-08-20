@@ -132,7 +132,7 @@ function CopyableValue({ value, copyKey, copiedKey, onCopy, strong = false, mono
   if (!value) return <span className="text-slate-400">Not available</span>;
 
   return (
-    <span className={`inline-flex max-w-full items-center gap-1.5 ${strong ? 'font-black text-slate-950' : 'text-slate-700'} ${mono ? 'break-all font-mono text-sm' : ''}`}>
+    <span className={`inline-flex max-w-full items-center gap-1.5 ${strong ? 'font-black text-slate-950' : 'text-slate-700'} ${mono ? 'break-all font-mono text-lg' : ''}`}>
       <span>{value}</span>
       <button type="button" onClick={() => onCopy(copyKey, value)} className="inline-grid h-7 w-7 shrink-0 place-items-center rounded-md text-slate-400 transition hover:bg-emerald-100 hover:text-emerald-800" aria-label={`Copy ${value}`} title="Copy">
         {copiedKey === copyKey ? <CheckIcon className="h-4 w-4 text-emerald-700" /> : <ClipboardDocumentIcon className="h-4 w-4" />}
@@ -381,18 +381,18 @@ export function AdminOrderCenter({ embedded = false }: { embedded?: boolean }) {
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
                               <h2 className="text-xl font-black text-slate-950 sm:text-2xl">{order.recipient.name}</h2>
-                              {order.gift && <span className="rounded-full bg-fuchsia-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-fuchsia-800">Gift</span>}
-                              {order.matchStatus !== 'matched' && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-900">{order.matchStatus === 'stripe_only' ? 'Stripe only' : 'Supabase only'}</span>}
+                              {order.gift && <span className="rounded-full bg-fuchsia-100 px-2.5 py-1 text-sm font-black uppercase tracking-wide text-fuchsia-800">Gift</span>}
+                              {order.matchStatus !== 'matched' && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-sm font-black uppercase tracking-wide text-amber-900">{order.matchStatus === 'stripe_only' ? 'Stripe only' : 'Supabase only'}</span>}
                             </div>
-                            <p className="mt-1 text-sm font-bold uppercase tracking-wide text-slate-400">{kindLabel(order.kind)}</p>
-                            <p className="mt-1 truncate text-base text-slate-600">{order.recipient.email || 'No email'}{order.recipient.phone ? ` · ${order.recipient.phone}` : ''}</p>
+                            <p className="mt-1 text-base font-bold uppercase tracking-wide text-slate-500">{kindLabel(order.kind)}</p>
+                            <p className="mt-1 truncate text-lg text-slate-600">{order.recipient.email || 'No email'}{order.recipient.phone ? ` · ${order.recipient.phone}` : ''}</p>
                           </div>
-                          <div><p className="text-lg font-bold text-slate-800">{order.products.map((product) => `${product.name}${product.quantity > 1 ? ` × ${product.quantity}` : ''}`).join(', ') || 'Products unavailable'}</p><p className="mt-1 text-base text-slate-600">{formatMoney(order.amount, order.currency)}{order.billingInterval ? ` every ${order.billingIntervalCount && order.billingIntervalCount > 1 ? `${order.billingIntervalCount} ` : ''}${order.billingInterval}` : ''}</p></div>
-                          <div><p className="text-sm font-bold uppercase tracking-wide text-slate-400">{primaryDateLabel}</p><p className={`mt-1 text-lg font-black ${order.cancelAtPeriodEnd ? 'text-amber-800' : 'text-slate-900'}`}>{formatDate(primaryDate)}</p></div>
+                          <div><p className="text-2xl font-bold text-slate-900">{order.products.map((product) => `${product.name}${product.quantity > 1 ? ` × ${product.quantity}` : ''}`).join(', ') || 'Products unavailable'}</p><p className="mt-1 text-xl text-slate-600">{formatMoney(order.amount, order.currency)}{order.billingInterval ? ` every ${order.billingIntervalCount && order.billingIntervalCount > 1 ? `${order.billingIntervalCount} ` : ''}${order.billingInterval}` : ''}</p></div>
+                          <div><p className="text-base font-bold uppercase tracking-wide text-slate-500">{primaryDateLabel}</p><p className={`mt-1 text-xl font-black ${order.cancelAtPeriodEnd ? 'text-amber-800' : 'text-slate-900'}`}>{formatDate(primaryDate)}</p></div>
                           <div className="lg:text-right">
-                            {unpaid && <span className="mb-2 inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-white shadow-sm"><ExclamationTriangleIcon className="h-4 w-4" />Payment not confirmed</span>}
-                            <div><span className={`inline-flex rounded-full px-3 py-1.5 text-sm font-black ring-1 ring-inset ${STATUS_STYLES[order.status] || 'bg-slate-100 text-slate-700 ring-slate-500/20'}`}>{formatStatus(order.status)}</span></div>
-                            {order.warnings.length > 0 && <p className={`mt-2 text-sm font-bold ${unpaid ? 'text-red-800' : 'text-amber-800'}`}>{order.warnings.length} warning{order.warnings.length === 1 ? '' : 's'}</p>}
+                            {unpaid && <span className="mb-2 inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-base font-black uppercase tracking-wide text-white shadow-sm"><ExclamationTriangleIcon className="h-5 w-5" />Payment not confirmed</span>}
+                            <div><span className={`inline-flex rounded-full px-3 py-1.5 text-base font-black ring-1 ring-inset ${STATUS_STYLES[order.status] || 'bg-slate-100 text-slate-700 ring-slate-500/20'}`}>{formatStatus(order.status)}</span></div>
+                            {order.warnings.length > 0 && <p className={`mt-2 text-base font-bold ${unpaid ? 'text-red-800' : 'text-amber-800'}`}>{order.warnings.length} warning{order.warnings.length === 1 ? '' : 's'}</p>}
                           </div>
                           <span className={`text-2xl text-slate-400 transition ${expanded ? 'rotate-180' : ''}`}>⌄</span>
                         </button>
@@ -402,14 +402,14 @@ export function AdminOrderCenter({ embedded = false }: { embedded?: boolean }) {
                             {unpaid && (
                               <div className="mb-5 flex items-start gap-3 rounded-2xl border-2 border-red-500 bg-red-100 p-5 text-red-950 shadow-sm">
                                 <ExclamationTriangleIcon className="mt-0.5 h-7 w-7 shrink-0 text-red-700" />
-                                <div><p className="text-lg font-black uppercase tracking-wide">Payment not confirmed</p><p className="mt-1 text-base font-semibold">Do not fulfill this order until its payment status is resolved. Shipment status: {order.shipmentStatus ? formatStatus(order.shipmentStatus) : 'Not available'}.</p></div>
+                                <div><p className="text-xl font-black uppercase tracking-wide">Payment not confirmed</p><p className="mt-1 text-xl font-semibold">Do not fulfill this order until its payment status is resolved. Shipment status: {order.shipmentStatus ? formatStatus(order.shipmentStatus) : 'Not available'}.</p></div>
                               </div>
                             )}
-                            {order.warnings.length > 0 && <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-sm font-black uppercase tracking-wide text-amber-800">Needs attention</p><ul className="mt-2 space-y-1 text-base font-semibold text-amber-950">{order.warnings.map((warning) => <li key={warning}>• {warning}</li>)}</ul></div>}
+                            {order.warnings.length > 0 && <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-lg font-black uppercase tracking-wide text-amber-800">Needs attention</p><ul className="mt-2 space-y-1 text-xl font-semibold text-amber-950">{order.warnings.map((warning) => <li key={warning}>• {warning}</li>)}</ul></div>}
                             <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-4">
                               <section>
-                                <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-500">Recipient & shipping</h3>
-                                <div className="mt-3 space-y-1 text-base leading-7">
+                                <h3 className="text-lg font-black uppercase tracking-[0.16em] text-slate-500">Recipient & shipping</h3>
+                                <div className="mt-3 space-y-2 text-xl leading-9">
                                   <div><CopyableValue value={order.recipient.name} copyKey={`${order.id}:recipient-name`} copiedKey={copiedKey} onCopy={copyValue} strong /></div>
                                   <div><CopyableValue value={addressLines(order.recipient.address).join(', ')} copyKey={`${order.id}:address`} copiedKey={copiedKey} onCopy={copyValue} /></div>
                                   <div className="pt-1"><CopyableValue value={order.recipient.email} copyKey={`${order.id}:recipient-email`} copiedKey={copiedKey} onCopy={copyValue} /></div>
@@ -417,17 +417,17 @@ export function AdminOrderCenter({ embedded = false }: { embedded?: boolean }) {
                                 </div>
                               </section>
                               <section>
-                                <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-500">Purchaser</h3>
-                                <div className="mt-3 space-y-1 text-base leading-7">
+                                <h3 className="text-lg font-black uppercase tracking-[0.16em] text-slate-500">Purchaser</h3>
+                                <div className="mt-3 space-y-2 text-xl leading-9">
                                   <div><CopyableValue value={order.purchaser?.name} copyKey={`${order.id}:purchaser-name`} copiedKey={copiedKey} onCopy={copyValue} strong /></div>
                                   <div><CopyableValue value={order.purchaser?.email} copyKey={`${order.id}:purchaser-email`} copiedKey={copiedKey} onCopy={copyValue} /></div>
                                   <div><CopyableValue value={order.purchaser?.phone} copyKey={`${order.id}:purchaser-phone`} copiedKey={copiedKey} onCopy={copyValue} /></div>
                                 </div>
-                                {order.gift && <p className="mt-3 text-sm font-black uppercase tracking-wide text-fuchsia-700">Gift order</p>}
+                                {order.gift && <p className="mt-3 text-lg font-black uppercase tracking-wide text-fuchsia-700">Gift order</p>}
                               </section>
                               <section>
-                                <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-500">Order details</h3>
-                                <div className="mt-3 space-y-2 text-base leading-7 text-slate-700">
+                                <h3 className="text-lg font-black uppercase tracking-[0.16em] text-slate-500">Order details</h3>
+                                <div className="mt-3 space-y-3 text-xl leading-9 text-slate-700">
                                   <p>Created <span className="font-bold text-slate-950">{formatDate(order.createdAt, true)}</span></p>
                                   <p>Shipment <span className={`font-black ${unpaid ? 'text-red-700' : 'text-slate-950'}`}>{order.shipmentStatus ? formatStatus(order.shipmentStatus) : 'Not linked'}</span></p>
                                   <div>
@@ -437,31 +437,31 @@ export function AdminOrderCenter({ embedded = false }: { embedded?: boolean }) {
                                     </div>
                                     {fulfillmentEditorId === order.id && (
                                       <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                                        <label htmlFor={`fulfilled-${order.id}`} className="text-sm font-black text-slate-700">Fulfillment date</label>
-                                        <input id={`fulfilled-${order.id}`} type="date" value={fulfillmentDate} onChange={(event) => setFulfillmentDate(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-base font-semibold outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15" />
+                                        <label htmlFor={`fulfilled-${order.id}`} className="text-lg font-black text-slate-700">Fulfillment date</label>
+                                        <input id={`fulfilled-${order.id}`} type="date" value={fulfillmentDate} onChange={(event) => setFulfillmentDate(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-lg font-semibold outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15" />
                                         <div className="mt-3 flex flex-wrap gap-2">
-                                          <button type="button" disabled={updatingFulfillmentId === order.id} onClick={() => updateFulfillment(order, new Date().toISOString())} className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-black text-white hover:bg-emerald-800 disabled:opacity-50">Fulfilled today</button>
-                                          <button type="button" disabled={!fulfillmentDate || updatingFulfillmentId === order.id} onClick={() => updateFulfillment(order, new Date(`${fulfillmentDate}T12:00:00`).toISOString())} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-black text-slate-700 hover:bg-slate-50 disabled:opacity-50">Save date</button>
-                                          {order.fulfilledAt && <button type="button" disabled={updatingFulfillmentId === order.id} onClick={() => updateFulfillment(order, null)} className="rounded-lg px-3 py-2 text-sm font-bold text-red-700 hover:bg-red-50 disabled:opacity-50">Clear</button>}
+                                          <button type="button" disabled={updatingFulfillmentId === order.id} onClick={() => updateFulfillment(order, new Date().toISOString())} className="rounded-lg bg-emerald-700 px-3 py-2 text-lg font-black text-white hover:bg-emerald-800 disabled:opacity-50">Fulfilled today</button>
+                                          <button type="button" disabled={!fulfillmentDate || updatingFulfillmentId === order.id} onClick={() => updateFulfillment(order, new Date(`${fulfillmentDate}T12:00:00`).toISOString())} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-lg font-black text-slate-700 hover:bg-slate-50 disabled:opacity-50">Save date</button>
+                                          {order.fulfilledAt && <button type="button" disabled={updatingFulfillmentId === order.id} onClick={() => updateFulfillment(order, null)} className="rounded-lg px-3 py-2 text-lg font-bold text-red-700 hover:bg-red-50 disabled:opacity-50">Clear</button>}
                                         </div>
-                                        {updatingFulfillmentId === order.id && <p className="mt-2 text-sm font-bold text-emerald-700">Saving…</p>}
-                                        {fulfillmentError && <p className="mt-2 text-sm font-bold text-red-700">{fulfillmentError}</p>}
+                                        {updatingFulfillmentId === order.id && <p className="mt-2 text-lg font-bold text-emerald-700">Saving…</p>}
+                                        {fulfillmentError && <p className="mt-2 text-lg font-bold text-red-700">{fulfillmentError}</p>}
                                       </div>
                                     )}
                                   </div>
-                                  {order.sampleNote && <p className="mt-3 rounded-lg bg-white px-3 py-2 text-base text-slate-700 ring-1 ring-slate-200">Sample note: <span className="font-bold">{order.sampleNote}</span></p>}
+                                  {order.sampleNote && <p className="mt-3 rounded-lg bg-white px-3 py-2 text-xl text-slate-700 ring-1 ring-slate-200">Sample note: <span className="font-bold">{order.sampleNote}</span></p>}
                                 </div>
                               </section>
                               <section>
-                                <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-500">Record IDs</h3>
-                                <dl className="mt-3 space-y-3 text-sm">
+                                <h3 className="text-lg font-black uppercase tracking-[0.16em] text-slate-500">Record IDs</h3>
+                                <dl className="mt-3 space-y-4 text-lg">
                                   <div><dt className="font-bold text-slate-500">Stripe</dt><dd><CopyableValue value={order.stripeId} copyKey={`${order.id}:stripe-id`} copiedKey={copiedKey} onCopy={copyValue} mono /></dd></div>
                                   <div><dt className="font-bold text-slate-500">Supabase shipment</dt><dd><CopyableValue value={order.shipmentOrderId} copyKey={`${order.id}:shipment-id`} copiedKey={copiedKey} onCopy={copyValue} mono /></dd></div>
                                   <div><dt className="font-bold text-slate-500">Stripe customer</dt><dd><CopyableValue value={order.stripeCustomerId} copyKey={`${order.id}:customer-id`} copiedKey={copiedKey} onCopy={copyValue} mono /></dd></div>
                                 </dl>
                               </section>
                             </div>
-                            <div className="mt-7 flex flex-wrap gap-3 border-t border-slate-200 pt-5"><button type="button" onClick={() => copyOrder(order)} className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-base font-bold text-slate-700 shadow-sm hover:bg-slate-50">{copiedKey === `order:${order.id}` ? 'Copied!' : 'Copy order details'}</button>{order.stripeUrl && <a href={order.stripeUrl} target="_blank" rel="noreferrer" className="rounded-lg bg-[#635bff] px-4 py-2.5 text-base font-bold text-white shadow-sm hover:bg-[#5149e5]">Open in Stripe ↗</a>}</div>
+                            <div className="mt-7 flex flex-wrap gap-3 border-t border-slate-200 pt-5"><button type="button" onClick={() => copyOrder(order)} className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-lg font-bold text-slate-700 shadow-sm hover:bg-slate-50">{copiedKey === `order:${order.id}` ? 'Copied!' : 'Copy order details'}</button>{order.stripeUrl && <a href={order.stripeUrl} target="_blank" rel="noreferrer" className="rounded-lg bg-[#635bff] px-4 py-2.5 text-lg font-bold text-white shadow-sm hover:bg-[#5149e5]">Open in Stripe ↗</a>}</div>
                           </div>
                         )}
                       </article>
