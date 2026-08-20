@@ -8,6 +8,21 @@ const nextConfig = {
         destination: "https://goodcup.me",
         permanent: true,
       },
+      {
+        source: "/adminDashboard",
+        destination: "/admin",
+        permanent: true,
+      },
+      {
+        source: "/admin/orders",
+        destination: "/admin",
+        permanent: true,
+      },
+      {
+        source: "/admin/login",
+        destination: "/admin",
+        permanent: true,
+      },
     ];
   },
 };

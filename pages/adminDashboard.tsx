@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useRouter } from 'next/router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AdminGuard, useAdminSession } from '../components/AdminGuard';
 
@@ -163,9 +162,9 @@ const bulkUpdateShipmentOrders = async ({ order_ids, fulfilled_at }: { order_ids
   return response.json();
 };
 
-export default function AdminDashboard() {
-  const router = useRouter();
-  const [viewMode, setViewMode] = useState<ViewMode>('orders');
+export function AdminOperationsDashboard({ embedded = false, view }: { embedded?: boolean; view?: ViewMode }) {
+  const [selectedViewMode, setViewMode] = useState<ViewMode>(view || 'orders');
+  const viewMode = view || selectedViewMode;
   const [darkMode, setDarkMode] = useState(false);
   const { adminSession, logout } = useAdminSession();
   const [condensedView, setCondensedView] = useState(false);
@@ -335,7 +334,7 @@ export default function AdminDashboard() {
         darkMode ? 'bg-gray-900' : 'bg-gray-50'
       }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
+        {!embedded && <div className="mb-8">
           <div className="flex justify-between items-center">
             <div>
               <h1 className={`text-3xl font-bold transition-colors duration-200 ${
@@ -349,39 +348,6 @@ export default function AdminDashboard() {
                   : 'Manage visitor accounts and information'
                 }
               </p>
-              {/* Navigation Links */}
-              <div className="flex space-x-4 mt-4">
-                <button
-                  onClick={() => router.push('/adminDashboard')}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
-                    darkMode 
-                      ? 'bg-blue-600 text-white hover:bg-blue-700' 
-                      : 'bg-blue-500 text-white hover:bg-blue-600'
-                  }`}
-                >
-                  Admin Dashboard
-                </button>
-                <button
-                  onClick={() => router.push('/admin/orders')}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
-                    darkMode
-                      ? 'bg-emerald-700 text-white hover:bg-emerald-600'
-                      : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                  }`}
-                >
-                  Order Center
-                </button>
-                <button
-                  onClick={() => router.push('/data')}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
-                    darkMode 
-                      ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' 
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  Data Dashboard
-                </button>
-              </div>
             </div>
             <div className="flex items-center space-x-4">
               {/* Admin Info */}
@@ -472,7 +438,7 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
-        </div>
+        </div>}
 
         {/* Condensed View Toggle and Bulk Actions (for Orders) */}
         {viewMode === 'orders' && (
@@ -1038,4 +1004,8 @@ export default function AdminDashboard() {
     </div>
     </AdminGuard>
   );
+}
+
+export default function AdminDashboard() {
+  return <AdminOperationsDashboard />;
 }

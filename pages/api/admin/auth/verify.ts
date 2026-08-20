@@ -1,4 +1,4 @@
-import { NextApiRequest } from 'next';
+import { NextApiRequest, NextApiResponse } from 'next';
 import jwt from 'jsonwebtoken';
 
 interface AdminTokenPayload {
@@ -58,4 +58,17 @@ export async function verifyAdminAuth(req: NextApiRequest): Promise<{
     console.error('❌ Admin auth verification error:', error);
     return { isAdmin: false, error: 'Authentication failed' };
   }
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
+  }
+
+  const auth = await verifyAdminAuth(req);
+  if (!auth.isAdmin) {
+    return res.status(401).json({ success: false, error: auth.error || 'Unauthorized' });
+  }
+
+  return res.status(200).json({ success: true, admin: auth.admin });
 }

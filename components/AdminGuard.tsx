@@ -26,18 +26,30 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
     const adminData = localStorage.getItem('adminSession');
-    
+
     if (token && adminData) {
-      try {
-        const session = JSON.parse(adminData);
-        setAdminSession(session);
-      } catch (error) {
-        console.error('Error parsing admin session:', error);
-        localStorage.removeItem('adminToken');
-        localStorage.removeItem('adminSession');
-      }
+      const validateSession = async () => {
+        try {
+          const session = JSON.parse(adminData) as AdminSession;
+          const response = await fetch('/api/admin/auth/verify', {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (!response.ok) throw new Error('Admin session expired');
+          setAdminSession(session);
+        } catch (error) {
+          console.info('Admin session is no longer valid:', error);
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminSession');
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      validateSession();
+      return;
     }
-    
+
     setIsLoading(false);
   }, []);
 
@@ -71,7 +83,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminSession');
     setAdminSession(null);
-    router.push('/admin/login');
+    router.push('/admin');
   };
 
   return (
@@ -95,7 +107,7 @@ export function AdminGuard({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isLoading && !adminSession) {
-      router.push('/admin/login');
+      router.push('/admin');
     }
   }, [adminSession, isLoading, router]);
 

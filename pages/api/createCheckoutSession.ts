@@ -82,7 +82,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const sessionConfig: any = {
-      payment_method_types: ['card'],
       mode: stripeMode === 'payment' ? 'payment' : 'subscription',
       line_items,
       success_url: successRedirect || `${req.headers.origin}/checkout?success=1`,

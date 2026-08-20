@@ -32,8 +32,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return res.status(400).json({ success: false, error: 'Email and password are required' });
     }
 
-    // Find admin by email
-    console.log('🔍 Looking for admin with email:', email.toLowerCase());
+    // Find admin by email. Authentication failures intentionally use the same
+    // response so the endpoint does not reveal whether an account exists.
     const { data: admin, error: findError } = await supabaseServiceRole
       .from('admins')
       .select('id, email, password_hash, name, role, is_active')
@@ -41,34 +41,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       .single();
 
     if (findError || !admin) {
-      console.log('❌ Admin not found:', email, 'Error:', findError);
       return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
 
-    console.log('✅ Admin found:', {
-      id: admin.id,
-      email: admin.email,
-      name: admin.name,
-      role: admin.role,
-      is_active: admin.is_active,
-      password_hash_length: admin.password_hash?.length
-    });
-
     // Check if admin is active
     if (!admin.is_active) {
-      console.log('❌ Admin account disabled:', email);
       return res.status(401).json({ success: false, error: 'Account disabled' });
     }
 
     // Verify password
-    console.log('🔐 Attempting password verification...');
-    console.log('📝 Input password:', password);
-    console.log('🔑 Stored hash:', admin.password_hash);
     const isValidPassword = await bcrypt.compare(password, admin.password_hash);
-    console.log('✅ Password verification result:', isValidPassword);
-    
+
     if (!isValidPassword) {
-      console.log('❌ Invalid password for admin:', email);
       return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
 
@@ -95,8 +79,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       jwtSecret,
       { expiresIn: '24h' }
     );
-
-    console.log('✅ Admin login successful:', email, admin.role);
 
     res.status(200).json({
       success: true,

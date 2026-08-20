@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/router';
 import { useQuery } from '@tanstack/react-query';
 import { AdminGuard, useAdminSession } from '../../components/AdminGuard';
 
@@ -113,8 +112,7 @@ const fetchOrders = async (): Promise<OrdersResponse> => {
   return data;
 };
 
-export default function AdminOrdersPage() {
-  const router = useRouter();
+export function AdminOrderCenter({ embedded = false }: { embedded?: boolean }) {
   const { adminSession, logout } = useAdminSession();
   const [scope, setScope] = useState<Scope>('all');
   const [query, setQuery] = useState('');
@@ -211,10 +209,9 @@ export default function AdminOrdersPage() {
   return (
     <AdminGuard>
       <main className="min-h-screen bg-[#f4f3ee] text-slate-900">
-        <header className="border-b border-slate-200 bg-white/95">
+        {!embedded && <header className="border-b border-slate-200 bg-white/95">
           <div className="mx-auto flex max-w-[1600px] flex-col gap-5 px-5 py-6 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-4">
-              <button type="button" onClick={() => router.push('/adminDashboard')} className="mt-1 grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-xl text-slate-700 shadow-sm transition hover:bg-slate-50" aria-label="Back to admin dashboard">←</button>
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.22em] text-emerald-700">Goodcup admin</p>
                 <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">Order Center</h1>
@@ -227,9 +224,16 @@ export default function AdminOrdersPage() {
               <button type="button" onClick={logout} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-slate-700">Log out</button>
             </div>
           </div>
-        </header>
+        </header>}
 
         <div className="mx-auto max-w-[1600px] px-5 py-7 sm:px-8 sm:py-9">
+          {embedded && (
+            <div className="mb-5 flex justify-end">
+              <button type="button" onClick={() => refetch()} disabled={isFetching} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60">
+                {isFetching ? 'Refreshing…' : 'Refresh live data'}
+              </button>
+            </div>
+          )}
           {error ? (
             <section className="rounded-2xl border border-red-200 bg-red-50 p-6 shadow-sm">
               <h2 className="text-lg font-black text-red-900">The Order Center could not load</h2>
@@ -335,4 +339,8 @@ export default function AdminOrdersPage() {
       </main>
     </AdminGuard>
   );
+}
+
+export default function AdminOrdersPage() {
+  return <AdminOrderCenter />;
 }
