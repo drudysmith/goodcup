@@ -3,8 +3,9 @@ import { FormEvent, useState } from 'react';
 import { useAdminSession } from '../../components/AdminGuard';
 import { AdminOperationsDashboard } from '../adminDashboard';
 import { AdminOrderCenter } from './orders';
+import { TwilioTestPanel } from '../../components/admin/TwilioTestPanel';
 
-type AdminSection = 'orders' | 'fulfillment' | 'visitors';
+type AdminSection = 'orders' | 'fulfillment' | 'visitors' | 'sms-test';
 
 function AdminLogin() {
   const { login } = useAdminSession();
@@ -95,6 +96,7 @@ export default function AdminPage() {
     { id: 'orders', label: 'Order Center', detail: 'Subscriptions & purchases' },
     { id: 'fulfillment', label: 'Fulfillment', detail: 'Shipment operations' },
     { id: 'visitors', label: 'Visitors', detail: 'Customer records' },
+    { id: 'sms-test', label: 'SMS Test', detail: 'Test Twilio messaging' },
   ];
 
   return (
@@ -120,6 +122,7 @@ export default function AdminPage() {
         {section === 'orders' && <AdminOrderCenter embedded />}
         {section === 'fulfillment' && <AdminOperationsDashboard embedded view="orders" />}
         {section === 'visitors' && <AdminOperationsDashboard embedded view="visitors" />}
+        {section === 'sms-test' && <TwilioTestPanel />}
       </main>
     </>
   );
