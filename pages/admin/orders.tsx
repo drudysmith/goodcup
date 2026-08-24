@@ -38,6 +38,8 @@ type OrderRow = {
   fulfilledAt: string | null;
   sampleNote: string | null;
   warnings: string[];
+  archived: boolean;
+  archivedAt: string | null;
 };
 
 type OrdersResponse = {
@@ -51,11 +53,12 @@ type OrdersResponse = {
     attention: number;
     unmatched: number;
     pendingShipments: number;
+    archived: number;
   };
   generatedAt: string;
 };
 
-type Scope = 'all' | 'active' | 'subscriptions' | 'one_off' | 'history' | 'attention';
+type Scope = 'all' | 'active' | 'subscriptions' | 'one_off' | 'history' | 'attention' | 'archived';
 type SortMode = 'attention' | 'newest' | 'renewal' | 'name';
 type DueWindow = 'all' | '7' | '30' | '60';
 
@@ -163,6 +166,9 @@ export function AdminOrderCenter({ embedded = false }: { embedded?: boolean }) {
   const [fulfillmentDate, setFulfillmentDate] = useState('');
   const [updatingFulfillmentId, setUpdatingFulfillmentId] = useState<string | null>(null);
   const [fulfillmentError, setFulfillmentError] = useState<string | null>(null);
+  const [recordActionId, setRecordActionId] = useState<string | null>(null);
+  const [recordActionError, setRecordActionError] = useState<{ orderId: string; message: string } | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['adminOrderCenter'],
@@ -176,6 +182,7 @@ export function AdminOrderCenter({ embedded = false }: { embedded?: boolean }) {
     const normalizedQuery = query.trim().toLowerCase();
     const now = Date.now();
     const filtered = (data?.orders || []).filter((order) => {
+      if (scope === 'archived' ? !order.archived : order.archived) return false;
       if (scope === 'active' && !(order.kind === 'subscription' && order.active)) return false;
       if (scope === 'subscriptions' && order.kind !== 'subscription') return false;
       if (scope === 'one_off' && order.kind !== 'one_off') return false;
@@ -272,6 +279,51 @@ export function AdminOrderCenter({ embedded = false }: { embedded?: boolean }) {
     setFulfillmentEditorId((current) => current === order.id ? null : order.id);
   };
 
+  const updateArchive = async (order: OrderRow, archived: boolean) => {
+    if (recordActionId) return;
+    setRecordActionId(order.id);
+    setRecordActionError(null);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch('/api/admin/orderRecords', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ orderKey: order.id, archived }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Unable to update this entry');
+      setExpandedId(null);
+      await refetch();
+    } catch (actionError) {
+      setRecordActionError({ orderId: order.id, message: actionError instanceof Error ? actionError.message : 'Unable to update this entry' });
+    } finally {
+      setRecordActionId(null);
+    }
+  };
+
+  const deleteSupabaseEntry = async (order: OrderRow) => {
+    if (!order.shipmentOrderId || recordActionId) return;
+    setRecordActionId(order.id);
+    setRecordActionError(null);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch('/api/admin/orderRecords', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ orderKey: order.id, shipmentOrderId: order.shipmentOrderId, confirmation: 'DELETE' }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Unable to delete this entry');
+      setDeleteConfirmId(null);
+      setExpandedId(null);
+      await refetch();
+    } catch (actionError) {
+      setRecordActionError({ orderId: order.id, message: actionError instanceof Error ? actionError.message : 'Unable to delete this entry' });
+    } finally {
+      setRecordActionId(null);
+    }
+  };
+
   const stats = data?.stats;
   const scopes: Array<[Scope, string]> = [
     ['all', `All (${stats?.total ?? 0})`],
@@ -280,6 +332,7 @@ export function AdminOrderCenter({ embedded = false }: { embedded?: boolean }) {
     ['one_off', `One-time (${stats?.oneOffs ?? 0})`],
     ['history', 'Older subscriptions'],
     ['attention', `Needs attention (${stats?.attention ?? 0})`],
+    ['archived', `Archived (${stats?.archived ?? 0})`],
   ];
 
   return (
@@ -382,6 +435,7 @@ export function AdminOrderCenter({ embedded = false }: { embedded?: boolean }) {
                             <div className="flex flex-wrap items-center gap-2">
                               <h2 className="text-xl font-black text-slate-950 sm:text-2xl">{order.recipient.name}</h2>
                               {order.gift && <span className="rounded-full bg-fuchsia-100 px-2.5 py-1 text-sm font-black uppercase tracking-wide text-fuchsia-800">Gift</span>}
+                              {order.archived && <span className="rounded-full bg-slate-200 px-2.5 py-1 text-sm font-black uppercase tracking-wide text-slate-700">Archived</span>}
                               {order.matchStatus !== 'matched' && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-sm font-black uppercase tracking-wide text-amber-900">{order.matchStatus === 'stripe_only' ? 'Stripe only' : 'Supabase only'}</span>}
                             </div>
                             <p className="mt-1 text-base font-bold uppercase tracking-wide text-slate-500">{kindLabel(order.kind)}</p>
@@ -461,7 +515,23 @@ export function AdminOrderCenter({ embedded = false }: { embedded?: boolean }) {
                                 </dl>
                               </section>
                             </div>
-                            <div className="mt-7 flex flex-wrap gap-3 border-t border-slate-200 pt-5"><button type="button" onClick={() => copyOrder(order)} className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-lg font-bold text-slate-700 shadow-sm hover:bg-slate-50">{copiedKey === `order:${order.id}` ? 'Copied!' : 'Copy order details'}</button>{order.stripeUrl && <a href={order.stripeUrl} target="_blank" rel="noreferrer" className="rounded-lg bg-[#635bff] px-4 py-2.5 text-lg font-bold text-white shadow-sm hover:bg-[#5149e5]">Open in Stripe ↗</a>}</div>
+                            {recordActionError?.orderId === order.id && <p className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-lg font-bold text-red-800">{recordActionError.message}</p>}
+                            {deleteConfirmId === order.id && (
+                              <div className="mt-6 rounded-2xl border-2 border-red-400 bg-red-50 p-5 text-red-950">
+                                <p className="text-xl font-black">Are you sure you want to permanently delete this Supabase entry?</p>
+                                <p className="mt-1 text-lg">This cannot be undone. Stripe records are checked again before deletion.</p>
+                                <div className="mt-4 flex flex-wrap gap-3">
+                                  <button type="button" disabled={recordActionId === order.id} onClick={() => deleteSupabaseEntry(order)} className="rounded-lg bg-red-700 px-4 py-2.5 text-lg font-black text-white hover:bg-red-800 disabled:opacity-50">{recordActionId === order.id ? 'Deleting…' : 'Yes, delete permanently'}</button>
+                                  <button type="button" disabled={recordActionId === order.id} onClick={() => setDeleteConfirmId(null)} className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-lg font-black text-slate-700 hover:bg-slate-50">Cancel</button>
+                                </div>
+                              </div>
+                            )}
+                            <div className="mt-7 flex flex-wrap gap-3 border-t border-slate-200 pt-5">
+                              <button type="button" onClick={() => copyOrder(order)} className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-lg font-bold text-slate-700 shadow-sm hover:bg-slate-50">{copiedKey === `order:${order.id}` ? 'Copied!' : 'Copy order details'}</button>
+                              {order.stripeUrl && <a href={order.stripeUrl} target="_blank" rel="noreferrer" className="rounded-lg bg-[#635bff] px-4 py-2.5 text-lg font-bold text-white shadow-sm hover:bg-[#5149e5]">Open in Stripe ↗</a>}
+                              <button type="button" disabled={recordActionId === order.id} onClick={() => updateArchive(order, !order.archived)} className="rounded-lg border border-slate-400 bg-white px-4 py-2.5 text-lg font-black text-slate-700 hover:bg-slate-100 disabled:opacity-50">{recordActionId === order.id ? 'Saving…' : order.archived ? 'Restore entry' : 'Archive entry'}</button>
+                              {order.matchStatus === 'supabase_only' && order.shipmentOrderId && <button type="button" disabled={recordActionId === order.id} onClick={() => { setRecordActionError(null); setDeleteConfirmId(order.id); }} className="rounded-lg px-4 py-2.5 text-lg font-black text-red-700 hover:bg-red-50 disabled:opacity-50">Delete from Supabase</button>}
+                            </div>
                           </div>
                         )}
                       </article>

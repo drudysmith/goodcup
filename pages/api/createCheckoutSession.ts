@@ -94,6 +94,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       allow_promotion_codes: true,
     };
 
+    // Copy the fulfillment identity onto the Subscription as well as the
+    // Checkout Session. Subscription webhooks can then link the exact order
+    // without depending on event delivery order or a session-list lookup.
+    if (sessionConfig.mode === 'subscription') {
+      sessionConfig.subscription_data = { metadata };
+    }
+
     // Debug log for server context
 //    try {
 //      console.log('[CreateCheckoutSession] Incoming', {

@@ -91,6 +91,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (!linkedOrder) {
           throw new Error(`Shipment order ${orderIdFromSession} is missing for completed Checkout Session ${session.id}`);
         }
+      } else if (session.payment_link) {
+        // Stripe Payment Links do not pass through Goodcup's shipping form.
+        // Keep the event successful and surface it as Stripe-only in the admin
+        // order center; there is no trustworthy recipient address to invent.
+        console.warn(`Stripe Payment Link Checkout Session ${session.id} has no Goodcup shipment order`);
       } else {
         throw new Error(`Completed Checkout Session ${session.id} is missing order_id metadata`);
       }
@@ -225,23 +230,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // Handle subscription creation - update shipment order with order_type
       if (eventType === 'customer.subscription.created' && subscriptionStatus === 'active') {
-//         console.log('🚀 WEBHOOK: Subscription created, updating shipment order type to subscription:', subscriptionId);
-        
-        // Match the Checkout Session to this exact subscription. Matching the
-        // customer's most recent session can attach a subscription to the wrong
-        // recipient when the same purchaser has placed more than one order.
-        const sessions = await stripe.checkout.sessions.list({
-          customer: stripeCustomerId,
-          limit: 10,
-        });
-        const exactSession = sessions.data.find((session) => {
-          const sessionSubscriptionId = typeof session.subscription === 'string'
-            ? session.subscription
-            : session.subscription?.id;
-          return sessionSubscriptionId === subscriptionId;
-        });
+        let orderId: string | undefined = subscription.metadata?.order_id;
 
-        const orderId = exactSession?.metadata?.order_id;
+        // Legacy subscriptions created before order_id was copied onto the
+        // Subscription can still be linked through their exact Checkout Session.
+        if (!orderId) {
+          const sessions = await stripe.checkout.sessions.list({ customer: stripeCustomerId, limit: 10 });
+          const exactSession = sessions.data.find((session) => {
+            const sessionSubscriptionId = typeof session.subscription === 'string'
+              ? session.subscription
+              : session.subscription?.id;
+            return sessionSubscriptionId === subscriptionId;
+          });
+          orderId = exactSession?.metadata?.order_id;
+        }
+
         if (orderId) {
           const { data: linkedOrder, error: updateError } = await supabaseServiceRole
             .from('shipment_orders')

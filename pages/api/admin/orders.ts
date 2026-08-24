@@ -178,17 +178,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-08-27.basil' });
     const supabase = getSupabaseServiceRole();
 
-    const [{ data: shipmentData, error: shipmentError }, subscriptions, sessions] = await Promise.all([
+    const [{ data: shipmentData, error: shipmentError }, { data: archiveData, error: archiveError }, subscriptions, sessions] = await Promise.all([
       supabase
         .from('shipment_orders')
         .select('order_id, order_type, intended_type, created_at, status, fulfilled_at, initial_order, recipient_name, email, phone_number, address_line1, address_line2, city, state, postal_code, country, gift, order_info, purchasing_visitor_id, sample_note')
         .order('created_at', { ascending: false }),
+      supabase.from('admin_order_archives').select('order_key, archived_at'),
       listAllSubscriptions(stripe),
       listAllCheckoutSessions(stripe),
     ]);
 
     if (shipmentError) throw shipmentError;
+    if (archiveError) throw archiveError;
     const shipments = (shipmentData || []) as ShipmentOrder[];
+    const archiveByOrderKey = new Map((archiveData || []).map((row) => [row.order_key, row.archived_at]));
 
     const visitorIds = [...new Set(shipments.map((order) => order.purchasing_visitor_id).filter(Boolean))] as string[];
     const visitors: Visitor[] = [];
@@ -251,7 +254,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }));
       const address = shipmentAddress(shipment) || customer.address;
       const warnings = [];
-      if (!shipment) warnings.push('Stripe subscription has no matching Supabase shipment order');
+      if (!shipment && checkoutSession?.payment_link) {
+        warnings.push('Created through a Stripe Payment Link, which bypassed Goodcup shipping checkout');
+      } else if (!shipment && checkoutSession) {
+        warnings.push('Legacy Goodcup checkout completed without a linked Supabase shipment order');
+      } else if (!shipment) {
+        warnings.push('Stripe subscription has no matching Supabase shipment order');
+      }
       if (!address?.line1 || !address.city || !address.state || !address.postalCode) warnings.push('Shipping address is incomplete');
       if (ATTENTION_STATUSES.has(subscription.status)) warnings.push(`Subscription is ${subscription.status.replaceAll('_', ' ')}`);
       if (shipment && shipment.status !== 'paid' && shipment.status !== 'fulfilled') warnings.push(`Payment is not confirmed in the shipment record (${shipment.status || 'pending'})`);
@@ -383,22 +392,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     });
 
+    rows.forEach((row) => {
+      row.archivedAt = archiveByOrderKey.get(row.id) || null;
+      row.archived = Boolean(row.archivedAt);
+    });
+
     rows.sort((a, b) => {
       if (a.active !== b.active) return a.active ? -1 : 1;
       return (b.createdAt || '').localeCompare(a.createdAt || '');
     });
 
+    const visibleRows = rows.filter((row) => !row.archived);
     const now = Date.now();
     const inThirtyDays = now + 30 * 24 * 60 * 60 * 1000;
     const stats = {
-      total: rows.length,
-      subscriptions: rows.filter((row) => row.kind === 'subscription').length,
-      activeSubscriptions: rows.filter((row) => row.kind === 'subscription' && row.active).length,
-      oneOffs: rows.filter((row) => row.kind === 'one_off').length,
-      dueNext30Days: rows.filter((row) => row.active && !row.cancelAtPeriodEnd && row.renewalAt && new Date(row.renewalAt).getTime() >= now && new Date(row.renewalAt).getTime() <= inThirtyDays).length,
-      attention: rows.filter((row) => row.warnings.length > 0).length,
-      unmatched: rows.filter((row) => row.matchStatus !== 'matched').length,
-      pendingShipments: rows.filter((row) => row.shipmentStatus === 'pending').length,
+      total: visibleRows.length,
+      subscriptions: visibleRows.filter((row) => row.kind === 'subscription').length,
+      activeSubscriptions: visibleRows.filter((row) => row.kind === 'subscription' && row.active).length,
+      oneOffs: visibleRows.filter((row) => row.kind === 'one_off').length,
+      dueNext30Days: visibleRows.filter((row) => row.active && !row.cancelAtPeriodEnd && row.renewalAt && new Date(row.renewalAt).getTime() >= now && new Date(row.renewalAt).getTime() <= inThirtyDays).length,
+      attention: visibleRows.filter((row) => row.warnings.length > 0).length,
+      unmatched: visibleRows.filter((row) => row.matchStatus !== 'matched').length,
+      pendingShipments: visibleRows.filter((row) => row.shipmentStatus === 'pending').length,
+      archived: rows.length - visibleRows.length,
     };
 
     res.setHeader('Cache-Control', 'private, no-store, max-age=0');
