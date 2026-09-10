@@ -9,6 +9,11 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/macrostack",
+        destination: "https://goodcup.me",
+        permanent: true,
+      },
+      {
         source: "/adminDashboard",
         destination: "/admin",
         permanent: true,

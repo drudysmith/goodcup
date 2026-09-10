@@ -12,6 +12,7 @@ interface AdminContextType {
   adminSession: AdminSession | null;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  logoutTo: (destination: string) => void;
   isLoading: boolean;
 }
 
@@ -79,15 +80,17 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const logoutTo = (destination: string) => {
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminSession');
     setAdminSession(null);
-    router.push('/admin');
+    router.push(destination);
   };
 
+  const logout = () => logoutTo('/admin');
+
   return (
-    <AdminContext.Provider value={{ adminSession, login, logout, isLoading }}>
+    <AdminContext.Provider value={{ adminSession, login, logout, logoutTo, isLoading }}>
       {children}
     </AdminContext.Provider>
   );

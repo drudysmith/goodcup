@@ -215,6 +215,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
+    // Kiosk orders are registered before card collection, then become visible
+    // to the KDS only after Stripe confirms the card-present PaymentIntent.
+    if (
+      eventType === 'payment_intent.succeeded' ||
+      eventType === 'payment_intent.payment_failed' ||
+      eventType === 'payment_intent.canceled'
+    ) {
+      const paymentIntent = event.data.object as Stripe.PaymentIntent;
+      const kdsOrderId = paymentIntent.metadata?.kds_order_id;
+
+      if (paymentIntent.metadata?.kiosk === 'true' && kdsOrderId) {
+        const paymentStatus = eventType === 'payment_intent.succeeded'
+          ? 'paid'
+          : eventType === 'payment_intent.canceled'
+            ? 'canceled'
+            : 'payment_failed';
+        const update: Record<string, string> = { payment_status: paymentStatus };
+        if (paymentStatus === 'paid') update.paid_at = new Date(event.created * 1000).toISOString();
+
+        const { data: linkedOrder, error: updateError } = await supabaseServiceRole
+          .from('kds_orders')
+          .update(update)
+          .eq('id', kdsOrderId)
+          .eq('stripe_payment_intent_id', paymentIntent.id)
+          .select('id')
+          .maybeSingle();
+
+        if (updateError) throw updateError;
+        if (!linkedOrder && paymentStatus === 'paid') {
+          throw new Error(`KDS order ${kdsOrderId} is missing for successful PaymentIntent ${paymentIntent.id}`);
+        }
+      }
+    }
+
     // Handle subscription events
     if (eventType.includes('subscription')) {
       const subscription = event.data.object as Stripe.Subscription;
