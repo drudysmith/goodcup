@@ -28,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // Fetch all active products from Stripe
-    const products = await stripe.products.list({ active: true });
+    const products = await stripe.products.list({ active: true, limit: 100 });
 
     // Filter for Mandust products (products with 'mandust' in the name)
     const mandustProducts: MandustProduct[] = [];
