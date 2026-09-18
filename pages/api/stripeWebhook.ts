@@ -59,10 +59,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'Missing session data' });
       }
 
-      const stripeCustomerId = session.customer as string;
-      if (!stripeCustomerId) {
-        return res.status(400).json({ error: 'Missing customer ID' });
-      }
+      // Stripe Customers are optional for one-time Checkout Sessions. New
+      // Goodcup sessions request customer creation, but older/in-flight guest
+      // sessions must still be fulfilled using their order_id and PaymentIntent.
+      const stripeCustomerId = typeof session.customer === 'string'
+        ? session.customer
+        : session.customer?.id || null;
 
       const supabaseUserId = session.metadata?.supabase_user_id;
       const visitorId = session.metadata?.visitor_id;
@@ -193,9 +195,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (supabaseUserId) {
         // Update authenticated user's stripe_cust_id and clear cart
 //         console.log('[visitor id] updated IN db for user', supabaseUserId);
+        const visitorUpdate = stripeCustomerId
+          ? { stripe_cust_id: stripeCustomerId, cart: [] }
+          : { cart: [] };
         const { error: updateResult } = await supabaseServiceRole
           .from('visitors')
-          .update({ stripe_cust_id: stripeCustomerId, cart: [] })
+          .update(visitorUpdate)
           .eq('user_id', supabaseUserId);
 
         if (updateResult) {
@@ -204,9 +209,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } else if (visitorId) {
         // Update visitor's stripe_cust_id and clear cart
 //         console.log('[visitor id] updated IN db', visitorId.substring(0, 4) + '...');
+        const visitorUpdate = stripeCustomerId
+          ? { stripe_cust_id: stripeCustomerId, cart: [] }
+          : { cart: [] };
         const { error: updateResult } = await supabaseServiceRole
           .from('visitors')
-          .update({ stripe_cust_id: stripeCustomerId, cart: [] })
+          .update(visitorUpdate)
           .eq('id', visitorId);
 
         if (updateResult) {

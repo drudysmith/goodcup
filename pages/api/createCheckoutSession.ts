@@ -94,6 +94,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       allow_promotion_codes: true,
     };
 
+    // A one-time guest payment does not create a Stripe Customer by default.
+    // Goodcup benefits from a durable customer record for support and order
+    // history, so create one whenever this checkout did not reuse an existing
+    // Stripe Customer. Subscriptions already create a Customer automatically.
+    if (sessionConfig.mode === 'payment' && !stripeCustomerId) {
+      sessionConfig.customer_creation = 'always';
+    }
+
     // Copy the fulfillment identity onto the Subscription as well as the
     // Checkout Session. Subscription webhooks can then link the exact order
     // without depending on event delivery order or a session-list lookup.
