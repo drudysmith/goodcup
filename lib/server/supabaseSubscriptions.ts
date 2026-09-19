@@ -5,7 +5,7 @@ function toIso(timestamp?: number | null) {
   return timestamp ? new Date(timestamp * 1000).toISOString() : null;
 }
 
-function objectId(value: string | { id: string } | null | undefined) {
+function objectId(value: string | { id?: string } | null | undefined) {
   return typeof value === 'string' ? value : value?.id || null;
 }
 

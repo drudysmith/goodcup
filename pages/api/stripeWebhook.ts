@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { supabaseServiceRole } from '../../lib/supabaseClient';
 import { kdsSnapshotFromPaymentIntent } from '../../lib/kdsStripe';
 import { createScripManageToken } from '../../lib/server/scripLinks';
+import { persistScripShipmentOrder } from '../../lib/server/scripShipmentOrder';
 import { persistStripeSubscription } from '../../lib/server/supabaseSubscriptions';
 import { sendGoodcupText } from '../../lib/server/twilio';
 
@@ -52,8 +53,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const eventType = event.type;
 //    console.log('🚀 WEBHOOK: Received event', eventType);
 
-    // Handle checkout.session.completed events
-    if (eventType === 'checkout.session.completed') {
+    // Handle immediate and delayed successful Checkout payments.
+    if (eventType === 'checkout.session.completed' || eventType === 'checkout.session.async_payment_succeeded') {
       const session = event.data.object as Stripe.Checkout.Session;
       
       if (!session) {
@@ -69,7 +70,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const supabaseUserId = session.metadata?.supabase_user_id;
       const visitorId = session.metadata?.visitor_id;
-      const orderIdFromSession = session.metadata?.order_id as string | undefined;
+      let orderIdFromSession = session.metadata?.order_id as string | undefined;
+      let orderInfoAlreadySaved = false;
 
       // Link the exact paid Stripe object to the exact fulfillment row carried
       // in Checkout metadata. If the row is unexpectedly missing, return an
@@ -95,9 +97,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           throw new Error(`Shipment order ${orderIdFromSession} is missing for completed Checkout Session ${session.id}`);
         }
       } else if (session.metadata?.scrip_campaign === 'true') {
-        // The market subscription funnel is fulfilled by Stripe and uses its
-        // verified success screen as the free-pouch proof. It intentionally
-        // does not create a standard shipment_orders row.
+        // Delayed payment methods can complete Checkout before the payment
+        // succeeds. Acknowledge that event and let async_payment_succeeded
+        // create the paid fulfillment row later.
+        if (['paid', 'no_payment_required'].includes(session.payment_status)) {
+          orderIdFromSession = await persistScripShipmentOrder(
+            stripe,
+            session,
+            new Date(event.created * 1000).toISOString(),
+          );
+          orderInfoAlreadySaved = true;
+        }
       } else if (session.payment_link) {
         // Stripe Payment Links do not pass through Goodcup's shipping form.
         // Keep the event successful and surface it as Stripe-only in the admin
@@ -108,7 +118,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Update shipment_orders.order_info with the FINAL paid line items from the Checkout Session
-      if (orderIdFromSession) {
+      if (orderIdFromSession && !orderInfoAlreadySaved) {
         try {
 //          console.log('🚀 WEBHOOK: checkout.session.completed – fetching line items to record order_info', { sessionId: session.id, orderId: orderIdFromSession });
           const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
