@@ -1,7 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
 import { supabaseServiceRole } from '../../lib/supabaseClient';
-import { QueryClient } from '@tanstack/react-query';
+import { kdsSnapshotFromPaymentIntent } from '../../lib/kdsStripe';
+import { createScripManageToken } from '../../lib/server/scripLinks';
+import { sendGoodcupText } from '../../lib/server/twilio';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: '2025-08-27.basil',
@@ -30,22 +32,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const sig = req.headers['stripe-signature'];
-  let event;
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  let event: Stripe.Event;
 
   try {
     // Get raw body for signature verification
     const rawBody = await getRawBody(req);
     
-    // Verify webhook signature if secret is available
-    if (process.env.STRIPE_WEBHOOK_SECRET) {
-      try {
-        event = stripe.webhooks.constructEvent(rawBody, sig as string, process.env.STRIPE_WEBHOOK_SECRET);
-      } catch (err: any) {
-        return res.status(400).json({ error: `Webhook signature verification failed: ${err.message}` });
-      }
-    } else {
-      // Parse JSON manually if no signature verification
-      event = JSON.parse(rawBody.toString());
+    if (!webhookSecret || typeof sig !== 'string') {
+      return res.status(503).json({ error: 'Stripe webhook verification is not configured' });
+    }
+    try {
+      event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
+    } catch (err: any) {
+      return res.status(400).json({ error: `Webhook signature verification failed: ${err.message}` });
     }
 
     const eventType = event.type;
@@ -93,6 +93,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (!linkedOrder) {
           throw new Error(`Shipment order ${orderIdFromSession} is missing for completed Checkout Session ${session.id}`);
         }
+      } else if (session.metadata?.scrip_campaign === 'true') {
+        // The market subscription funnel is fulfilled by Stripe and uses its
+        // verified success screen as the free-pouch proof. It intentionally
+        // does not create a standard shipment_orders row.
       } else if (session.payment_link) {
         // Stripe Payment Links do not pass through Goodcup's shipping form.
         // Keep the event successful and surface it as Stripe-only in the admin
@@ -223,36 +227,75 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    // Kiosk orders are registered before card collection, then become visible
-    // to the KDS only after Stripe confirms the card-present PaymentIntent.
-    if (
-      eventType === 'payment_intent.succeeded' ||
-      eventType === 'payment_intent.payment_failed' ||
-      eventType === 'payment_intent.canceled'
-    ) {
+    // The kiosk backend places its validated cart snapshot on the PaymentIntent.
+    // Stripe's verified success event is the trusted handoff into the KDS.
+    if (eventType === 'payment_intent.succeeded') {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      const kdsOrderId = paymentIntent.metadata?.kds_order_id;
+      const snapshot = kdsSnapshotFromPaymentIntent(
+        paymentIntent,
+        new Date(event.created * 1000).toISOString(),
+      );
 
-      if (paymentIntent.metadata?.kiosk === 'true' && kdsOrderId) {
-        const paymentStatus = eventType === 'payment_intent.succeeded'
-          ? 'paid'
-          : eventType === 'payment_intent.canceled'
-            ? 'canceled'
-            : 'payment_failed';
-        const update: Record<string, string> = { payment_status: paymentStatus };
-        if (paymentStatus === 'paid') update.paid_at = new Date(event.created * 1000).toISOString();
-
+      if (snapshot) {
+        // Fulfillment status is intentionally omitted. The database default
+        // initializes new orders while webhook retries preserve employee work.
         const { data: linkedOrder, error: updateError } = await supabaseServiceRole
           .from('kds_orders')
-          .update(update)
-          .eq('id', kdsOrderId)
-          .eq('stripe_payment_intent_id', paymentIntent.id)
+          .upsert(snapshot, { onConflict: 'id' })
           .select('id')
           .maybeSingle();
 
         if (updateError) throw updateError;
-        if (!linkedOrder && paymentStatus === 'paid') {
-          throw new Error(`KDS order ${kdsOrderId} is missing for successful PaymentIntent ${paymentIntent.id}`);
+        if (!linkedOrder) {
+          throw new Error(`Unable to persist KDS order for successful PaymentIntent ${paymentIntent.id}`);
+        }
+      }
+    }
+
+    // Stripe emits invoice.upcoming according to the lead time configured in
+    // Billing settings. Goodcup configures that lead time to seven days. Only
+    // subscriptions created by /scrip and carrying explicit SMS consent enter
+    // this transactional reminder flow.
+    if (eventType === 'invoice.upcoming') {
+      const invoice = event.data.object as Stripe.Invoice;
+      const invoiceData = invoice as any;
+      const subscriptionId = typeof invoiceData.subscription === 'string'
+        ? invoiceData.subscription
+        : typeof invoiceData.parent?.subscription_details?.subscription === 'string'
+          ? invoiceData.parent.subscription_details.subscription
+          : typeof invoiceData.lines?.data?.[0]?.parent?.subscription_item_details?.subscription === 'string'
+            ? invoiceData.lines.data[0].parent.subscription_item_details.subscription
+            : null;
+
+      if (subscriptionId) {
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        if (
+          subscription.metadata.scrip_campaign === 'true' &&
+          subscription.metadata.sms_renewal_consent === 'true' &&
+          subscription.metadata.scrip_last_reminder_event !== event.id
+        ) {
+          const customerId = typeof subscription.customer === 'string'
+            ? subscription.customer
+            : subscription.customer.id;
+          const customer = await stripe.customers.retrieve(customerId);
+          if (!customer.deleted && customer.phone) {
+            const renewalAt = Number(invoiceData.period_end || invoiceData.lines?.data?.[0]?.period?.end || 0);
+            const expiresAt = Math.max(Math.floor(Date.now() / 1000) + (14 * 24 * 60 * 60), renewalAt + (2 * 24 * 60 * 60));
+            const token = createScripManageToken({ customerId, subscriptionId, expiresAt });
+            const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://goodcup.me').replace(/\/$/, '');
+            const manageUrl = `${siteUrl}/api/scrip/manage?token=${encodeURIComponent(token)}`;
+            const productName = subscription.metadata.scrip_product_name || 'Goodcup';
+            await sendGoodcupText(
+              customer.phone,
+              `Goodcup heads-up: your ${productName} subscription renews in 7 days. Keep it? No action needed. Want to cancel? No sweat: ${manageUrl} Reply STOP to opt out.`,
+            );
+            await stripe.subscriptions.update(subscriptionId, {
+              metadata: {
+                scrip_last_reminder_event: event.id,
+                scrip_last_reminder_period_end: renewalAt ? String(renewalAt) : 'unknown',
+              },
+            });
+          }
         }
       }
     }
