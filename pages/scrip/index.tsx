@@ -18,7 +18,7 @@ type FormState = {
 };
 
 const INITIAL_FORM: FormState = {
-  name: '', phone: '', email: '', line1: '', line2: '', city: '', state: '', postalCode: '', smsConsent: false, marketingConsent: false,
+  name: '', phone: '', email: '', line1: '', line2: '', city: '', state: '', postalCode: '', smsConsent: true, marketingConsent: true,
 };
 
 function formatPrice(product: ScripCatalogItem, catalogReady = true) {
@@ -167,9 +167,11 @@ export default function ScripPage() {
       <main className={styles.page}>
         <div className={styles.cacaoCloud} aria-hidden="true" />
         <header className={styles.brandBar}>
-          <div className={styles.logoMark} aria-hidden="true"><span>G</span></div>
+          <div className={styles.logoMark} aria-hidden="true">
+            <img src="/media/animated_logo/goodcup-contact-logo.png" alt="" />
+          </div>
           <div>
-            <div className={styles.wordmark}>Goodcup</div>
+            <img className={styles.wordmarkImage} src="/media/animated_logo/gc-name-qs.svg" alt="Goodcup" />
             <div className={styles.tagline}>SMART · DELICIOUS · DIFFERENT</div>
           </div>
         </header>

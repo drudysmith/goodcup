@@ -1,6 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import type Stripe from 'stripe';
+import { getScripOfferExpiration } from '../../../lib/server/scripMarketOffer';
+import { getScripShipmentOrderId } from '../../../lib/server/scripShipmentOrder';
 import { getScripStripe } from '../../../lib/server/scripStripe';
+import { supabaseServiceRole } from '../../../lib/supabaseClient';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -36,14 +39,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ? subscription.latest_invoice as Stripe.Invoice
       : null;
     const paid = session.status === 'complete' && ['paid', 'no_payment_required'].includes(session.payment_status);
+    const { data: shipmentOrder, error: shipmentOrderError } = await supabaseServiceRole
+      .from('shipment_orders')
+      .select('created_at, market_special, special_redeemed')
+      .eq('order_id', getScripShipmentOrderId(session.id))
+      .maybeSingle();
+    if (shipmentOrderError) throw shipmentOrderError;
+
+    const completedAt = shipmentOrder?.created_at || new Date(session.created * 1000).toISOString();
+    const confirmation = shipmentOrder?.market_special
+      || session.metadata.scrip_confirmation
+      || session.id.slice(-8).toUpperCase();
 
     res.setHeader('Cache-Control', 'private, no-store');
     return res.status(200).json({
       paid,
       customerName: customer?.name || session.customer_details?.name || 'Goodcup customer',
       productName: product?.name || session.metadata.scrip_product_name || lineItem?.description || 'Goodcup subscription',
-      confirmation: session.metadata.scrip_confirmation || session.id.slice(-8).toUpperCase(),
-      completedAt: new Date(session.created * 1000).toISOString(),
+      confirmation,
+      completedAt,
+      expiresAt: getScripOfferExpiration(completedAt),
+      specialRedeemed: shipmentOrder?.special_redeemed === true,
+      redemptionReady: !!shipmentOrder,
       receiptUrl: invoice?.hosted_invoice_url || null,
     });
   } catch (error) {

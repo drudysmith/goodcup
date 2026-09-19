@@ -6,6 +6,10 @@ function stripeObjectId(value: string | { id?: string } | null | undefined) {
   return typeof value === 'string' ? value : value?.id || null;
 }
 
+export function getScripShipmentOrderId(sessionId: string) {
+  return uuidv5(`https://goodcup.me/scrip/checkout/${sessionId}`, uuidv5.URL);
+}
+
 export async function persistScripShipmentOrder(
   stripe: Stripe,
   session: Stripe.Checkout.Session,
@@ -65,7 +69,7 @@ export async function persistScripShipmentOrder(
     throw new Error(`Scrip Checkout Session ${session.id} has no line items`);
   }
 
-  const orderId = uuidv5(`https://goodcup.me/scrip/checkout/${session.id}`, uuidv5.URL);
+  const orderId = getScripShipmentOrderId(session.id);
   const { data, error } = await supabaseServiceRole
     .from('shipment_orders')
     .upsert({
@@ -90,6 +94,7 @@ export async function persistScripShipmentOrder(
       sample_note: null,
       order_type: subscriptionId,
       intended_type: 'subscription',
+      market_special: session.metadata?.scrip_confirmation || null,
     }, { onConflict: 'order_id' })
     .select('order_id')
     .single();

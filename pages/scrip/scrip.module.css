@@ -3,9 +3,9 @@
 .page { padding-bottom:max(32px,env(safe-area-inset-bottom)); }
 .cacaoCloud { position:absolute; width:190px; height:190px; top:-105px; left:-80px; border-radius:50%; background:radial-gradient(circle at 70% 65%,#8c421f 0 7%,transparent 8%),radial-gradient(circle at 55% 72%,#b66a3f 0 5%,transparent 6%),radial-gradient(circle,#633018 0 38%,#7b3517 39% 55%,transparent 56%); opacity:.92; transform:rotate(-18deg); }
 .brandBar { width:min(100%,620px); margin:0 auto; padding:22px 22px 12px; display:flex; justify-content:center; align-items:center; gap:10px; position:relative; z-index:2; }
-.logoMark { width:48px; height:48px; border-radius:50%; background:var(--aqua); color:white; display:grid; place-items:center; box-shadow:inset 0 0 0 3px rgba(255,255,255,.38); flex:none; }
-.logoMark span { font-size:25px; line-height:1; font-weight:900!important; letter-spacing:-.12em; transform:rotate(-12deg); }
-.wordmark { font-size:34px; line-height:1; letter-spacing:-.06em; font-weight:900!important; color:#31070a; }
+.logoMark { width:52px; height:52px; flex:none; }
+.logoMark img { display:block; width:100%; height:100%; object-fit:contain; }
+.wordmarkImage { display:block; width:181px; max-width:54vw; height:auto; }
 .tagline { margin-top:5px; font-size:9px; font-weight:700!important; letter-spacing:.22em; color:#31070a; }
 .hero,.section,.controlSection { width:min(calc(100% - 28px),560px); margin:0 auto; position:relative; }
 .hero { padding:20px 15px 10px; text-align:center; }
@@ -85,6 +85,8 @@
 .proofStatus { padding:12px; border:2px dashed var(--green); border-radius:14px; text-align:center; color:var(--green); display:flex; flex-direction:column; gap:2px; }
 .proofStatus span { font-size:10px; letter-spacing:.16em; font-weight:900!important; }
 .proofStatus strong { font-size:20px; font-weight:900!important; }
+.redeemedStatus { border-color:var(--teal); background:#e7f7f5; color:var(--teal); }
+.expiredStatus { border-color:#9b3525; background:#fff0ec; color:#9b3525; }
 .proofCard dl { margin:13px 0 0; }
 .proofCard dl>div { display:flex; justify-content:space-between; gap:15px; padding:10px 2px; border-bottom:1px solid #e6d8ca; }
 .proofCard dl>div:last-child { border-bottom:0; }
@@ -92,6 +94,19 @@
 .proofCard dd { margin:0; text-align:right; color:var(--brown); font-size:13px; font-weight:900!important; }
 .proofCard .confirmed { color:var(--green); }
 .confirmationCode { letter-spacing:.09em; }
+.redemptionCard { width:min(100%,500px); margin:16px auto 0; padding:17px; border-radius:20px; background:white; color:var(--brown); text-align:center; box-shadow:0 8px 24px rgba(0,0,0,.2); }
+.expirationLabel { margin:0; color:var(--teal); font-size:11px; letter-spacing:.11em; font-weight:900!important; }
+.countdown { margin:7px 0 2px; color:var(--brown); font-variant-numeric:tabular-nums; font-size:clamp(37px,12vw,56px); line-height:1; letter-spacing:.03em; font-weight:900!important; }
+.expirationTime { margin:0 0 15px; color:#816355; font-size:12px; font-weight:700!important; }
+.redeemForm { padding-top:14px; border-top:1px solid #e6d8ca; }
+.redeemForm label { display:block; margin-bottom:7px; color:var(--teal); font-size:13px; font-weight:900!important; }
+.redeemForm>div { display:grid; grid-template-columns:86px 1fr; gap:8px; }
+.redeemForm input { min-width:0; width:100%; height:50px; border:2px solid #d8c8ba; border-radius:13px; background:#fffcf6; color:var(--brown); text-align:center; font-size:22px; letter-spacing:.17em; font-weight:900!important; outline:none; }
+.redeemForm input:focus { border-color:var(--aqua); box-shadow:0 0 0 3px rgba(32,182,196,.17); }
+.redeemForm button { min-height:50px; padding:10px 12px; border:0; border-radius:13px; background:var(--yellow); color:#31070a; font-size:13px; font-weight:900!important; cursor:pointer; }
+.redeemForm button:disabled { opacity:.48; cursor:not-allowed; }
+.redemptionError { margin:11px 0 0; color:#9b3525; font-size:13px; line-height:1.35; font-weight:800!important; }
+.finalOfferState { margin:0; color:var(--teal); font-size:17px; line-height:1.4; font-weight:900!important; }
 .aftercare { margin-top:20px; padding:18px; border-radius:20px; background:rgba(255,255,255,.1); text-align:center; }
 .aftercare h2 { margin:0 0 7px; color:var(--yellow); font-size:21px; font-weight:900!important; }
 .aftercare p { margin:0; font-size:13px; line-height:1.5; }
