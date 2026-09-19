@@ -7,6 +7,7 @@ export type ScripProductDefinition = {
 };
 
 export type ScripCatalogItem = ScripProductDefinition & {
+  ingredients: string[];
   amount: number | null;
   currency: string | null;
   interval: string | null;

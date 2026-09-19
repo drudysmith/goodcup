@@ -14,10 +14,11 @@ type FormState = {
   state: string;
   postalCode: string;
   smsConsent: boolean;
+  marketingConsent: boolean;
 };
 
 const INITIAL_FORM: FormState = {
-  name: '', phone: '', email: '', line1: '', line2: '', city: '', state: '', postalCode: '', smsConsent: false,
+  name: '', phone: '', email: '', line1: '', line2: '', city: '', state: '', postalCode: '', smsConsent: false, marketingConsent: false,
 };
 
 function formatPrice(product: ScripCatalogItem, catalogReady = true) {
@@ -44,6 +45,7 @@ export default function ScripPage() {
     currency: null,
     interval: null,
     intervalCount: null,
+    ingredients: [],
     image: product.fallbackImage,
     available: false,
   })));
@@ -52,6 +54,7 @@ export default function ScripPage() {
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [ingredientProduct, setIngredientProduct] = useState<ScripCatalogItem | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -83,6 +86,20 @@ export default function ScripPage() {
       setError('Checkout was canceled—nothing was charged. Your information is still here when you are ready.');
     }
   }, [router.query.checkout]);
+
+  useEffect(() => {
+    if (!ingredientProduct) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIngredientProduct(null);
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [ingredientProduct]);
 
   const selectedProduct = useMemo(
     () => catalog.find((product) => product.productId === selectedId) || null,
@@ -118,6 +135,7 @@ export default function ScripPage() {
           phone: form.phone,
           email: form.email,
           smsConsent: form.smsConsent,
+          marketingConsent: form.marketingConsent,
           address: {
             line1: form.line1,
             line2: form.line2,
@@ -174,22 +192,33 @@ export default function ScripPage() {
             {catalog.map((product) => {
               const selected = product.productId === selectedId;
               return (
-                <button
-                  type="button"
+                <div
                   key={product.productId}
-                  className={`${styles.productCard} ${selected ? styles.selectedCard : ''}`}
-                  onClick={() => chooseProduct(product)}
-                  disabled={catalogReady && !product.available}
-                  aria-pressed={selected}
+                  className={`${styles.productCard} ${selected ? styles.selectedCard : ''} ${catalogReady && !product.available ? styles.unavailableCard : ''}`}
                 >
+                  <button
+                    type="button"
+                    className={styles.productSelect}
+                    onClick={() => chooseProduct(product)}
+                    disabled={catalogReady && !product.available}
+                    aria-pressed={selected}
+                    aria-label={`Choose ${product.name}: ${formatPrice(product, catalogReady)}`}
+                  />
                   <img src={product.image} alt="" className={styles.productImage} />
                   <span className={styles.productBody}>
                     <span className={styles.productName}>{product.name}</span>
-                    <span className={styles.productDescription}>{product.description}</span>
+                    <span className={styles.productDescription}>
+                      {product.description}{' '}
+                      {product.ingredients.length > 0 && (
+                        <button type="button" className={styles.ingredientsLink} onClick={() => setIngredientProduct(product)}>
+                          Ingredients
+                        </button>
+                      )}
+                    </span>
                     <span className={styles.productPrice}>{formatPrice(product, catalogReady)}</span>
                   </span>
                   <span className={styles.radio} aria-hidden="true">{selected ? '✓' : ''}</span>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -243,6 +272,11 @@ export default function ScripPage() {
               <span>I agree to transactional Goodcup texts about this subscription, including a reminder 7 days before renewal and a cancellation link. Msg &amp; data rates may apply. Reply STOP to opt out. <a href="/policy" target="_blank" rel="noreferrer">SMS terms</a>.</span>
             </label>
 
+            <label className={styles.consent}>
+              <input type="checkbox" checked={form.marketingConsent} onChange={(event) => update('marketingConsent', event.target.checked)} />
+              <span>Please share Goodcup coupons and occasional updates with me by text and email. This is optional and is not required to subscribe. Msg &amp; data rates may apply. Reply STOP to opt out of texts.</span>
+            </label>
+
             {error && <div className={styles.error} role="alert">{error}</div>}
 
             <div className={styles.checkoutSummary}>
@@ -262,6 +296,25 @@ export default function ScripPage() {
           <div><strong>You stay in control.</strong><br />Keep it going and do nothing. Want to stop? Tap the cancellation link in your reminder text.</div>
         </section>
         <footer>SIMPLE. GOOD. DAILY. <span>GOODCUP.ME</span></footer>
+
+        {ingredientProduct && (
+          <div className={styles.dialogBackdrop} onClick={() => setIngredientProduct(null)}>
+            <section
+              className={styles.ingredientsDialog}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="ingredients-heading"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button type="button" className={styles.dialogClose} onClick={() => setIngredientProduct(null)} aria-label="Close ingredients" autoFocus>×</button>
+              <p>WHAT’S INSIDE</p>
+              <h2 id="ingredients-heading">{ingredientProduct.name}</h2>
+              <ul>
+                {ingredientProduct.ingredients.map((ingredient) => <li key={ingredient}>{ingredient}</li>)}
+              </ul>
+            </section>
+          </div>
+        )}
       </main>
     </>
   );

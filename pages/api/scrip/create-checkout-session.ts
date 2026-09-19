@@ -17,6 +17,7 @@ type CheckoutBody = {
     country?: string;
   };
   smsConsent?: boolean;
+  marketingConsent?: boolean;
 };
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -87,16 +88,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     };
 
     const existingCustomers = await stripe.customers.list({ email, limit: 1 });
+    const existingCustomer = existingCustomers.data[0];
+    const marketingOptInSubmitted = body.marketingConsent === true;
+    const retainedMarketingConsent = existingCustomer?.metadata.goodcup_marketing_consent === 'true';
+    const marketingConsent = marketingOptInSubmitted || retainedMarketingConsent;
+    const consentRecordedAt = marketingOptInSubmitted
+      ? new Date().toISOString()
+      : existingCustomer?.metadata.goodcup_marketing_consent_recorded_at;
+    const consentMetadata: Record<string, string> = {
+      goodcup_marketing_consent: marketingConsent ? 'true' : 'false',
+      goodcup_marketing_channels: 'sms,email',
+      goodcup_marketing_consent_source: 'scrip_checkout',
+      goodcup_marketing_consent_version: 'scrip-v1-2026-09-18',
+    };
+    if (consentRecordedAt) {
+      consentMetadata.goodcup_marketing_consent_recorded_at = consentRecordedAt;
+    }
     const customerPayload = {
       name,
       email,
       phone,
       address,
       shipping: { name, phone, address },
-      metadata: { scrip_customer: 'true', sms_renewal_consent: 'true' },
+      metadata: {
+        scrip_customer: 'true',
+        sms_renewal_consent: 'true',
+        sms_renewal_consent_version: 'scrip-v1-2026-09-18',
+        ...consentMetadata,
+      },
     };
-    const customer = existingCustomers.data[0]
-      ? await stripe.customers.update(existingCustomers.data[0].id, customerPayload as Stripe.CustomerUpdateParams)
+    const customer = existingCustomer
+      ? await stripe.customers.update(existingCustomer.id, customerPayload as Stripe.CustomerUpdateParams)
       : await stripe.customers.create(customerPayload as Stripe.CustomerCreateParams);
 
     const metadata = {
@@ -105,6 +127,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       scrip_product_id: selectedProduct.productId,
       scrip_product_name: selectedProduct.name,
       sms_renewal_consent: 'true',
+      sms_renewal_consent_version: 'scrip-v1-2026-09-18',
+      marketing_opt_in_submitted: marketingOptInSubmitted ? 'true' : 'false',
+      ...consentMetadata,
     };
 
     const session = await stripe.checkout.sessions.create({

@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { supabaseServiceRole } from '../../lib/supabaseClient';
 import { kdsSnapshotFromPaymentIntent } from '../../lib/kdsStripe';
 import { createScripManageToken } from '../../lib/server/scripLinks';
+import { persistStripeSubscription } from '../../lib/server/supabaseSubscriptions';
 import { sendGoodcupText } from '../../lib/server/twilio';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
@@ -300,18 +301,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    // Handle subscription events
-    if (eventType.includes('subscription')) {
+    // Mirror Stripe's subscription lifecycle into Supabase. Upserting on the
+    // Stripe subscription ID makes webhook retries idempotent.
+    if (eventType.startsWith('customer.subscription.')) {
       const subscription = event.data.object as Stripe.Subscription;
       
       if (!subscription || !subscription.customer) {
         return res.status(400).json({ error: 'Missing subscription or customer ID' });
       }
 
-      const stripeCustomerId = subscription.customer as string;
+      const stripeCustomerId = typeof subscription.customer === 'string'
+        ? subscription.customer
+        : subscription.customer.id;
       const subscriptionStatus = subscription.status;
       const subscriptionId = subscription.id;
 //      console.log('🚀 WEBHOOK: Subscription event details', { eventType, subscriptionId, subscriptionStatus, stripeCustomerId });
+
+      await persistStripeSubscription(stripe, subscription, event);
 
       // Handle subscription creation - update shipment order with order_type
       if (eventType === 'customer.subscription.created' && subscriptionStatus === 'active') {

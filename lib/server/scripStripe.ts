@@ -57,7 +57,11 @@ async function resolveOne(productDefinition: (typeof SCRIP_PRODUCTS)[number]): P
   return {
     ...productDefinition,
     name: product.name || productDefinition.name,
-    description: product.description || productDefinition.description,
+    description: product.metadata['short-copy']?.trim() || productDefinition.description,
+    ingredients: (product.metadata.ingredients || '')
+      .split(',')
+      .map((ingredient) => ingredient.trim())
+      .filter(Boolean),
     image: product.images[0] || productDefinition.fallbackImage,
     amount: price.unit_amount,
     currency: price.currency,
@@ -87,6 +91,7 @@ export async function resolveScripCatalog(): Promise<ScripCatalogItem[]> {
         currency: null,
         interval: null,
         intervalCount: null,
+        ingredients: [],
         image: definition.fallbackImage,
         available: false,
       };
